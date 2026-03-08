@@ -42,9 +42,16 @@ struct RecipeEditorView: View {
             // Ingredients
             Section {
                 if recipe.ingredients.isEmpty {
-                    Text("No ingredients yet")
-                        .foregroundStyle(.secondary)
-                        .italic()
+                    VStack(spacing: 8) {
+                        Image(systemName: "carrot")
+                            .font(.title2)
+                            .foregroundStyle(.tertiary)
+                        Text("No ingredients yet")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
                 } else {
                     ForEach(recipe.ingredients) { ingredient in
                         IngredientRow(ingredient: ingredient)
@@ -56,14 +63,21 @@ struct RecipeEditorView: View {
                     showAddIngredient = true
                 } label: {
                     Label("Add Ingredient", systemImage: "plus")
-                        .foregroundStyle(Color.royalBlue)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(Color.accent, in: Capsule())
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                .listRowBackground(Color.clear)
             } header: {
                 HStack {
                     Text("Ingredients")
                     Spacer()
                     Text("Total: \(Int(recipe.totalCalories)) cal")
                         .font(.caption)
+                        .foregroundStyle(Color.highlight)
                 }
             }
         }
@@ -74,6 +88,7 @@ struct RecipeEditorView: View {
                 let ingredient = RecipeIngredient(food: food, quantity: quantity)
                 ingredient.recipe = recipe
                 recipe.ingredients.append(ingredient)
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             }
         }
     }
@@ -84,6 +99,7 @@ struct RecipeEditorView: View {
             recipe.ingredients.remove(at: index)
             modelContext.delete(ingredient)
         }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }
 
@@ -94,8 +110,8 @@ private struct IngredientRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(ingredient.food?.name ?? "Unknown")
-                    .font(.subheadline)
-                Text("\(ingredient.quantity, specifier: "%.1f") serving\(ingredient.quantity == 1 ? "" : "s")")
+                    .font(.subheadline.weight(.medium))
+                Text(String(format: "%.1f serving%@", ingredient.quantity, ingredient.quantity == 1 ? "" : "s"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -103,16 +119,16 @@ private struct IngredientRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(Int(ingredient.calories)) cal")
                     .font(.subheadline.bold())
-                    .foregroundStyle(Color.hermesOrange)
+                    .foregroundStyle(Color.highlight)
                 HStack(spacing: 4) {
                     Text("P\(Int(ingredient.protein))")
-                        .foregroundStyle(Color.royalBlue)
+                        .foregroundStyle(Color.accent)
                     Text("C\(Int(ingredient.carbs))")
-                        .foregroundStyle(Color.hermesOrange)
+                        .foregroundStyle(Color.highlight)
                     Text("F\(Int(ingredient.fat))")
                         .foregroundStyle(.pink)
                 }
-                .font(.system(size: 9))
+                .font(.system(size: 9, weight: .medium))
             }
         }
     }
@@ -160,33 +176,21 @@ private struct IngredientSearchView: View {
                             TextField("1", text: $quantity)
                                 .keyboardType(.decimalPad)
                                 .frame(width: 60)
-                            Text("servings (\(food.servingSize, specifier: "%.0f")\(food.servingUnit) each)")
+                            Text("servings (\(String(format: "%.0f", food.servingSize))\(food.servingUnit) each)")
                                 .foregroundStyle(.secondary)
                         }
                     }
 
                     Section("Nutrition for \(quantity) serving\(quantity == "1" ? "" : "s")") {
                         let qty = Double(quantity) ?? 1
-                        HStack {
-                            Text("Calories")
-                            Spacer()
-                            Text("\(Int(food.calories * qty)) kcal")
-                        }
-                        HStack {
-                            Text("Protein")
-                            Spacer()
-                            Text("\(food.protein * qty, specifier: "%.1f")g")
-                        }
-                        HStack {
-                            Text("Carbs")
-                            Spacer()
-                            Text("\(food.carbs * qty, specifier: "%.1f")g")
-                        }
-                        HStack {
-                            Text("Fat")
-                            Spacer()
-                            Text("\(food.fat * qty, specifier: "%.1f")g")
-                        }
+                        NutritionLabelView(
+                            calories: food.calories * qty,
+                            protein: food.protein * qty,
+                            carbs: food.carbs * qty,
+                            fat: food.fat * qty
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                     }
                 }
                 .navigationTitle("Add Ingredient")
@@ -210,7 +214,9 @@ private struct IngredientSearchView: View {
                         Button {
                             showCreateFood = true
                         } label: {
-                            Label("Create Food", systemImage: "plus.circle")
+                            Label("Create Food", systemImage: "plus.circle.fill")
+                                .foregroundStyle(Color.accent)
+                                .font(.subheadline.weight(.medium))
                         }
                     }
 
@@ -222,10 +228,11 @@ private struct IngredientSearchView: View {
                                 } label: {
                                     HStack {
                                         Text(food.name)
+                                            .font(.subheadline.weight(.medium))
                                         Spacer()
                                         Text("\(Int(food.calories)) cal")
-                                            .font(.caption)
-                                            .foregroundStyle(Color.hermesOrange)
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(Color.highlight)
                                     }
                                 }
                                 .tint(.primary)
@@ -237,6 +244,7 @@ private struct IngredientSearchView: View {
                         Section("Search Results") {
                             if isSearching {
                                 ProgressView()
+                                    .tint(Color.accent)
                             } else {
                                 ForEach(apiResults) { product in
                                     Button {
@@ -246,15 +254,19 @@ private struct IngredientSearchView: View {
                                     } label: {
                                         HStack {
                                             VStack(alignment: .leading) {
-                                                Text(product.name).lineLimit(1)
+                                                Text(product.name)
+                                                    .font(.subheadline.weight(.medium))
+                                                    .lineLimit(1)
                                                 if !product.brand.isEmpty {
-                                                    Text(product.brand).font(.caption).foregroundStyle(.secondary)
+                                                    Text(product.brand)
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
                                                 }
                                             }
                                             Spacer()
                                             Text("\(Int(product.calories)) cal")
-                                                .font(.caption)
-                                                .foregroundStyle(Color.hermesOrange)
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(Color.highlight)
                                         }
                                     }
                                     .tint(.primary)

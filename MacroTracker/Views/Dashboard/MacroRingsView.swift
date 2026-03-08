@@ -15,11 +15,11 @@ struct MacroRingsView: View {
             // Calorie ring - main
             ZStack {
                 Circle()
-                    .stroke(Color.hermesOrange.opacity(0.15), lineWidth: 14)
+                    .stroke(Color.highlight.opacity(0.15), lineWidth: 14)
 
                 Circle()
                     .trim(from: 0, to: ringProgress(calories, goal: calorieGoal))
-                    .stroke(calories > calorieGoal ? .red : Color.hermesOrange, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                    .stroke(calories > calorieGoal ? .red : Color.highlight, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .animation(.easeInOut(duration: 0.5), value: calories)
 
@@ -32,15 +32,15 @@ struct MacroRingsView: View {
                     let remaining = max(calorieGoal - calories, 0)
                     Text("\(Int(remaining)) left")
                         .font(.caption2.weight(.medium))
-                        .foregroundStyle(Color.hermesOrange)
+                        .foregroundStyle(Color.highlight)
                 }
             }
             .frame(width: 160, height: 160)
 
             // Macro bars
             HStack(spacing: 20) {
-                MiniRing(label: "P", value: protein, goal: proteinGoal, color: Color.royalBlue)
-                MiniRing(label: "C", value: carbs, goal: carbsGoal, color: Color.hermesOrange)
+                MiniRing(label: "P", value: protein, goal: proteinGoal, color: Color.accent)
+                MiniRing(label: "C", value: carbs, goal: carbsGoal, color: Color.highlight)
                 MiniRing(label: "F", value: fat, goal: fatGoal, color: .pink)
             }
         }

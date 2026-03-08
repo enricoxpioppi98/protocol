@@ -25,10 +25,10 @@ struct MealSectionView: View {
                     VStack(alignment: .trailing, spacing: 3) {
                         Text("\(Int(entry.calories)) cal")
                             .font(.subheadline.bold())
-                            .foregroundStyle(Color.hermesOrange)
+                            .foregroundStyle(Color.highlight)
                         HStack(spacing: 6) {
-                            MacroPill(value: entry.protein, label: "P", color: Color.royalBlue)
-                            MacroPill(value: entry.carbs, label: "C", color: Color.hermesOrange)
+                            MacroPill(value: entry.protein, label: "P", color: Color.accent)
+                            MacroPill(value: entry.carbs, label: "C", color: Color.highlight)
                             MacroPill(value: entry.fat, label: "F", color: .pink)
                         }
                     }
@@ -47,17 +47,17 @@ struct MealSectionView: View {
             } label: {
                 Label("Add Food", systemImage: "plus")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Color.royalBlue)
+                    .foregroundStyle(Color.accent)
                     .padding(.vertical, 4)
                     .padding(.horizontal, 12)
-                    .background(Color.royalBlue.opacity(0.1))
+                    .background(Color.accent.opacity(0.1))
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)
         } header: {
             HStack {
                 Image(systemName: mealType.icon)
-                    .foregroundStyle(Color.hermesOrange)
+                    .foregroundStyle(Color.highlight)
                 Text(mealType.rawValue)
                     .font(.subheadline.weight(.semibold))
                 Spacer()

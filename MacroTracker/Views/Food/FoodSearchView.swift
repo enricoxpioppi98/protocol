@@ -41,7 +41,7 @@ struct FoodSearchView: View {
                     } label: {
                         Label("Scan Barcode", systemImage: "barcode.viewfinder")
                             .font(.subheadline.weight(.medium))
-                            .foregroundStyle(Color.hermesOrange)
+                            .foregroundStyle(Color.highlight)
                     }
 
                     Button {
@@ -49,7 +49,7 @@ struct FoodSearchView: View {
                     } label: {
                         Label("Create Food", systemImage: "plus.circle")
                             .font(.subheadline.weight(.medium))
-                            .foregroundStyle(Color.royalBlue)
+                            .foregroundStyle(Color.accent)
                     }
                 }
 
@@ -94,7 +94,7 @@ struct FoodSearchView: View {
                         if isSearching {
                             HStack {
                                 ProgressView()
-                                    .tint(Color.royalBlue)
+                                    .tint(Color.accent)
                                 Text("Searching...")
                                     .foregroundStyle(.secondary)
                             }
@@ -195,6 +195,7 @@ struct FoodSearchView: View {
             numberOfServings: 1
         )
         modelContext.insert(entry)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }
 }
@@ -218,7 +219,7 @@ private struct FoodRow: View {
             Spacer()
             Text("\(Int(calories))")
                 .font(.subheadline.bold())
-                .foregroundStyle(Color.hermesOrange)
+                .foregroundStyle(Color.highlight)
             Text("cal")
                 .font(.caption2)
                 .foregroundStyle(.secondary)

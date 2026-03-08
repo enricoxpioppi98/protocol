@@ -12,7 +12,7 @@ struct NutritionLabelView: View {
             VStack(spacing: 2) {
                 Text("\(Int(calories))")
                     .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.hermesOrange)
+                    .foregroundStyle(Color.highlight)
                 Text("calories")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -25,9 +25,9 @@ struct NutritionLabelView: View {
 
             // Macros row
             HStack(spacing: 0) {
-                MacroColumn(value: protein, label: "Protein", unit: "g", color: Color.royalBlue)
+                MacroColumn(value: protein, label: "Protein", unit: "g", color: Color.accent)
                 Divider().frame(height: 44)
-                MacroColumn(value: carbs, label: "Carbs", unit: "g", color: Color.hermesOrange)
+                MacroColumn(value: carbs, label: "Carbs", unit: "g", color: Color.highlight)
                 Divider().frame(height: 44)
                 MacroColumn(value: fat, label: "Fat", unit: "g", color: .pink)
             }

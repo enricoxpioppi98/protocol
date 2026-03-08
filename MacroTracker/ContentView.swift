@@ -18,6 +18,6 @@ struct ContentView: View {
                     Label("Goals", systemImage: "target")
                 }
         }
-        .tint(Color.royalBlue)
+        .tint(Color.accent)
     }
 }

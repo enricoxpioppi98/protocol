@@ -30,82 +30,123 @@ struct BarcodeScannerView: View {
                         Spacer()
 
                         // Scanning frame
-                        RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(.white, lineWidth: 2)
+                        RoundedRectangle(cornerRadius: 20)
+                            .strokeBorder(Color.accent, lineWidth: 3)
                             .frame(width: 280, height: 140)
                             .background(.clear)
+                            .shadow(color: Color.accent.opacity(0.3), radius: 8)
 
                         Spacer()
 
                         // Bottom panel
-                        VStack(spacing: 12) {
+                        VStack(spacing: 14) {
                             if isLookingUp {
-                                ProgressView("Looking up barcode...")
-                                    .tint(.white)
-                                    .foregroundStyle(.white)
-                            } else if let errorMessage {
-                                Text(errorMessage)
-                                    .foregroundStyle(.red)
-                                    .font(.subheadline)
-                                Button("Try Again") {
-                                    self.errorMessage = nil
-                                    self.scannedCode = nil
+                                HStack(spacing: 10) {
+                                    ProgressView()
+                                        .tint(.white)
+                                    Text("Looking up barcode...")
+                                        .foregroundStyle(.white)
+                                        .font(.subheadline.weight(.medium))
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .tint(Color.accentColor)
-                            } else {
-                                Text("Point camera at a barcode")
+                            } else if let errorMessage {
+                                VStack(spacing: 8) {
+                                    Text(errorMessage)
+                                        .foregroundStyle(.red)
+                                        .font(.subheadline)
+                                        .multilineTextAlignment(.center)
+                                    Button("Try Again") {
+                                        self.errorMessage = nil
+                                        self.scannedCode = nil
+                                    }
+                                    .font(.subheadline.bold())
                                     .foregroundStyle(.white)
-                                    .font(.headline)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 8)
+                                    .background(Color.accent)
+                                    .clipShape(Capsule())
+                                }
+                            } else {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "barcode.viewfinder")
+                                        .font(.title2)
+                                        .foregroundStyle(.white)
+                                    Text("Point camera at a barcode")
+                                        .foregroundStyle(.white)
+                                        .font(.subheadline.weight(.medium))
+                                }
                             }
 
-                            Button("Enter Barcode Manually") {
+                            Button {
                                 showManualEntry = true
+                            } label: {
+                                Label("Enter manually", systemImage: "keyboard")
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(.white.opacity(0.7))
                             }
-                            .foregroundStyle(.white.opacity(0.8))
-                            .font(.subheadline)
                         }
-                        .padding()
+                        .padding(.vertical, 20)
+                        .padding(.horizontal)
                         .frame(maxWidth: .infinity)
                         .background(.ultraThinMaterial)
                     }
                 } else {
-                    // Manual barcode entry (also shown if scanner not available)
+                    // Manual barcode entry
                     Form {
                         if !isScannerAvailable && !showManualEntry {
                             Section {
-                                Text("Camera scanning is not available on this device. Enter the barcode manually.")
-                                    .foregroundStyle(.secondary)
+                                Label {
+                                    Text("Camera scanning is not available on this device.")
+                                        .foregroundStyle(.secondary)
+                                } icon: {
+                                    Image(systemName: "camera.fill")
+                                        .foregroundStyle(.tertiary)
+                                }
                             }
                         }
 
                         Section("Enter Barcode Number") {
                             TextField("e.g. 0012345678905", text: $manualBarcode)
                                 .keyboardType(.numberPad)
+                                .font(.system(.body, design: .monospaced))
                         }
-                        Section {
-                            Button("Look Up") {
-                                handleBarcode(manualBarcode)
-                            }
-                            .disabled(manualBarcode.isEmpty || isLookingUp)
 
-                            if isLookingUp {
+                        Section {
+                            Button {
+                                handleBarcode(manualBarcode)
+                            } label: {
                                 HStack {
-                                    ProgressView()
-                                    Text("Searching...")
+                                    Spacer()
+                                    if isLookingUp {
+                                        ProgressView()
+                                            .tint(.white)
+                                    } else {
+                                        Label("Look Up", systemImage: "magnifyingglass")
+                                    }
+                                    Spacer()
                                 }
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .padding(.vertical, 4)
                             }
+                            .listRowBackground(
+                                (manualBarcode.isEmpty || isLookingUp) ? Color.gray : Color.accent
+                            )
+                            .disabled(manualBarcode.isEmpty || isLookingUp)
 
                             if let errorMessage {
                                 Text(errorMessage)
                                     .foregroundStyle(.red)
+                                    .font(.caption)
                             }
                         }
 
                         if isScannerAvailable {
                             Section {
-                                Button("Use Camera Instead") {
+                                Button {
                                     showManualEntry = false
+                                } label: {
+                                    Label("Use Camera Instead", systemImage: "camera.fill")
+                                        .foregroundStyle(Color.accent)
                                 }
                             }
                         }
@@ -137,12 +178,14 @@ struct BarcodeScannerView: View {
                     await MainActor.run {
                         modelContext.insert(food)
                         isLookingUp = false
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                         onFoodFound(food)
                         dismiss()
                     }
                 } else {
                     await MainActor.run {
                         isLookingUp = false
+                        UINotificationFeedbackGenerator().notificationOccurred(.error)
                         errorMessage = "Product not found for barcode: \(code)"
                         scannedCode = nil
                     }
@@ -150,6 +193,7 @@ struct BarcodeScannerView: View {
             } catch {
                 await MainActor.run {
                     isLookingUp = false
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
                     errorMessage = "Lookup failed. Check your connection."
                     scannedCode = nil
                 }

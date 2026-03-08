@@ -53,6 +53,7 @@ struct RecipeListView: View {
         for index in offsets {
             modelContext.delete(recipes[index])
         }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }
 
@@ -65,12 +66,12 @@ private struct RecipeRow: View {
                 .font(.headline)
             HStack(spacing: 12) {
                 Text("\(Int(recipe.caloriesPerServing)) cal")
-                    .foregroundStyle(Color.hermesOrange)
+                    .foregroundStyle(Color.highlight)
                     .fontWeight(.medium)
                 Text("P: \(Int(recipe.proteinPerServing))g")
-                    .foregroundStyle(Color.royalBlue)
+                    .foregroundStyle(Color.accent)
                 Text("C: \(Int(recipe.carbsPerServing))g")
-                    .foregroundStyle(Color.hermesOrange)
+                    .foregroundStyle(Color.highlight)
                 Text("F: \(Int(recipe.fatPerServing))g")
                     .foregroundStyle(.pink)
             }

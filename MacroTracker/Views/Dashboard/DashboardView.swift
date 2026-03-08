@@ -16,10 +16,6 @@ struct DashboardView: View {
         goals.first ?? DailyGoal()
     }
 
-    private var dayStart: Date {
-        Calendar.current.startOfDay(for: selectedDate)
-    }
-
     private var todayEntries: [DiaryEntry] {
         allEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
     }
@@ -33,6 +29,13 @@ struct DashboardView: View {
     private var totalCarbs: Double { todayEntries.reduce(0) { $0 + $1.carbs } }
     private var totalFat: Double { todayEntries.reduce(0) { $0 + $1.fat } }
 
+    private func changeDate(by days: Int) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedDate = Calendar.current.date(byAdding: .day, value: days, to: selectedDate) ?? selectedDate
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -40,12 +43,10 @@ struct DashboardView: View {
                 Section {
                     DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
                         .datePickerStyle(.compact)
-                        .tint(Color.royalBlue)
+                        .tint(Color.accent)
 
                     HStack {
-                        Button {
-                            selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
-                        } label: {
+                        Button { changeDate(by: -1) } label: {
                             Image(systemName: "chevron.left")
                                 .font(.body.weight(.semibold))
                         }
@@ -57,22 +58,20 @@ struct DashboardView: View {
                                 .font(.headline)
                         } else {
                             Button("Go to Today") {
-                                selectedDate = Date()
+                                withAnimation { selectedDate = Date() }
                             }
                             .font(.subheadline.weight(.medium))
                         }
 
                         Spacer()
 
-                        Button {
-                            selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? selectedDate
-                        } label: {
+                        Button { changeDate(by: 1) } label: {
                             Image(systemName: "chevron.right")
                                 .font(.body.weight(.semibold))
                         }
                     }
                     .buttonStyle(.plain)
-                    .tint(Color.royalBlue)
+                    .tint(Color.accent)
                 }
 
                 // Macro rings
@@ -94,9 +93,9 @@ struct DashboardView: View {
 
                 // Macro progress bars
                 Section("Macros") {
-                    MacroProgressBar(label: "Calories", current: totalCalories, goal: goal.calories, color: Color.hermesOrange, unit: "kcal")
-                    MacroProgressBar(label: "Protein", current: totalProtein, goal: goal.protein, color: Color.royalBlue, unit: "g")
-                    MacroProgressBar(label: "Carbs", current: totalCarbs, goal: goal.carbs, color: Color.hermesOrange, unit: "g")
+                    MacroProgressBar(label: "Calories", current: totalCalories, goal: goal.calories, color: Color.highlight, unit: "kcal")
+                    MacroProgressBar(label: "Protein", current: totalProtein, goal: goal.protein, color: Color.accent, unit: "g")
+                    MacroProgressBar(label: "Carbs", current: totalCarbs, goal: goal.carbs, color: Color.highlight, unit: "g")
                     MacroProgressBar(label: "Fat", current: totalFat, goal: goal.fat, color: .pink, unit: "g")
                 }
 
@@ -110,6 +109,7 @@ struct DashboardView: View {
                         },
                         onDelete: { entry in
                             modelContext.delete(entry)
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         }
                     )
                 }
@@ -128,6 +128,16 @@ struct DashboardView: View {
                     }
                 }
             }
+            .gesture(
+                DragGesture(minimumDistance: 50, coordinateSpace: .local)
+                    .onEnded { value in
+                        if value.translation.width > 80 {
+                            changeDate(by: -1)
+                        } else if value.translation.width < -80 {
+                            changeDate(by: 1)
+                        }
+                    }
+            )
             .sheet(item: $addingMealType) { mealType in
                 FoodSearchView(mealType: mealType, date: selectedDate)
             }

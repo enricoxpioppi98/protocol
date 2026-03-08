@@ -57,7 +57,7 @@ struct FoodDetailView: View {
                                 }
                             }
                             .pickerStyle(.menu)
-                            .tint(Color.royalBlue)
+                            .tint(Color.accent)
                         }
                     }
                     .padding()
@@ -110,7 +110,7 @@ struct FoodDetailView: View {
                                     .font(.title2)
                             }
                         }
-                        .tint(Color.royalBlue)
+                        .tint(Color.accent)
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
@@ -126,7 +126,7 @@ struct FoodDetailView: View {
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(didAdd ? Color.gray : Color.royalBlue)
+                            .background(didAdd ? Color.gray : Color.accent)
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
@@ -158,6 +158,7 @@ struct FoodDetailView: View {
         )
         modelContext.insert(entry)
         didAdd = true
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             dismiss()
         }

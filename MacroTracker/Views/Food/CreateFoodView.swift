@@ -36,10 +36,10 @@ struct CreateFoodView: View {
                 }
 
                 Section("Nutrition per Serving") {
-                    NutritionField(label: "Calories", value: $calories, unit: "kcal")
-                    NutritionField(label: "Protein", value: $protein, unit: "g")
-                    NutritionField(label: "Carbs", value: $carbs, unit: "g")
-                    NutritionField(label: "Fat", value: $fat, unit: "g")
+                    NutritionField(label: "Calories", value: $calories, unit: "kcal", color: Color.highlight)
+                    NutritionField(label: "Protein", value: $protein, unit: "g", color: Color.accent)
+                    NutritionField(label: "Carbs", value: $carbs, unit: "g", color: Color.highlight)
+                    NutritionField(label: "Fat", value: $fat, unit: "g", color: .pink)
                 }
 
                 Section("Serving Size") {
@@ -57,6 +57,21 @@ struct CreateFoodView: View {
                             Text("piece").tag("piece")
                             Text("slice").tag("slice")
                         }
+                        .tint(Color.accent)
+                    }
+                }
+
+                // Live preview
+                if let cal = Double(calories), cal > 0 {
+                    Section("Preview") {
+                        NutritionLabelView(
+                            calories: cal,
+                            protein: Double(protein) ?? 0,
+                            carbs: Double(carbs) ?? 0,
+                            fat: Double(fat) ?? 0
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                     }
                 }
             }
@@ -89,6 +104,7 @@ struct CreateFoodView: View {
             isCustom: true
         )
         modelContext.insert(food)
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         onSaved?(food)
         dismiss()
     }
@@ -98,10 +114,15 @@ private struct NutritionField: View {
     let label: String
     @Binding var value: String
     let unit: String
+    var color: Color = .primary
 
     var body: some View {
         HStack {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
             Text(label)
+                .font(.subheadline)
             Spacer()
             TextField("0", text: $value)
                 .keyboardType(.decimalPad)

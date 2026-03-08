@@ -24,17 +24,17 @@ struct GoalsView: View {
                     MacroGoalRow(label: "Calories", value: Binding(
                         get: { goal.calories },
                         set: { goal.calories = $0 }
-                    ), unit: "kcal", color: Color.hermesOrange)
+                    ), unit: "kcal", color: Color.highlight)
 
                     MacroGoalRow(label: "Protein", value: Binding(
                         get: { goal.protein },
                         set: { goal.protein = $0 }
-                    ), unit: "g", color: Color.royalBlue)
+                    ), unit: "g", color: Color.accent)
 
                     MacroGoalRow(label: "Carbs", value: Binding(
                         get: { goal.carbs },
                         set: { goal.carbs = $0 }
-                    ), unit: "g", color: Color.hermesOrange)
+                    ), unit: "g", color: Color.highlight)
 
                     MacroGoalRow(label: "Fat", value: Binding(
                         get: { goal.fat },
@@ -74,7 +74,7 @@ struct GoalsView: View {
                         HStack {
                             Text("= \(Int(calculated))g protein")
                                 .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Color.royalBlue)
+                                .foregroundStyle(Color.accent)
                             Spacer()
                             Button("Apply") {
                                 goal.protein = calculated
@@ -83,7 +83,7 @@ struct GoalsView: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 6)
-                            .background(Color.royalBlue)
+                            .background(Color.accent)
                             .clipShape(Capsule())
                         }
                     }
@@ -118,6 +118,7 @@ struct GoalsView: View {
         goal.protein = protein
         goal.carbs = carbs
         goal.fat = fat
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 }
 
@@ -157,7 +158,7 @@ private struct PresetButton: View {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.body)
-                    .foregroundStyle(Color.royalBlue)
+                    .foregroundStyle(Color.accent)
                 Text(title)
                     .font(.subheadline.bold())
                 Text(subtitle)
@@ -166,7 +167,7 @@ private struct PresetButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
-            .background(Color.royalBlue.opacity(0.08))
+            .background(Color.accent.opacity(0.08))
             .clipShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
