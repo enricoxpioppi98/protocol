@@ -38,7 +38,7 @@ struct MacroRingsView: View {
             .frame(width: 160, height: 160)
 
             // Macro bars
-            HStack(spacing: 20) {
+            HStack(spacing: 24) {
                 MiniRing(label: "P", value: protein, goal: proteinGoal, color: Color.accent)
                 MiniRing(label: "C", value: carbs, goal: carbsGoal, color: Color.highlight)
                 MiniRing(label: "F", value: fat, goal: fatGoal, color: .pink)
@@ -67,7 +67,7 @@ private struct MiniRing: View {
     }
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             ZStack {
                 Circle()
                     .stroke(color.opacity(0.15), lineWidth: 6)
@@ -86,6 +86,8 @@ private struct MiniRing: View {
             Text("\(label): \(Int(goal))g")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
     }
 }

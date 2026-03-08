@@ -65,14 +65,6 @@ struct FoodDetailView: View {
                     .background(Color.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .padding(.horizontal)
-                    .onChange(of: editedServingSize) { _, newValue in
-                        if let size = Double(newValue) {
-                            food.servingSize = size
-                        }
-                    }
-                    .onChange(of: editedServingUnit) { _, newValue in
-                        food.servingUnit = newValue
-                    }
 
                     // Nutrition summary
                     NutritionLabelView(

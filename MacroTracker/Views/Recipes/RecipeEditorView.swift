@@ -128,7 +128,7 @@ private struct IngredientRow: View {
                     Text("F\(Int(ingredient.fat))")
                         .foregroundStyle(.pink)
                 }
-                .font(.system(size: 9, weight: .medium))
+                .font(.system(size: 10, weight: .medium))
             }
         }
     }

@@ -5,6 +5,7 @@ struct MealSectionView: View {
     let entries: [DiaryEntry]
     let onAdd: () -> Void
     let onDelete: (DiaryEntry) -> Void
+    let onEdit: (DiaryEntry) -> Void
 
     private var totalCalories: Double {
         entries.reduce(0) { $0 + $1.calories }
@@ -13,26 +14,31 @@ struct MealSectionView: View {
     var body: some View {
         Section {
             ForEach(entries) { entry in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.name)
-                            .font(.subheadline.weight(.medium))
-                        Text(String(format: "%.1f serving%@", entry.numberOfServings, entry.numberOfServings == 1 ? "" : "s"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text("\(Int(entry.calories)) cal")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(Color.highlight)
-                        HStack(spacing: 6) {
-                            MacroPill(value: entry.protein, label: "P", color: Color.accent)
-                            MacroPill(value: entry.carbs, label: "C", color: Color.highlight)
-                            MacroPill(value: entry.fat, label: "F", color: .pink)
+                Button {
+                    onEdit(entry)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.name)
+                                .font(.subheadline.weight(.medium))
+                            Text(String(format: "%.1f serving%@", entry.numberOfServings, entry.numberOfServings == 1 ? "" : "s"))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 3) {
+                            Text("\(Int(entry.calories)) cal")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(Color.highlight)
+                            HStack(spacing: 8) {
+                                MacroPill(value: entry.protein, label: "P", color: Color.accent)
+                                MacroPill(value: entry.carbs, label: "C", color: Color.highlight)
+                                MacroPill(value: entry.fat, label: "F", color: .pink)
+                            }
                         }
                     }
                 }
+                .tint(.primary)
                 .swipeActions(edge: .trailing) {
                     Button(role: .destructive) {
                         onDelete(entry)
@@ -76,7 +82,7 @@ private struct MacroPill: View {
 
     var body: some View {
         Text("\(label)\(Int(value))")
-            .font(.system(size: 9, weight: .medium))
+            .font(.system(size: 10, weight: .medium))
             .foregroundStyle(color)
     }
 }

@@ -14,6 +14,7 @@ final class Food {
     var servingSize: Double
     var servingUnit: String
     var isCustom: Bool
+    var isFavorite: Bool
     var createdAt: Date
 
     @Relationship(inverse: \DiaryEntry.food)
@@ -45,6 +46,7 @@ final class Food {
         self.servingSize = servingSize
         self.servingUnit = servingUnit
         self.isCustom = isCustom
+        self.isFavorite = false
         self.createdAt = Date()
     }
 }

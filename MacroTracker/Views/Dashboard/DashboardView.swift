@@ -11,13 +11,27 @@ struct DashboardView: View {
     @State private var addingMealType: MealType?
     @State private var showMessageCompose = false
     @State private var showMessageUnavailable = false
+    @State private var editingEntry: DiaryEntry?
+    @State private var pendingDeletion: DiaryEntry?
+    @State private var showUndoToast = false
+    @State private var undoTask: Task<Void, Never>?
+    @State private var showCopyConfirmation = false
+    @State private var showGoalsOnboarding = false
 
     private var goal: DailyGoal {
         goals.first ?? DailyGoal()
     }
 
     private var todayEntries: [DiaryEntry] {
-        allEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
+        allEntries.filter {
+            Calendar.current.isDate($0.date, inSameDayAs: selectedDate)
+            && $0.id != pendingDeletion?.id
+        }
+    }
+
+    private var yesterdayEntries: [DiaryEntry] {
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
+        return allEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: yesterday) }
     }
 
     private func entries(for mealType: MealType) -> [DiaryEntry] {
@@ -30,6 +44,8 @@ struct DashboardView: View {
     private var totalFat: Double { todayEntries.reduce(0) { $0 + $1.fat } }
 
     private func changeDate(by days: Int) {
+        // Commit any pending deletion before changing date
+        commitPendingDeletion()
         withAnimation(.easeInOut(duration: 0.2)) {
             selectedDate = Calendar.current.date(byAdding: .day, value: days, to: selectedDate) ?? selectedDate
         }
@@ -38,80 +54,11 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                // Date picker
-                Section {
-                    DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
-                        .datePickerStyle(.compact)
-                        .tint(Color.accent)
-
-                    HStack {
-                        Button { changeDate(by: -1) } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.body.weight(.semibold))
-                        }
-
-                        Spacer()
-
-                        if Calendar.current.isDateInToday(selectedDate) {
-                            Text("Today")
-                                .font(.headline)
-                        } else {
-                            Button("Go to Today") {
-                                withAnimation { selectedDate = Date() }
-                            }
-                            .font(.subheadline.weight(.medium))
-                        }
-
-                        Spacer()
-
-                        Button { changeDate(by: 1) } label: {
-                            Image(systemName: "chevron.right")
-                                .font(.body.weight(.semibold))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .tint(Color.accent)
-                }
-
-                // Macro rings
-                Section {
-                    MacroRingsView(
-                        calories: totalCalories,
-                        calorieGoal: goal.calories,
-                        protein: totalProtein,
-                        proteinGoal: goal.protein,
-                        carbs: totalCarbs,
-                        carbsGoal: goal.carbs,
-                        fat: totalFat,
-                        fatGoal: goal.fat
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-
-                // Macro progress bars
-                Section("Macros") {
-                    MacroProgressBar(label: "Calories", current: totalCalories, goal: goal.calories, color: Color.highlight, unit: "kcal")
-                    MacroProgressBar(label: "Protein", current: totalProtein, goal: goal.protein, color: Color.accent, unit: "g")
-                    MacroProgressBar(label: "Carbs", current: totalCarbs, goal: goal.carbs, color: Color.highlight, unit: "g")
-                    MacroProgressBar(label: "Fat", current: totalFat, goal: goal.fat, color: .pink, unit: "g")
-                }
-
-                // Meal sections
-                ForEach(MealType.allCases) { mealType in
-                    MealSectionView(
-                        mealType: mealType,
-                        entries: entries(for: mealType),
-                        onAdd: {
-                            addingMealType = mealType
-                        },
-                        onDelete: { entry in
-                            modelContext.delete(entry)
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        }
-                    )
+            Group {
+                if todayEntries.isEmpty && goals.isEmpty {
+                    emptyStateView
+                } else {
+                    mainListView
                 }
             }
             .navigationTitle("MacroTracker")
@@ -127,6 +74,14 @@ struct DashboardView: View {
                         Image(systemName: "message.fill")
                     }
                 }
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
+                        showCopyConfirmation = true
+                    } label: {
+                        Label("Copy Yesterday", systemImage: "doc.on.doc")
+                    }
+                    .disabled(yesterdayEntries.isEmpty)
+                }
             }
             .gesture(
                 DragGesture(minimumDistance: 50, coordinateSpace: .local)
@@ -141,17 +96,239 @@ struct DashboardView: View {
             .sheet(item: $addingMealType) { mealType in
                 FoodSearchView(mealType: mealType, date: selectedDate)
             }
+            .sheet(item: $editingEntry) { entry in
+                EditEntrySheet(entry: entry)
+            }
             .sheet(isPresented: $showMessageCompose) {
                 DailySummaryMessageView(messageBody: formatDailySummary())
                     .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showGoalsOnboarding) {
+                NavigationStack {
+                    GoalsView()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { showGoalsOnboarding = false }
+                                    .bold()
+                            }
+                        }
+                }
             }
             .alert("Messaging Unavailable", isPresented: $showMessageUnavailable) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("iMessage is not available on this device.")
             }
+            .alert("Copy Yesterday's Entries?", isPresented: $showCopyConfirmation) {
+                Button("Copy") { copyFromYesterday() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will add \(yesterdayEntries.count) entr\(yesterdayEntries.count == 1 ? "y" : "ies") to today.")
+            }
         }
     }
+
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                Spacer().frame(height: 60)
+
+                Image(systemName: "fork.knife.circle.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(Color.accent)
+
+                Text("Welcome to MacroTracker")
+                    .font(.title2.bold())
+
+                Text("Start by setting your daily goals,\nthen log your first meal.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                VStack(spacing: 12) {
+                    Button {
+                        showGoalsOnboarding = true
+                    } label: {
+                        Label("Set Your Goals", systemImage: "target")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.accent)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+
+                    Button {
+                        addingMealType = .breakfast
+                    } label: {
+                        Label("Log Your First Meal", systemImage: "plus.circle.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.cardBackground)
+                            .foregroundStyle(Color.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color.accent.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+                }
+                .padding(.horizontal, 24)
+
+                Spacer()
+            }
+        }
+        .background(Color.surfaceBackground)
+    }
+
+    // MARK: - Main List
+
+    private var mainListView: some View {
+        List {
+            // Date picker
+            Section {
+                DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .tint(Color.accent)
+
+                HStack {
+                    Button { changeDate(by: -1) } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.body.weight(.semibold))
+                    }
+
+                    Spacer()
+
+                    if Calendar.current.isDateInToday(selectedDate) {
+                        Text("Today")
+                            .font(.headline)
+                    } else {
+                        Button("Go to Today") {
+                            commitPendingDeletion()
+                            withAnimation { selectedDate = Date() }
+                        }
+                        .font(.subheadline.weight(.medium))
+                    }
+
+                    Spacer()
+
+                    Button { changeDate(by: 1) } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.body.weight(.semibold))
+                    }
+                }
+                .buttonStyle(.plain)
+                .tint(Color.accent)
+            }
+
+            // Macro rings
+            Section {
+                MacroRingsView(
+                    calories: totalCalories,
+                    calorieGoal: goal.calories,
+                    protein: totalProtein,
+                    proteinGoal: goal.protein,
+                    carbs: totalCarbs,
+                    carbsGoal: goal.carbs,
+                    fat: totalFat,
+                    fatGoal: goal.fat
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+
+            // Macro progress bars
+            Section("Macros") {
+                MacroProgressBar(label: "Calories", current: totalCalories, goal: goal.calories, color: Color.highlight, unit: "kcal")
+                MacroProgressBar(label: "Protein", current: totalProtein, goal: goal.protein, color: Color.accent, unit: "g")
+                MacroProgressBar(label: "Carbs", current: totalCarbs, goal: goal.carbs, color: Color.highlight, unit: "g")
+                MacroProgressBar(label: "Fat", current: totalFat, goal: goal.fat, color: .pink, unit: "g")
+            }
+
+            // Weekly trends
+            Section("Weekly Trends") {
+                WeeklyTrendsView(entries: allEntries, goal: goal)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            }
+
+            // Meal sections
+            ForEach(MealType.allCases) { mealType in
+                MealSectionView(
+                    mealType: mealType,
+                    entries: entries(for: mealType),
+                    onAdd: {
+                        addingMealType = mealType
+                    },
+                    onDelete: { entry in
+                        stageForDeletion(entry)
+                    },
+                    onEdit: { entry in
+                        editingEntry = entry
+                    }
+                )
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if showUndoToast, let entry = pendingDeletion {
+                UndoToastView(message: "\(entry.name) deleted") {
+                    undoTask?.cancel()
+                    pendingDeletion = nil
+                    withAnimation { showUndoToast = false }
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
+                .padding(.bottom, 8)
+            }
+        }
+    }
+
+    // MARK: - Deletion with Undo
+
+    private func stageForDeletion(_ entry: DiaryEntry) {
+        // Commit any previous pending deletion
+        commitPendingDeletion()
+
+        pendingDeletion = entry
+        withAnimation { showUndoToast = true }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        undoTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            commitPendingDeletion()
+        }
+    }
+
+    private func commitPendingDeletion() {
+        undoTask?.cancel()
+        if let entry = pendingDeletion {
+            modelContext.delete(entry)
+            pendingDeletion = nil
+            withAnimation { showUndoToast = false }
+        }
+    }
+
+    // MARK: - Copy from Yesterday
+
+    private func copyFromYesterday() {
+        for entry in yesterdayEntries {
+            let newEntry = DiaryEntry(
+                date: selectedDate,
+                mealType: entry.mealType,
+                food: entry.food,
+                recipe: entry.recipe,
+                numberOfServings: entry.numberOfServings
+            )
+            modelContext.insert(newEntry)
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    // MARK: - Message
 
     private func formatDailySummary() -> String {
         let dateFormatter = DateFormatter()
@@ -179,5 +356,87 @@ struct DashboardView: View {
         }
 
         return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: - Edit Entry Sheet
+
+private struct EditEntrySheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Bindable var entry: DiaryEntry
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Entry name header
+                    VStack(spacing: 6) {
+                        Text(entry.name)
+                            .font(.title2.bold())
+                        Text(entry.mealType.rawValue)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top)
+
+                    // Serving count editor
+                    VStack(spacing: 8) {
+                        Text("Number of Servings")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+
+                        HStack(spacing: 20) {
+                            Button {
+                                if entry.numberOfServings > 0.5 {
+                                    entry.numberOfServings -= 0.5
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                }
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.title2)
+                            }
+
+                            Text(String(format: "%.1f", entry.numberOfServings))
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .frame(width: 60)
+
+                            Button {
+                                entry.numberOfServings += 0.5
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
+                            }
+                        }
+                        .tint(Color.accent)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .padding(.horizontal)
+
+                    // Live nutrition preview
+                    NutritionLabelView(
+                        calories: entry.calories,
+                        protein: entry.protein,
+                        carbs: entry.carbs,
+                        fat: entry.fat
+                    )
+                    .padding(.horizontal)
+                }
+            }
+            .background(Color.surfaceBackground)
+            .navigationTitle("Edit Entry")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .bold()
+                }
+            }
+        }
     }
 }

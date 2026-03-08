@@ -21,6 +21,10 @@ struct FoodSearchView: View {
     @Query(sort: \Food.createdAt, order: .reverse) private var allFoods: [Food]
     @Query(sort: \Recipe.createdAt, order: .reverse) private var allRecipes: [Recipe]
 
+    private var favoriteFoods: [Food] {
+        allFoods.filter { $0.isFavorite }
+    }
+
     private var localFoods: [Food] {
         if searchText.isEmpty { return Array(allFoods.prefix(10)) }
         return allFoods.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
@@ -53,6 +57,37 @@ struct FoodSearchView: View {
                     }
                 }
 
+                // Favorites
+                if searchText.isEmpty && !favoriteFoods.isEmpty {
+                    Section("Favorites") {
+                        ForEach(favoriteFoods) { food in
+                            Button {
+                                selectedFood = food
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "star.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(Color.highlight)
+                                    FoodRow(
+                                        name: food.name,
+                                        detail: food.brand.isEmpty ? "\(Int(food.calories)) cal" : "\(food.brand) - \(Int(food.calories)) cal",
+                                        calories: food.calories
+                                    )
+                                }
+                            }
+                            .tint(.primary)
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    food.isFavorite = false
+                                } label: {
+                                    Label("Unfavorite", systemImage: "star.slash")
+                                }
+                                .tint(Color.highlight)
+                            }
+                        }
+                    }
+                }
+
                 // Local results
                 if !localRecipes.isEmpty {
                     Section("Recipes") {
@@ -77,13 +112,32 @@ struct FoodSearchView: View {
                             Button {
                                 selectedFood = food
                             } label: {
-                                FoodRow(
-                                    name: food.name,
-                                    detail: food.brand.isEmpty ? "\(Int(food.calories)) cal" : "\(food.brand) - \(Int(food.calories)) cal",
-                                    calories: food.calories
-                                )
+                                HStack(spacing: 6) {
+                                    if food.isFavorite {
+                                        Image(systemName: "star.fill")
+                                            .font(.caption2)
+                                            .foregroundStyle(Color.highlight)
+                                    }
+                                    FoodRow(
+                                        name: food.name,
+                                        detail: food.brand.isEmpty ? "\(Int(food.calories)) cal" : "\(food.brand) - \(Int(food.calories)) cal",
+                                        calories: food.calories
+                                    )
+                                }
                             }
                             .tint(.primary)
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    food.isFavorite.toggle()
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                } label: {
+                                    Label(
+                                        food.isFavorite ? "Unfavorite" : "Favorite",
+                                        systemImage: food.isFavorite ? "star.slash" : "star.fill"
+                                    )
+                                }
+                                .tint(Color.highlight)
+                            }
                         }
                     }
                 }
