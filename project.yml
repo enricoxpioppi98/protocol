@@ -22,6 +22,7 @@ targets:
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_UIRequiresFullScreen: true
         INFOPLIST_KEY_NSCameraUsageDescription: "MacroTracker needs camera access to scan food barcodes"
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: com.enrico.macrotracker
@@ -31,4 +32,4 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: true
-        DEVELOPMENT_TEAM: ""
+        DEVELOPMENT_TEAM: "2P7LH4RD97"
