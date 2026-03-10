@@ -177,6 +177,7 @@ struct BarcodeScannerView: View {
                     let food = product.toFood()
                     await MainActor.run {
                         modelContext.insert(food)
+                        try? modelContext.save()
                         isLookingUp = false
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                         onFoodFound(food)

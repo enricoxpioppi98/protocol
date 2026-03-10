@@ -87,7 +87,9 @@ struct RecipeEditorView: View {
             IngredientSearchView { food, quantity in
                 let ingredient = RecipeIngredient(food: food, quantity: quantity)
                 ingredient.recipe = recipe
+                modelContext.insert(ingredient)
                 recipe.ingredients.append(ingredient)
+                try? modelContext.save()
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             }
         }
@@ -99,6 +101,7 @@ struct RecipeEditorView: View {
             recipe.ingredients.remove(at: index)
             modelContext.delete(ingredient)
         }
+        try? modelContext.save()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }
@@ -250,6 +253,7 @@ private struct IngredientSearchView: View {
                                     Button {
                                         let food = product.toFood()
                                         modelContext.insert(food)
+                                        try? modelContext.save()
                                         selectedFood = food
                                     } label: {
                                         HStack {

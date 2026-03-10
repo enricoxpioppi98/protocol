@@ -104,6 +104,7 @@ struct CreateFoodView: View {
             isCustom: true
         )
         modelContext.insert(food)
+        try? modelContext.save()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         onSaved?(food)
         dismiss()

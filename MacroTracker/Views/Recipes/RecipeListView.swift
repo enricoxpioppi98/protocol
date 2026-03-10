@@ -43,6 +43,7 @@ struct RecipeListView: View {
                 NewRecipeSheet { name, servings in
                     let recipe = Recipe(name: name, servings: servings)
                     modelContext.insert(recipe)
+                    try? modelContext.save()
                     showCreateRecipe = false
                 }
             }
@@ -53,6 +54,7 @@ struct RecipeListView: View {
         for index in offsets {
             modelContext.delete(recipes[index])
         }
+        try? modelContext.save()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }

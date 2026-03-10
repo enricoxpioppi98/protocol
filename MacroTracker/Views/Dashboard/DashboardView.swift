@@ -307,6 +307,7 @@ struct DashboardView: View {
         undoTask?.cancel()
         if let entry = pendingDeletion {
             modelContext.delete(entry)
+            try? modelContext.save()
             pendingDeletion = nil
             withAnimation { showUndoToast = false }
         }
@@ -325,6 +326,7 @@ struct DashboardView: View {
             )
             modelContext.insert(newEntry)
         }
+        try? modelContext.save()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
@@ -362,6 +364,7 @@ struct DashboardView: View {
 // MARK: - Edit Entry Sheet
 
 private struct EditEntrySheet: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Bindable var entry: DiaryEntry
 
@@ -433,7 +436,10 @@ private struct EditEntrySheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        try? modelContext.save()
+                        dismiss()
+                    }
                         .bold()
                 }
             }

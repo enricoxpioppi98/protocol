@@ -201,7 +201,7 @@ struct FoodSearchView: View {
                     selectedFood = food
                 }
             }
-            .sheet(item: $selectedFood) { food in
+            .navigationDestination(item: $selectedFood) { food in
                 FoodDetailView(food: food, mealType: mealType, date: date)
             }
         }
@@ -238,6 +238,7 @@ struct FoodSearchView: View {
     private func saveAndSelect(_ product: OpenFoodFactsProduct) {
         let food = product.toFood()
         modelContext.insert(food)
+        try? modelContext.save()
         selectedFood = food
     }
 
@@ -249,6 +250,7 @@ struct FoodSearchView: View {
             numberOfServings: 1
         )
         modelContext.insert(entry)
+        try? modelContext.save()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }
