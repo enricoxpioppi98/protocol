@@ -146,7 +146,7 @@ private struct IngredientSearchView: View {
     let onAdd: (Food, Double) -> Void
 
     @State private var searchText = ""
-    @State private var apiResults: [OpenFoodFactsProduct] = []
+    @State private var apiResults: [FoodProduct] = []
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
     @State private var selectedFood: Food?
@@ -310,12 +310,18 @@ private struct IngredientSearchView: View {
             defer { isSearching = false }
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled else { return }
-            do {
-                let results = try await OpenFoodFactsService.shared.searchProducts(query: query)
-                if !Task.isCancelled { apiResults = results }
-            } catch {
-                if !Task.isCancelled { apiResults = [] }
+
+            async let usdaSearch = USDAFoodService.shared.searchProducts(query: query)
+            async let offSearch = OpenFoodFactsService.shared.searchProducts(query: query)
+
+            var combined: [FoodProduct] = []
+            if let usda = try? await usdaSearch, !Task.isCancelled {
+                combined.append(contentsOf: usda)
             }
+            if let off = try? await offSearch, !Task.isCancelled {
+                combined.append(contentsOf: off)
+            }
+            if !Task.isCancelled { apiResults = combined }
         }
     }
 }

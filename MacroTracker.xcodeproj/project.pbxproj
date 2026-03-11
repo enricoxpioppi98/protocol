@@ -14,6 +14,7 @@
 		0CFA33A2A0625C44FB8E9B96 /* MacroTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C898FD80F1AC325AC522C534 /* MacroTrackerApp.swift */; };
 		1566913EF09B118644B7CACB /* MealSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 139A46368C73AEAF69CC8B6A /* MealSectionView.swift */; };
 		1AC1CDE6EC62BA15B6EBCC20 /* TDEECalculatorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EADBF57D2E6A5FFDCCD7A2C9 /* TDEECalculatorViewModel.swift */; };
+		1F06D183D7534B1EE41D61D7 /* USDAFoodService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E5CE5DE024ACE3D7FEE9E6 /* USDAFoodService.swift */; };
 		2C91684350974007BD909236 /* MacroProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 871C44DF4CDC2CAA51DF2034 /* MacroProgressBar.swift */; };
 		356E6FA71F4940B30671B9AE /* RecipeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F282DA5B274C438A505C705 /* RecipeListView.swift */; };
 		4A40176CC810BAC4CF4FC76D /* TDEECalculatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AEB580943A28492368DF8B5 /* TDEECalculatorView.swift */; };
@@ -65,6 +66,7 @@
 		902B2A984B4D0ABC56BAD153 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		971B0987B0E1BE5EE005CFC3 /* UndoToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoToastView.swift; sourceTree = "<group>"; };
 		A013BB9F266F3B0043CB5C78 /* FoodDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDetailView.swift; sourceTree = "<group>"; };
+		A0E5CE5DE024ACE3D7FEE9E6 /* USDAFoodService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USDAFoodService.swift; sourceTree = "<group>"; };
 		B85151FA1015AC5BA70C4BE1 /* StreakBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakBannerView.swift; sourceTree = "<group>"; };
 		C898FD80F1AC325AC522C534 /* MacroTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroTrackerApp.swift; sourceTree = "<group>"; };
 		D217CBDCDB766F02AE61A326 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerView.swift; sourceTree = "<group>"; };
@@ -78,6 +80,7 @@
 			isa = PBXGroup;
 			children = (
 				255B25D1943979122C4876C1 /* OpenFoodFactsService.swift */,
+				A0E5CE5DE024ACE3D7FEE9E6 /* USDAFoodService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -296,6 +299,7 @@
 				4A40176CC810BAC4CF4FC76D /* TDEECalculatorView.swift in Sources */,
 				1AC1CDE6EC62BA15B6EBCC20 /* TDEECalculatorViewModel.swift in Sources */,
 				5BBB2247150A646E25150761 /* Theme.swift in Sources */,
+				1F06D183D7534B1EE41D61D7 /* USDAFoodService.swift in Sources */,
 				816F0EBEC101843D8D6215D2 /* UndoToastView.swift in Sources */,
 				A5CDFA04D591227C3E979650 /* WeeklyTrendsView.swift in Sources */,
 			);

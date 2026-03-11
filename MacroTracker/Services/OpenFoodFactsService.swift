@@ -1,6 +1,11 @@
 import Foundation
 
-struct OpenFoodFactsProduct: Identifiable {
+enum FoodSource: String, Sendable {
+    case openFoodFacts = "OpenFoodFacts"
+    case usda = "USDA"
+}
+
+struct FoodProduct: Identifiable, Sendable {
     let id = UUID()
     let name: String
     let brand: String
@@ -10,6 +15,7 @@ struct OpenFoodFactsProduct: Identifiable {
     let carbs: Double
     let fat: Double
     let servingSize: String
+    let source: FoodSource
 
     func toFood() -> Food {
         let size = parseServingSize()
@@ -51,7 +57,7 @@ actor OpenFoodFactsService {
         self.session = URLSession(configuration: config)
     }
 
-    func searchProducts(query: String) async throws -> [OpenFoodFactsProduct] {
+    func searchProducts(query: String) async throws -> [FoodProduct] {
         guard !query.isEmpty else { return [] }
 
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
@@ -63,7 +69,7 @@ actor OpenFoodFactsService {
         return products.compactMap { parseProductJSON($0) }
     }
 
-    func lookupBarcode(_ barcode: String) async throws -> OpenFoodFactsProduct? {
+    func lookupBarcode(_ barcode: String) async throws -> FoodProduct? {
         let url = URL(string: "\(baseURL)/api/v0/product/\(barcode).json")!
 
         let (data, _) = try await session.data(from: url)
@@ -76,7 +82,7 @@ actor OpenFoodFactsService {
         return parseProductJSON(product)
     }
 
-    private func parseProductJSON(_ raw: [String: Any]) -> OpenFoodFactsProduct? {
+    private func parseProductJSON(_ raw: [String: Any]) -> FoodProduct? {
         let name = raw["product_name"] as? String ?? ""
         guard !name.isEmpty else { return nil }
 
@@ -96,7 +102,7 @@ actor OpenFoodFactsService {
         let carbs = nutrient("carbohydrates_serving").nonZeroOr { nutrient("carbohydrates_100g") }
         let fat = nutrient("fat_serving").nonZeroOr { nutrient("fat_100g") }
 
-        return OpenFoodFactsProduct(
+        return FoodProduct(
             name: name,
             brand: raw["brands"] as? String ?? "",
             barcode: raw["code"] as? String ?? raw["_id"] as? String ?? "",
@@ -104,7 +110,8 @@ actor OpenFoodFactsService {
             protein: protein,
             carbs: carbs,
             fat: fat,
-            servingSize: servingSize
+            servingSize: servingSize,
+            source: .openFoodFacts
         )
     }
 }

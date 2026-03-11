@@ -173,23 +173,25 @@ struct BarcodeScannerView: View {
 
         Task {
             do {
+                // Try OpenFoodFacts first
                 if let product = try await OpenFoodFactsService.shared.lookupBarcode(code) {
-                    let food = product.toFood()
-                    await MainActor.run {
-                        modelContext.insert(food)
-                        try? modelContext.save()
-                        isLookingUp = false
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        onFoodFound(food)
-                        dismiss()
-                    }
-                } else {
-                    await MainActor.run {
-                        isLookingUp = false
-                        UINotificationFeedbackGenerator().notificationOccurred(.error)
-                        errorMessage = "Product not found for barcode: \(code)"
-                        scannedCode = nil
-                    }
+                    await foundProduct(product)
+                    return
+                }
+
+                // Fallback: search USDA by barcode string
+                let usdaResults = try await USDAFoodService.shared.searchProducts(query: code)
+                if let match = usdaResults.first(where: { $0.barcode == code }) ?? usdaResults.first {
+                    await foundProduct(match)
+                    return
+                }
+
+                // Neither API found the product
+                await MainActor.run {
+                    isLookingUp = false
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
+                    errorMessage = "Product not found for barcode: \(code)"
+                    scannedCode = nil
                 }
             } catch {
                 await MainActor.run {
@@ -199,6 +201,18 @@ struct BarcodeScannerView: View {
                     scannedCode = nil
                 }
             }
+        }
+    }
+
+    private func foundProduct(_ product: FoodProduct) async {
+        let food = product.toFood()
+        await MainActor.run {
+            modelContext.insert(food)
+            try? modelContext.save()
+            isLookingUp = false
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            onFoodFound(food)
+            dismiss()
         }
     }
 }
