@@ -201,7 +201,20 @@ struct GoalsView: View {
                     .padding(.vertical, 4)
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Goals")
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil, from: nil, for: nil
+                        )
+                    }
+                    .font(.subheadline.bold())
+                }
+            }
             .onChange(of: goal.calories) { _, _ in saveGoals() }
             .onChange(of: goal.protein) { _, _ in saveGoals() }
             .onChange(of: goal.carbs) { _, _ in saveGoals() }
@@ -278,6 +291,8 @@ private struct MacroGoalRow: View {
     let unit: String
     let color: Color
 
+    @State private var text: String = ""
+
     var body: some View {
         HStack {
             Circle()
@@ -286,13 +301,27 @@ private struct MacroGoalRow: View {
             Text(label)
                 .font(.subheadline.weight(.medium))
             Spacer()
-            TextField("0", value: $value, format: .number)
+            TextField("0", text: $text)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 80)
+                .onChange(of: text) { _, newValue in
+                    if let intVal = Int(newValue) {
+                        value = Double(intVal)
+                    }
+                }
             Text(unit)
                 .foregroundStyle(.secondary)
                 .frame(width: 35, alignment: .leading)
+        }
+        .onAppear {
+            text = "\(Int(value))"
+        }
+        .onChange(of: value) { _, newValue in
+            let newText = "\(Int(newValue))"
+            if text != newText {
+                text = newText
+            }
         }
     }
 }
