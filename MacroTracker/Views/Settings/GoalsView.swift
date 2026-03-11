@@ -8,6 +8,7 @@ struct GoalsView: View {
     @State private var bodyWeightText = ""
     @State private var proteinPerLbText = "1.0"
     @State private var showSavedToast = false
+    @State private var showTDEECalculator = false
 
     private var goal: DailyGoal {
         if let existing = goals.first {
@@ -95,6 +96,43 @@ struct GoalsView: View {
                     .padding(.vertical, 4)
                 }
 
+                // TDEE Calculator launcher
+                Section {
+                    Button {
+                        showTDEECalculator = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "function")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 36, height: 36)
+                                .background(
+                                    LinearGradient(
+                                        colors: [Color.accent, Color.highlight],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("TDEE Calculator")
+                                    .font(.subheadline.weight(.semibold))
+                                Text("Calculate your ideal macros based on your body and goals")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .tint(.primary)
+                }
+
                 Section("Protein Calculator") {
                     HStack {
                         Text("Body Weight")
@@ -168,6 +206,16 @@ struct GoalsView: View {
             .onChange(of: goal.protein) { _, _ in saveGoals() }
             .onChange(of: goal.carbs) { _, _ in saveGoals() }
             .onChange(of: goal.fat) { _, _ in saveGoals() }
+            .sheet(isPresented: $showTDEECalculator) {
+                TDEECalculatorView { result in
+                    applyPreset(
+                        calories: result.calories,
+                        protein: result.protein,
+                        carbs: result.carbs,
+                        fat: result.fat
+                    )
+                }
+            }
             .overlay(alignment: .bottom) {
                 if showSavedToast {
                     HStack(spacing: 6) {

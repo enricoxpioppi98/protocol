@@ -13,8 +13,10 @@
 		078B36396E7B5D01DA7790A8 /* DailyGoal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 475CCF4DA05A5006F1242B9F /* DailyGoal.swift */; };
 		0CFA33A2A0625C44FB8E9B96 /* MacroTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C898FD80F1AC325AC522C534 /* MacroTrackerApp.swift */; };
 		1566913EF09B118644B7CACB /* MealSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 139A46368C73AEAF69CC8B6A /* MealSectionView.swift */; };
+		1AC1CDE6EC62BA15B6EBCC20 /* TDEECalculatorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EADBF57D2E6A5FFDCCD7A2C9 /* TDEECalculatorViewModel.swift */; };
 		2C91684350974007BD909236 /* MacroProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 871C44DF4CDC2CAA51DF2034 /* MacroProgressBar.swift */; };
 		356E6FA71F4940B30671B9AE /* RecipeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F282DA5B274C438A505C705 /* RecipeListView.swift */; };
+		4A40176CC810BAC4CF4FC76D /* TDEECalculatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AEB580943A28492368DF8B5 /* TDEECalculatorView.swift */; };
 		4E1E4F9F39E886E468ED52AF /* FoodSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAD28FD0DF541C12AD386D4E /* FoodSearchView.swift */; };
 		59EE7868648D57E187AE2717 /* RecipeIngredient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE108E31C4CC7600CC5A8AF /* RecipeIngredient.swift */; };
 		5BBB2247150A646E25150761 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ECD660646BC91D18F5A0F1 /* Theme.swift */; };
@@ -57,6 +59,7 @@
 		734A2697A5F08D5E254ECB6B /* GoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsView.swift; sourceTree = "<group>"; };
 		74AEDFEA23F683B8B28ACA24 /* MacroRingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroRingsView.swift; sourceTree = "<group>"; };
 		7706F5179A0D76337F3EDC64 /* Recipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recipe.swift; sourceTree = "<group>"; };
+		7AEB580943A28492368DF8B5 /* TDEECalculatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TDEECalculatorView.swift; sourceTree = "<group>"; };
 		871C44DF4CDC2CAA51DF2034 /* MacroProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroProgressBar.swift; sourceTree = "<group>"; };
 		8BD7CB161238BC3748257040 /* DiaryEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryEntry.swift; sourceTree = "<group>"; };
 		902B2A984B4D0ABC56BAD153 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -65,6 +68,7 @@
 		B85151FA1015AC5BA70C4BE1 /* StreakBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakBannerView.swift; sourceTree = "<group>"; };
 		C898FD80F1AC325AC522C534 /* MacroTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroTrackerApp.swift; sourceTree = "<group>"; };
 		D217CBDCDB766F02AE61A326 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerView.swift; sourceTree = "<group>"; };
+		EADBF57D2E6A5FFDCCD7A2C9 /* TDEECalculatorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TDEECalculatorViewModel.swift; sourceTree = "<group>"; };
 		FAD28FD0DF541C12AD386D4E /* FoodSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodSearchView.swift; sourceTree = "<group>"; };
 		FFE108E31C4CC7600CC5A8AF /* RecipeIngredient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeIngredient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -148,6 +152,8 @@
 			isa = PBXGroup;
 			children = (
 				734A2697A5F08D5E254ECB6B /* GoalsView.swift */,
+				7AEB580943A28492368DF8B5 /* TDEECalculatorView.swift */,
+				EADBF57D2E6A5FFDCCD7A2C9 /* TDEECalculatorViewModel.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -287,6 +293,8 @@
 				59EE7868648D57E187AE2717 /* RecipeIngredient.swift in Sources */,
 				356E6FA71F4940B30671B9AE /* RecipeListView.swift in Sources */,
 				C3511959665A51FB300D6034 /* StreakBannerView.swift in Sources */,
+				4A40176CC810BAC4CF4FC76D /* TDEECalculatorView.swift in Sources */,
+				1AC1CDE6EC62BA15B6EBCC20 /* TDEECalculatorViewModel.swift in Sources */,
 				5BBB2247150A646E25150761 /* Theme.swift in Sources */,
 				816F0EBEC101843D8D6215D2 /* UndoToastView.swift in Sources */,
 				A5CDFA04D591227C3E979650 /* WeeklyTrendsView.swift in Sources */,
