@@ -17,6 +17,7 @@ struct DashboardView: View {
     @State private var undoTask: Task<Void, Never>?
     @State private var showCopyConfirmation = false
     @State private var showGoalsOnboarding = false
+    @State private var quickAddToast: String?
 
     private var goal: DailyGoal {
         goals.first ?? DailyGoal()
@@ -32,6 +33,39 @@ struct DashboardView: View {
     private var yesterdayEntries: [DiaryEntry] {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? selectedDate
         return allEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: yesterday) }
+    }
+
+    /// Recent entries from last 7 days (excluding today) for quick-add
+    private var recentEntries: [DiaryEntry] {
+        let calendar = Calendar.current
+        let weekAgo = calendar.date(byAdding: .day, value: -7, to: selectedDate) ?? selectedDate
+        return allEntries.filter {
+            $0.date >= calendar.startOfDay(for: weekAgo)
+            && !calendar.isDate($0.date, inSameDayAs: selectedDate)
+        }
+    }
+
+    /// Consecutive days with at least one logged entry, counting back from yesterday
+    private var currentStreak: Int {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        var streak = 0
+
+        // Check if today has entries — if so, count today
+        let todayHasEntries = allEntries.contains { calendar.isDate($0.date, inSameDayAs: today) }
+        if todayHasEntries { streak = 1 }
+
+        // Count consecutive past days
+        for offset in 1..<365 {
+            guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { break }
+            let hasEntries = allEntries.contains { calendar.isDate($0.date, inSameDayAs: date) }
+            if hasEntries {
+                streak += 1
+            } else {
+                break
+            }
+        }
+        return streak
     }
 
     private func entries(for mealType: MealType) -> [DiaryEntry] {
@@ -188,6 +222,21 @@ struct DashboardView: View {
 
     private var mainListView: some View {
         List {
+            // Streak banner
+            if Calendar.current.isDateInToday(selectedDate) {
+                Section {
+                    StreakBannerView(
+                        streak: currentStreak,
+                        todayCalories: totalCalories,
+                        calorieGoal: goal.calories,
+                        todayProtein: totalProtein,
+                        proteinGoal: goal.protein
+                    )
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+
             // Date picker
             Section {
                 DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
@@ -249,11 +298,19 @@ struct DashboardView: View {
                 MacroProgressBar(label: "Fat", current: totalFat, goal: goal.fat, color: .pink, unit: "g")
             }
 
-            // Weekly trends
-            Section("Weekly Trends") {
-                WeeklyTrendsView(entries: allEntries, goal: goal)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
+            // Quick Add recent foods
+            if Calendar.current.isDateInToday(selectedDate) && !recentEntries.isEmpty {
+                Section("Quick Add") {
+                    QuickAddView(
+                        recentEntries: recentEntries,
+                        date: selectedDate,
+                        onQuickAdd: { entry in
+                            quickAddEntry(from: entry)
+                        }
+                    )
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
 
             // Meal sections
@@ -272,18 +329,46 @@ struct DashboardView: View {
                     }
                 )
             }
-        }
-        .overlay(alignment: .bottom) {
-            if showUndoToast, let entry = pendingDeletion {
-                UndoToastView(message: "\(entry.name) deleted") {
-                    undoTask?.cancel()
-                    pendingDeletion = nil
-                    withAnimation { showUndoToast = false }
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                }
-                .padding(.bottom, 8)
+
+            // Weekly trends
+            Section("Weekly Trends") {
+                WeeklyTrendsView(entries: allEntries, goal: goal)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
             }
         }
+        .overlay(alignment: .bottom) {
+            VStack(spacing: 8) {
+                if let toast = quickAddToast {
+                    quickAddToastView(toast)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                if showUndoToast, let entry = pendingDeletion {
+                    UndoToastView(message: "\(entry.name) deleted") {
+                        undoTask?.cancel()
+                        pendingDeletion = nil
+                        withAnimation { showUndoToast = false }
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
+                }
+            }
+            .padding(.bottom, 8)
+        }
+    }
+
+    private func quickAddToastView(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+            Text(message)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.black.opacity(0.85))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Deletion with Undo
@@ -310,6 +395,27 @@ struct DashboardView: View {
             try? modelContext.save()
             pendingDeletion = nil
             withAnimation { showUndoToast = false }
+        }
+    }
+
+    // MARK: - Quick Add
+
+    private func quickAddEntry(from source: DiaryEntry) {
+        let entry = DiaryEntry(
+            date: selectedDate,
+            mealType: source.mealType,
+            food: source.food,
+            recipe: source.recipe,
+            numberOfServings: 1
+        )
+        modelContext.insert(entry)
+        try? modelContext.save()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+        withAnimation { quickAddToast = "\(entry.name) added" }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation { quickAddToast = nil }
         }
     }
 

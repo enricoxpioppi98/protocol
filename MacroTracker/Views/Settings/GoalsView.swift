@@ -7,6 +7,7 @@ struct GoalsView: View {
 
     @State private var bodyWeightText = ""
     @State private var proteinPerLbText = "1.0"
+    @State private var showSavedToast = false
 
     private var goal: DailyGoal {
         if let existing = goals.first {
@@ -40,6 +41,58 @@ struct GoalsView: View {
                         get: { goal.fat },
                         set: { goal.fat = $0 }
                     ), unit: "g", color: .pink)
+                }
+
+                // Macro split visualization
+                Section {
+                    VStack(spacing: 8) {
+                        Text("Macro Split")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        let totalMacroCal = (goal.protein * 4) + (goal.carbs * 4) + (goal.fat * 9)
+                        let proteinPct = totalMacroCal > 0 ? (goal.protein * 4) / totalMacroCal * 100 : 0
+                        let carbsPct = totalMacroCal > 0 ? (goal.carbs * 4) / totalMacroCal * 100 : 0
+                        let fatPct = totalMacroCal > 0 ? (goal.fat * 9) / totalMacroCal * 100 : 0
+
+                        GeometryReader { geometry in
+                            HStack(spacing: 2) {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Color.accent)
+                                    .frame(width: max(geometry.size.width * proteinPct / 100, 4))
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Color.highlight)
+                                    .frame(width: max(geometry.size.width * carbsPct / 100, 4))
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Color.pink)
+                                    .frame(width: max(geometry.size.width * fatPct / 100, 4))
+                            }
+                        }
+                        .frame(height: 10)
+
+                        HStack(spacing: 16) {
+                            MacroSplitLabel(label: "Protein", pct: proteinPct, color: Color.accent)
+                            MacroSplitLabel(label: "Carbs", pct: carbsPct, color: Color.highlight)
+                            MacroSplitLabel(label: "Fat", pct: fatPct, color: .pink)
+                        }
+
+                        let macroCalories = (goal.protein * 4) + (goal.carbs * 4) + (goal.fat * 9)
+                        if abs(macroCalories - goal.calories) > 50 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                                Text("Macros total \(Int(macroCalories)) cal vs \(Int(goal.calories)) cal goal")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+                            .padding(.top, 2)
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
 
                 Section("Protein Calculator") {
@@ -78,6 +131,7 @@ struct GoalsView: View {
                             Spacer()
                             Button("Apply") {
                                 goal.protein = calculated
+                                saveGoals()
                             }
                             .font(.subheadline.bold())
                             .foregroundStyle(.white)
@@ -110,7 +164,32 @@ struct GoalsView: View {
                 }
             }
             .navigationTitle("Goals")
+            .onChange(of: goal.calories) { _, _ in saveGoals() }
+            .onChange(of: goal.protein) { _, _ in saveGoals() }
+            .onChange(of: goal.carbs) { _, _ in saveGoals() }
+            .onChange(of: goal.fat) { _, _ in saveGoals() }
+            .overlay(alignment: .bottom) {
+                if showSavedToast {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("Goals saved")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.white)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.black.opacity(0.85))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
         }
+    }
+
+    private func saveGoals() {
+        try? modelContext.save()
     }
 
     private func applyPreset(calories: Double, protein: Double, carbs: Double, fat: Double) {
@@ -118,7 +197,30 @@ struct GoalsView: View {
         goal.protein = protein
         goal.carbs = carbs
         goal.fat = fat
+        saveGoals()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        withAnimation { showSavedToast = true }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            withAnimation { showSavedToast = false }
+        }
+    }
+}
+
+private struct MacroSplitLabel: View {
+    let label: String
+    let pct: Double
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text("\(label) \(Int(pct))%")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

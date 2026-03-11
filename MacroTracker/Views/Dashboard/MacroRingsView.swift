@@ -26,18 +26,19 @@ struct MacroRingsView: View {
                 VStack(spacing: 2) {
                     Text("\(Int(calories))")
                         .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .contentTransition(.numericText())
                     Text("/ \(Int(calorieGoal)) cal")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     let remaining = max(calorieGoal - calories, 0)
                     Text("\(Int(remaining)) left")
                         .font(.caption2.weight(.medium))
-                        .foregroundStyle(Color.highlight)
+                        .foregroundStyle(remaining > 0 ? Color.highlight : .red)
                 }
             }
             .frame(width: 160, height: 160)
 
-            // Macro bars
+            // Macro mini rings
             HStack(spacing: 24) {
                 MiniRing(label: "P", value: protein, goal: proteinGoal, color: Color.accent)
                 MiniRing(label: "C", value: carbs, goal: carbsGoal, color: Color.highlight)
@@ -66,6 +67,10 @@ private struct MiniRing: View {
         return min(CGFloat(value / goal), 1.0)
     }
 
+    private var remaining: Double {
+        max(goal - value, 0)
+    }
+
     var body: some View {
         VStack(spacing: 6) {
             ZStack {
@@ -80,14 +85,20 @@ private struct MiniRing: View {
 
                 Text("\(Int(value))")
                     .font(.caption2.bold())
+                    .contentTransition(.numericText())
             }
             .frame(width: 50, height: 50)
 
-            Text("\(label): \(Int(goal))g")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            VStack(spacing: 1) {
+                Text("\(label): \(Int(goal))g")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text("\(Int(remaining))g left")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(remaining > 0 ? color : .red)
+            }
         }
     }
 }

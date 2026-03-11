@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MacroTracker - Nutrition & Calorie Tracking</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <nav class="nav">
+            <div class="nav-brand">
+                <div class="logo-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                </div>
+                <span>MacroTracker</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#screenshots">Screenshots</a>
+            </div>
+        </nav>
+
+        <div class="hero-content">
+            <div class="hero-badge">iOS App</div>
+            <h1>Track your macros.<br><span class="gradient-text">Hit your goals.</span></h1>
+            <p class="hero-subtitle">A beautifully simple nutrition tracker designed for people who take their fitness seriously. Log meals, track macros, and stay consistent.</p>
+            <div class="hero-stats">
+                <div class="stat">
+                    <div class="stat-number">4</div>
+                    <div class="stat-label">Macro Tracking</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat">
+                    <div class="stat-number">7d</div>
+                    <div class="stat-label">Weekly Trends</div>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat">
+                    <div class="stat-number">&infin;</div>
+                    <div class="stat-label">Food Database</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-visual">
+            <div class="phone-mockup">
+                <div class="phone-screen">
+                    <div class="mock-app">
+                        <div class="mock-header">
+                            <div class="mock-title">MacroTracker</div>
+                            <div class="mock-date">Today</div>
+                        </div>
+                        <div class="mock-ring-container">
+                            <div class="mock-ring">
+                                <svg viewBox="0 0 120 120">
+                                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(245,158,11,0.15)" stroke-width="10"/>
+                                    <circle cx="60" cy="60" r="50" fill="none" stroke="#f59e0b" stroke-width="10" stroke-linecap="round"
+                                        stroke-dasharray="236" stroke-dashoffset="71" transform="rotate(-90 60 60)"
+                                        class="ring-animate"/>
+                                </svg>
+                                <div class="mock-ring-text">
+                                    <span class="mock-cal-number">1,547</span>
+                                    <span class="mock-cal-label">/ 2,200 cal</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mock-macros">
+                            <div class="mock-macro">
+                                <div class="mock-macro-ring protein-ring"></div>
+                                <span class="mock-macro-value">98g</span>
+                                <span class="mock-macro-label">Protein</span>
+                            </div>
+                            <div class="mock-macro">
+                                <div class="mock-macro-ring carbs-ring"></div>
+                                <span class="mock-macro-value">186g</span>
+                                <span class="mock-macro-label">Carbs</span>
+                            </div>
+                            <div class="mock-macro">
+                                <div class="mock-macro-ring fat-ring"></div>
+                                <span class="mock-macro-value">52g</span>
+                                <span class="mock-macro-label">Fat</span>
+                            </div>
+                        </div>
+                        <div class="mock-meals">
+                            <div class="mock-meal">
+                                <span class="mock-meal-icon">&#x1F305;</span>
+                                <span class="mock-meal-name">Breakfast</span>
+                                <span class="mock-meal-cal">420 cal</span>
+                            </div>
+                            <div class="mock-meal">
+                                <span class="mock-meal-icon">&#x2600;&#xFE0F;</span>
+                                <span class="mock-meal-name">Lunch</span>
+                                <span class="mock-meal-cal">680 cal</span>
+                            </div>
+                            <div class="mock-meal">
+                                <span class="mock-meal-icon">&#x1F319;</span>
+                                <span class="mock-meal-name">Dinner</span>
+                                <span class="mock-meal-cal">447 cal</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Everything you need to<br><span class="gradient-text">track your nutrition</span></h2>
+                <p>Built for simplicity, designed for results.</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: rgba(20,184,166,0.1); color: #14b8a6;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </div>
+                    <h3>Calorie & Macro Rings</h3>
+                    <p>Beautiful animated rings show your daily progress at a glance. Track calories, protein, carbs, and fat with real-time updates.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18"/>
+                            <path d="M18 17V9"/>
+                            <path d="M13 17V5"/>
+                            <path d="M8 17v-3"/>
+                        </svg>
+                    </div>
+                    <h3>Weekly Trends</h3>
+                    <p>7-day bar charts with weekly averages. See your consistency over time and identify patterns in your nutrition.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: rgba(239,68,68,0.1); color: #ef4444;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+                        </svg>
+                    </div>
+                    <h3>Barcode Scanner</h3>
+                    <p>Scan any food product barcode to instantly look up nutrition facts from the Open Food Facts database.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: rgba(168,85,247,0.1); color: #a855f7;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                    </div>
+                    <h3>Custom Recipes</h3>
+                    <p>Create recipes with multiple ingredients and servings. Log a whole meal in one tap with automatic macro calculations.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: rgba(34,197,94,0.1); color: #22c55e;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20V10"/>
+                            <path d="M18 20V4"/>
+                            <path d="M6 20v-4"/>
+                        </svg>
+                    </div>
+                    <h3>Streak Tracking</h3>
+                    <p>Build consistency with a daily logging streak. Get personalized motivational messages based on your daily progress.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon" style="background: rgba(59,130,246,0.1); color: #3b82f6;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                        </svg>
+                    </div>
+                    <h3>Quick Add</h3>
+                    <p>Re-log recent meals with a single tap. Your frequently eaten foods are always just one tap away.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="container">
+            <div class="section-header">
+                <h2>Simple as<br><span class="gradient-text">1, 2, 3</span></h2>
+                <p>Get started tracking in under a minute.</p>
+            </div>
+
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Set Your Goals</h3>
+                    <p>Choose from preset profiles (Cut, Maintain, Bulk) or set custom calorie and macro targets. Use the protein calculator for precise protein goals.</p>
+                </div>
+                <div class="step-arrow">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14"/>
+                        <path d="M12 5l7 7-7 7"/>
+                    </svg>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Log Your Meals</h3>
+                    <p>Search from thousands of foods, scan barcodes, create custom foods, or use your saved recipes. Adjust servings with a tap.</p>
+                </div>
+                <div class="step-arrow">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14"/>
+                        <path d="M12 5l7 7-7 7"/>
+                    </svg>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Hit Your Targets</h3>
+                    <p>Watch your rings fill up throughout the day. Check weekly trends, maintain your streak, and share progress via iMessage.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Screenshots Section -->
+    <section class="screenshots" id="screenshots">
+        <div class="container">
+            <div class="section-header">
+                <h2>Designed with<br><span class="gradient-text">care and precision</span></h2>
+                <p>Native iOS experience with dark mode support.</p>
+            </div>
+
+            <div class="screenshot-grid">
+                <div class="screenshot-card">
+                    <div class="screenshot-mock dark">
+                        <div class="mock-status-bar">
+                            <span>9:41</span>
+                            <div class="mock-status-icons">
+                                <div class="mock-signal"></div>
+                                <div class="mock-wifi"></div>
+                                <div class="mock-battery"></div>
+                            </div>
+                        </div>
+                        <div class="mock-content">
+                            <div class="mock-streak-banner">
+                                <div class="mock-streak-left">
+                                    <div class="mock-greeting">Good morning</div>
+                                    <div class="mock-motivation">You're on a 12-day streak!</div>
+                                </div>
+                                <div class="mock-streak-flame">
+                                    <span>&#x1F525;</span>
+                                    <span class="mock-streak-num">12</span>
+                                </div>
+                            </div>
+                            <div class="mock-mini-ring-row">
+                                <div class="mock-mini-item">
+                                    <div class="mini-ring-visual protein"></div>
+                                    <span>142g P</span>
+                                </div>
+                                <div class="mock-mini-item">
+                                    <div class="mini-ring-visual carbs"></div>
+                                    <span>210g C</span>
+                                </div>
+                                <div class="mock-mini-item">
+                                    <div class="mini-ring-visual fat"></div>
+                                    <span>58g F</span>
+                                </div>
+                            </div>
+                            <div class="mock-progress-bars">
+                                <div class="mock-pbar"><span>Calories</span><div class="pbar-track"><div class="pbar-fill amber" style="width:72%"></div></div></div>
+                                <div class="mock-pbar"><span>Protein</span><div class="pbar-track"><div class="pbar-fill teal" style="width:89%"></div></div></div>
+                                <div class="mock-pbar"><span>Carbs</span><div class="pbar-track"><div class="pbar-fill amber" style="width:65%"></div></div></div>
+                                <div class="mock-pbar"><span>Fat</span><div class="pbar-track"><div class="pbar-fill pink" style="width:81%"></div></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="screenshot-label">Dashboard</div>
+                </div>
+
+                <div class="screenshot-card">
+                    <div class="screenshot-mock dark">
+                        <div class="mock-status-bar">
+                            <span>9:41</span>
+                            <div class="mock-status-icons">
+                                <div class="mock-signal"></div>
+                                <div class="mock-wifi"></div>
+                                <div class="mock-battery"></div>
+                            </div>
+                        </div>
+                        <div class="mock-content">
+                            <div class="mock-search-bar">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                                <span>Search foods...</span>
+                            </div>
+                            <div class="mock-food-list">
+                                <div class="mock-food-item">
+                                    <div class="mock-food-info">
+                                        <div class="mock-food-name">Greek Yogurt</div>
+                                        <div class="mock-food-brand">Fage - 130 cal</div>
+                                    </div>
+                                    <div class="mock-food-cal">130</div>
+                                </div>
+                                <div class="mock-food-item">
+                                    <div class="mock-food-info">
+                                        <div class="mock-food-name">Chicken Breast</div>
+                                        <div class="mock-food-brand">Generic - 165 cal</div>
+                                    </div>
+                                    <div class="mock-food-cal">165</div>
+                                </div>
+                                <div class="mock-food-item">
+                                    <div class="mock-food-info">
+                                        <div class="mock-food-name">Brown Rice</div>
+                                        <div class="mock-food-brand">Generic - 216 cal</div>
+                                    </div>
+                                    <div class="mock-food-cal">216</div>
+                                </div>
+                                <div class="mock-food-item">
+                                    <div class="mock-food-info">
+                                        <div class="mock-food-name">Salmon Fillet</div>
+                                        <div class="mock-food-brand">Wild Caught - 208 cal</div>
+                                    </div>
+                                    <div class="mock-food-cal">208</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="screenshot-label">Food Search</div>
+                </div>
+
+                <div class="screenshot-card">
+                    <div class="screenshot-mock dark">
+                        <div class="mock-status-bar">
+                            <span>9:41</span>
+                            <div class="mock-status-icons">
+                                <div class="mock-signal"></div>
+                                <div class="mock-wifi"></div>
+                                <div class="mock-battery"></div>
+                            </div>
+                        </div>
+                        <div class="mock-content">
+                            <div class="mock-goals-title">Daily Targets</div>
+                            <div class="mock-goal-rows">
+                                <div class="mock-goal-row">
+                                    <div class="mock-goal-dot amber"></div>
+                                    <span>Calories</span>
+                                    <span class="mock-goal-val">2,200 kcal</span>
+                                </div>
+                                <div class="mock-goal-row">
+                                    <div class="mock-goal-dot teal"></div>
+                                    <span>Protein</span>
+                                    <span class="mock-goal-val">160 g</span>
+                                </div>
+                                <div class="mock-goal-row">
+                                    <div class="mock-goal-dot amber"></div>
+                                    <span>Carbs</span>
+                                    <span class="mock-goal-val">250 g</span>
+                                </div>
+                                <div class="mock-goal-row">
+                                    <div class="mock-goal-dot pink"></div>
+                                    <span>Fat</span>
+                                    <span class="mock-goal-val">70 g</span>
+                                </div>
+                            </div>
+                            <div class="mock-macro-split">
+                                <div class="split-bar">
+                                    <div class="split-seg teal" style="width:28%"></div>
+                                    <div class="split-seg amber" style="width:44%"></div>
+                                    <div class="split-seg pink" style="width:28%"></div>
+                                </div>
+                                <div class="split-labels">
+                                    <span class="teal-text">P 28%</span>
+                                    <span class="amber-text">C 44%</span>
+                                    <span class="pink-text">F 28%</span>
+                                </div>
+                            </div>
+                            <div class="mock-presets">
+                                <div class="mock-preset">
+                                    <span class="preset-icon">&#x2B07;</span>
+                                    <span>Cut</span>
+                                    <span class="preset-cal">1800</span>
+                                </div>
+                                <div class="mock-preset active">
+                                    <span class="preset-icon">=</span>
+                                    <span>Maintain</span>
+                                    <span class="preset-cal">2200</span>
+                                </div>
+                                <div class="mock-preset">
+                                    <span class="preset-icon">&#x2B06;</span>
+                                    <span>Bulk</span>
+                                    <span class="preset-cal">2800</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="screenshot-label">Goals</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Stack -->
+    <section class="tech-stack">
+        <div class="container">
+            <div class="section-header">
+                <h2>Built with modern<br><span class="gradient-text">Apple technologies</span></h2>
+            </div>
+            <div class="tech-pills">
+                <div class="tech-pill">SwiftUI</div>
+                <div class="tech-pill">SwiftData</div>
+                <div class="tech-pill">Swift Charts</div>
+                <div class="tech-pill">iOS 17+</div>
+                <div class="tech-pill">Open Food Facts API</div>
+                <div class="tech-pill">AVFoundation</div>
+                <div class="tech-pill">MessageUI</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo-icon small">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </div>
+                    <span>MacroTracker</span>
+                </div>
+                <p class="footer-copy">Built with SwiftUI. Hosted on Hugging Face.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
