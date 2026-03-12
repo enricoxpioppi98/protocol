@@ -91,6 +91,13 @@ struct FoodSearchView: View {
                                 }
                                 .tint(Color.highlight)
                             }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    deleteFood(food)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                 }
@@ -144,6 +151,13 @@ struct FoodSearchView: View {
                                     )
                                 }
                                 .tint(Color.highlight)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    deleteFood(food)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
                     }
@@ -331,6 +345,12 @@ struct FoodSearchView: View {
         modelContext.insert(food)
         try? modelContext.save()
         selectedFood = food
+    }
+
+    private func deleteFood(_ food: Food) {
+        modelContext.delete(food)
+        try? modelContext.save()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
     private func addRecipeToDiary(_ recipe: Recipe) {

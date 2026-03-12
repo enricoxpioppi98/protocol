@@ -59,11 +59,28 @@ struct FoodDetailView: View {
 
     @State private var customAmount: String = ""
     @State private var selectedUnit: String = ""
-    @State private var servingsText: String = "1"
+    @State private var selectedServings: Double = 1.0
     @State private var didAdd = false
 
     @FocusState private var amountFocused: Bool
-    @FocusState private var servingsFocused: Bool
+
+    /// Values available in the wheel picker
+    private static let servingOptions: [Double] = {
+        var values: [Double] = []
+        // 0.25 to 5.0 in 0.25 steps
+        var v = 0.25
+        while v <= 5.0 {
+            values.append(v)
+            v += 0.25
+        }
+        // 5.5 to 10 in 0.5 steps
+        v = 5.5
+        while v <= 10.0 {
+            values.append(v)
+            v += 0.5
+        }
+        return values
+    }()
 
     // MARK: - Computed
 
@@ -81,12 +98,8 @@ struct FoodDetailView: View {
         return amountInOriginalUnit / food.servingSize
     }
 
-    private var servingsCount: Double {
-        Double(servingsText) ?? 1
-    }
-
     private var effectiveMultiplier: Double {
-        amountRatio * servingsCount
+        amountRatio * selectedServings
     }
 
     private var compatibleUnits: [String] {
@@ -96,8 +109,6 @@ struct FoodDetailView: View {
     private var canConvertUnits: Bool {
         compatibleUnits.count > 1
     }
-
-    private let quickServings: [Double] = [0.25, 0.5, 1, 1.5, 2, 3]
 
     // MARK: - Body
 
@@ -187,60 +198,33 @@ struct FoodDetailView: View {
                 .contentTransition(.numericText())
                 .animation(.default, value: effectiveMultiplier)
 
-                // Number of servings
-                VStack(spacing: 12) {
+                // Number of servings — wheel picker
+                VStack(spacing: 4) {
                     Text("Number of Servings")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                         .tracking(0.5)
 
-                    TextField("1", text: $servingsText)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.center)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .frame(width: 100)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 16)
-                        .background(Color.surfaceBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .focused($servingsFocused)
-
-                    // Quick-select chips
-                    HStack(spacing: 8) {
-                        ForEach(quickServings, id: \.self) { value in
-                            Button {
-                                servingsText = formatNumber(value)
-                                servingsFocused = false
-                            } label: {
-                                Text(formatNumber(value))
-                                    .font(.subheadline.weight(.medium))
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 7)
-                                    .background(
-                                        servingsCount == value
-                                            ? Color.accent
-                                            : Color.surfaceBackground
-                                    )
-                                    .foregroundStyle(
-                                        servingsCount == value
-                                            ? .white
-                                            : .primary
-                                    )
-                                    .clipShape(Capsule())
-                            }
+                    Picker("Servings", selection: $selectedServings) {
+                        ForEach(Self.servingOptions, id: \.self) { value in
+                            Text(formatNumber(value))
+                                .tag(value)
                         }
                     }
+                    .pickerStyle(.wheel)
+                    .frame(height: 120)
 
                     // Total amount summary
-                    let totalAmount = (Double(customAmount) ?? food.servingSize) * servingsCount
-                    if servingsCount != 1 {
+                    let totalAmount = (Double(customAmount) ?? food.servingSize) * selectedServings
+                    if selectedServings != 1 {
                         Text("Total: \(String(format: "%.0f", totalAmount)) \(selectedUnit)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.vertical, 8)
                 .frame(maxWidth: .infinity)
                 .background(Color.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -280,7 +264,6 @@ struct FoodDetailView: View {
                 Spacer()
                 Button("Done") {
                     amountFocused = false
-                    servingsFocused = false
                 }
                 .font(.subheadline.bold())
             }
