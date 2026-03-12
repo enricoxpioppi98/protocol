@@ -174,6 +174,21 @@ struct FoodSearchView: View {
                                     .foregroundStyle(.secondary)
                                     .font(.subheadline)
                             }
+                        } else if let error = usdaError {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                                    .font(.caption)
+                                Text(error)
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                Spacer()
+                                Button("Retry") {
+                                    performSearch(query: searchText)
+                                }
+                                .font(.caption.bold())
+                                .foregroundStyle(Color.accent)
+                            }
                         } else if usdaResults.isEmpty {
                             Text("No USDA results")
                                 .foregroundStyle(.secondary)
@@ -186,8 +201,8 @@ struct FoodSearchView: View {
                                     FoodRow(
                                         name: product.name,
                                         detail: product.brand.isEmpty
-                                            ? "\(Int(product.calories)) cal"
-                                            : "\(product.brand) - \(Int(product.calories)) cal",
+                                            ? "\(Int(product.calories)) cal · \(product.servingSize)"
+                                            : "\(product.brand) · \(product.servingSize)",
                                         calories: product.calories
                                     )
                                 }
@@ -198,6 +213,11 @@ struct FoodSearchView: View {
                         HStack {
                             Text("USDA Branded Foods")
                             Spacer()
+                            if !usdaResults.isEmpty {
+                                Text("\(usdaResults.count) results")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
                             Image(systemName: "building.columns")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
@@ -216,6 +236,21 @@ struct FoodSearchView: View {
                                     .foregroundStyle(.secondary)
                                     .font(.subheadline)
                             }
+                        } else if let error = offError {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                                    .font(.caption)
+                                Text(error)
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                Spacer()
+                                Button("Retry") {
+                                    performSearch(query: searchText)
+                                }
+                                .font(.caption.bold())
+                                .foregroundStyle(Color.accent)
+                            }
                         } else if offResults.isEmpty {
                             Text("No OpenFoodFacts results")
                                 .foregroundStyle(.secondary)
@@ -228,8 +263,8 @@ struct FoodSearchView: View {
                                     FoodRow(
                                         name: product.name,
                                         detail: product.brand.isEmpty
-                                            ? "\(Int(product.calories)) cal"
-                                            : "\(product.brand) - \(Int(product.calories)) cal",
+                                            ? "\(Int(product.calories)) cal · \(product.servingSize)"
+                                            : "\(product.brand) · \(product.servingSize)",
                                         calories: product.calories
                                     )
                                 }
@@ -240,26 +275,15 @@ struct FoodSearchView: View {
                         HStack {
                             Text("OpenFoodFacts")
                             Spacer()
+                            if !offResults.isEmpty {
+                                Text("\(offResults.count) results")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
                             Image(systemName: "globe")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-                    }
-                }
-
-                // Error messages
-                if let usdaError {
-                    Section {
-                        Text(usdaError)
-                            .foregroundStyle(.red)
-                            .font(.caption)
-                    }
-                }
-                if let offError {
-                    Section {
-                        Text(offError)
-                            .foregroundStyle(.red)
-                            .font(.caption)
                     }
                 }
             }

@@ -13,9 +13,14 @@ struct ContentView: View {
                     Label("Recipes", systemImage: "frying.pan.fill")
                 }
 
-            GoalsView()
+            ProgressTabView()
                 .tabItem {
-                    Label("Goals", systemImage: "target")
+                    Label("Progress", systemImage: "chart.line.uptrend.xyaxis")
+                }
+
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape.fill")
                 }
         }
         .tint(Color.accent)

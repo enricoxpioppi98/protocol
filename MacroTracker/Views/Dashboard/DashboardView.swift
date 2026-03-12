@@ -17,6 +17,7 @@ struct DashboardView: View {
     @State private var undoTask: Task<Void, Never>?
     @State private var showCopyConfirmation = false
     @State private var showGoalsOnboarding = false
+    @State private var showMealTemplates = false
     @State private var quickAddToast: String?
 
     private var goal: DailyGoal {
@@ -110,6 +111,13 @@ struct DashboardView: View {
                 }
                 ToolbarItem(placement: .secondaryAction) {
                     Button {
+                        showMealTemplates = true
+                    } label: {
+                        Label("Meal Templates", systemImage: "tray.2.fill")
+                    }
+                }
+                ToolbarItem(placement: .secondaryAction) {
+                    Button {
                         showCopyConfirmation = true
                     } label: {
                         Label("Copy Yesterday", systemImage: "doc.on.doc")
@@ -136,6 +144,15 @@ struct DashboardView: View {
             .sheet(isPresented: $showMessageCompose) {
                 DailySummaryMessageView(messageBody: formatDailySummary())
                     .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showMealTemplates) {
+                MealTemplatesView(date: selectedDate) {
+                    withAnimation { quickAddToast = "Template added" }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(2))
+                        withAnimation { quickAddToast = nil }
+                    }
+                }
             }
             .sheet(isPresented: $showGoalsOnboarding) {
                 NavigationStack {
@@ -296,6 +313,21 @@ struct DashboardView: View {
                 MacroProgressBar(label: "Protein", current: totalProtein, goal: goal.protein, color: Color.accent, unit: "g")
                 MacroProgressBar(label: "Carbs", current: totalCarbs, goal: goal.carbs, color: Color.highlight, unit: "g")
                 MacroProgressBar(label: "Fat", current: totalFat, goal: goal.fat, color: .pink, unit: "g")
+            }
+
+            // Remaining summary
+            if totalCalories > 0 {
+                Section {
+                    HStack(spacing: 16) {
+                        RemainingPill(label: "Cal", remaining: goal.calories - totalCalories, color: Color.highlight)
+                        RemainingPill(label: "P", remaining: goal.protein - totalProtein, color: Color.accent)
+                        RemainingPill(label: "C", remaining: goal.carbs - totalCarbs, color: Color.highlight)
+                        RemainingPill(label: "F", remaining: goal.fat - totalFat, color: .pink)
+                    }
+                    .frame(maxWidth: .infinity)
+                } header: {
+                    Text("Remaining")
+                }
             }
 
             // Quick Add recent foods
@@ -467,12 +499,46 @@ struct DashboardView: View {
     }
 }
 
+// MARK: - Remaining Pill
+
+private struct RemainingPill: View {
+    let label: String
+    let remaining: Double
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text("\(Int(remaining))")
+                .font(.subheadline.bold())
+                .foregroundStyle(remaining < 0 ? .red : color)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
 // MARK: - Edit Entry Sheet
 
 private struct EditEntrySheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Bindable var entry: DiaryEntry
+
+    private static let servingOptions: [Double] = {
+        var values: [Double] = []
+        var v = 0.25
+        while v <= 5.0 { values.append(v); v += 0.25 }
+        v = 5.5
+        while v <= 10.0 { values.append(v); v += 0.5 }
+        return values
+    }()
+
+    /// Find the closest option to the current value
+    private var closestOption: Double {
+        Self.servingOptions.min(by: { abs($0 - entry.numberOfServings) < abs($1 - entry.numberOfServings) }) ?? 1.0
+    }
 
     var body: some View {
         NavigationStack {
@@ -488,40 +554,51 @@ private struct EditEntrySheet: View {
                     }
                     .padding(.top)
 
-                    // Serving count editor
+                    // Meal type picker
                     VStack(spacing: 8) {
+                        Text("Meal")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                            .tracking(0.5)
+
+                        Picker("Meal", selection: Binding(
+                            get: { entry.mealType },
+                            set: { entry.mealType = $0 }
+                        )) {
+                            ForEach(MealType.allCases) { type in
+                                Label(type.rawValue, systemImage: type.icon).tag(type)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .padding(.horizontal)
+
+                    // Serving count editor — wheel picker
+                    VStack(spacing: 4) {
                         Text("Number of Servings")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .tracking(0.5)
 
-                        HStack(spacing: 20) {
-                            Button {
-                                if entry.numberOfServings > 0.5 {
-                                    entry.numberOfServings -= 0.5
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                }
-                            } label: {
-                                Image(systemName: "minus.circle.fill")
-                                    .font(.title2)
-                            }
-
-                            Text(String(format: "%.1f", entry.numberOfServings))
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
-                                .frame(width: 60)
-
-                            Button {
-                                entry.numberOfServings += 0.5
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
+                        Picker("Servings", selection: Binding(
+                            get: { closestOption },
+                            set: { entry.numberOfServings = $0 }
+                        )) {
+                            ForEach(Self.servingOptions, id: \.self) { value in
+                                Text(formatNumber(value)).tag(value)
                             }
                         }
-                        .tint(Color.accent)
+                        .pickerStyle(.wheel)
+                        .frame(height: 120)
                     }
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                     .frame(maxWidth: .infinity)
                     .background(Color.cardBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -535,6 +612,8 @@ private struct EditEntrySheet: View {
                         fat: entry.fat
                     )
                     .padding(.horizontal)
+                    .contentTransition(.numericText())
+                    .animation(.default, value: entry.numberOfServings)
                 }
             }
             .background(Color.surfaceBackground)
@@ -546,9 +625,15 @@ private struct EditEntrySheet: View {
                         try? modelContext.save()
                         dismiss()
                     }
-                        .bold()
+                    .bold()
                 }
             }
         }
+    }
+
+    private func formatNumber(_ value: Double) -> String {
+        value.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", value)
+            : String(value)
     }
 }
