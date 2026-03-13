@@ -8,12 +8,14 @@ struct ProgressTabView: View {
     @Query(sort: \DiaryEntry.date) private var diaryEntries: [DiaryEntry]
     @Query private var goals: [DailyGoal]
 
+    @AppStorage("suggestion_dismissed_date") private var suggestionDismissedDate: Double = 0
+
     @State private var showAddWeight = false
     @State private var weightText = ""
     @State private var noteText = ""
     @State private var selectedRange: TimeRange = .month
 
-    private var goal: DailyGoal { goals.first ?? DailyGoal() }
+    private var goal: DailyGoal { goals.goal(for: Date()) }
 
     enum TimeRange: String, CaseIterable {
         case week = "7D"
@@ -71,13 +73,72 @@ struct ProgressTabView: View {
         return filteredWeights.reduce(0) { $0 + $1.weight } / Double(filteredWeights.count)
     }
 
+    private var goalSuggestion: GoalSuggestion? {
+        // Don't show if dismissed within last 7 days
+        let dismissedDate = Date(timeIntervalSince1970: suggestionDismissedDate)
+        guard Date().timeIntervalSince(dismissedDate) > 7 * 24 * 3600 else { return nil }
+        return GoalSuggestionService.generate(
+            weightEntries: weightEntries,
+            diaryEntries: diaryEntries,
+            goal: goal
+        )
+    }
+
     // MARK: - Body
+
+    private var isEmpty: Bool {
+        weightEntries.isEmpty && diaryEntries.isEmpty
+    }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 12) {
-                    // Time range picker
+            if isEmpty {
+                emptyStateView
+            } else {
+                mainContent
+            }
+        }
+    }
+
+    private var emptyStateView: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                Spacer().frame(height: 60)
+
+                Image(systemName: "chart.line.uptrend.xyaxis.circle.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(Color.accent)
+
+                Text("No Progress Data Yet")
+                    .font(.title2.bold())
+
+                Text("Start logging meals and weight\nto see your trends here.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                Button {
+                    showAddWeight = true
+                } label: {
+                    Label("Log Your First Weight", systemImage: "scalemass.fill")
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.horizontal, 24)
+
+                Spacer()
+            }
+        }
+        .background(Color.surfaceBackground)
+        .navigationTitle("Progress")
+        .sheet(isPresented: $showAddWeight) {
+            addWeightSheet
+        }
+    }
+
+    private var mainContent: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                // Time range picker
                     Picker("Range", selection: $selectedRange) {
                         ForEach(TimeRange.allCases, id: \.self) { range in
                             Text(range.rawValue).tag(range)
@@ -113,6 +174,17 @@ struct ProgressTabView: View {
                         }
                     }
                     .padding(.horizontal, 16)
+
+                    // Goal suggestion banner
+                    if let suggestion = goalSuggestion {
+                        GoalSuggestionBanner(suggestion: suggestion) {
+                            withAnimation {
+                                suggestionDismissedDate = Date().timeIntervalSince1970
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
 
                     // Weight chart
                     if !filteredWeights.isEmpty {
@@ -276,7 +348,6 @@ struct ProgressTabView: View {
             .sheet(isPresented: $showAddWeight) {
                 addWeightSheet
             }
-        }
     }
 
     // MARK: - Helpers

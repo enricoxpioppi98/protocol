@@ -22,7 +22,6 @@ extension Color {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let waterColor = Color(red: 0.25, green: 0.58, blue: 0.96)
 }
 
 // MARK: - Button Styles

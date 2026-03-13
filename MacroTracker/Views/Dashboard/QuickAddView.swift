@@ -26,6 +26,7 @@ struct QuickAddView: View {
                 HStack(spacing: 10) {
                     ForEach(quickItems) { entry in
                         Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             onQuickAdd(entry)
                         } label: {
                             VStack(spacing: 6) {

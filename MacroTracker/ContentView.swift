@@ -30,16 +30,23 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Content
-            Group {
-                switch selectedTab {
-                case .diary: DashboardView()
-                case .recipes: RecipeListView()
-                case .progress: ProgressTabView()
-                case .settings: SettingsView()
-                }
+            // Content with crossfade transition
+            ZStack {
+                DashboardView()
+                    .opacity(selectedTab == .diary ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .diary)
+                RecipeListView()
+                    .opacity(selectedTab == .recipes ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .recipes)
+                ProgressTabView()
+                    .opacity(selectedTab == .progress ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .progress)
+                SettingsView()
+                    .opacity(selectedTab == .settings ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .settings)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .animation(.easeInOut(duration: 0.2), value: selectedTab)
 
             // Floating tab bar
             HStack(spacing: 0) {

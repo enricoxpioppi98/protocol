@@ -50,6 +50,7 @@ struct MealSectionView: View {
             // Entries
             if entries.isEmpty {
                 Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     onAdd()
                 } label: {
                     HStack(spacing: 10) {
@@ -67,40 +68,43 @@ struct MealSectionView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(entries) { entry in
-                        Button {
-                            onEdit(entry)
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(entry.name)
-                                        .font(.subheadline.weight(.medium))
-                                        .foregroundStyle(.primary)
-                                    Text(String(format: "%.1f serving%@", entry.numberOfServings, entry.numberOfServings == 1 ? "" : "s"))
-                                        .font(.caption2)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                Spacer()
-                                VStack(alignment: .trailing, spacing: 3) {
-                                    Text("\(Int(entry.calories)) cal")
-                                        .font(.subheadline.bold())
-                                        .foregroundStyle(Color.highlight)
-                                    HStack(spacing: 8) {
-                                        MacroPill(value: entry.protein, label: "P", color: Color.accent)
-                                        MacroPill(value: entry.carbs, label: "C", color: Color.highlight)
-                                        MacroPill(value: entry.fat, label: "F", color: Color.fatColor)
+                        SwipeToDeleteWrapper(onDelete: { onDelete(entry) }) {
+                            Button {
+                                onEdit(entry)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(entry.name)
+                                            .font(.subheadline.weight(.medium))
+                                            .foregroundStyle(.primary)
+                                        Text(String(format: "%.1f serving%@", entry.numberOfServings, entry.numberOfServings == 1 ? "" : "s"))
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    Spacer()
+                                    VStack(alignment: .trailing, spacing: 3) {
+                                        Text("\(Int(entry.calories)) cal")
+                                            .font(.subheadline.bold())
+                                            .foregroundStyle(Color.highlight)
+                                        HStack(spacing: 8) {
+                                            MacroPill(value: entry.protein, label: "P", color: Color.accent)
+                                            MacroPill(value: entry.carbs, label: "C", color: Color.highlight)
+                                            MacroPill(value: entry.fat, label: "F", color: Color.fatColor)
+                                        }
                                     }
                                 }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .contentShape(Rectangle())
+                                .background(Color.cardBackground)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                onDelete(entry)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    onDelete(entry)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
 
@@ -113,6 +117,7 @@ struct MealSectionView: View {
 
                     // Add button
                     Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         onAdd()
                     } label: {
                         HStack(spacing: 6) {

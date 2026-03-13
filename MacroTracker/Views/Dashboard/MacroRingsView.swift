@@ -46,6 +46,11 @@ struct MacroRingsView: View {
             }
         }
         .padding(.vertical, 4)
+        .onChange(of: calories) { oldValue, newValue in
+            if oldValue < calorieGoal && newValue >= calorieGoal {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
     }
 
     private func ringProgress(_ value: Double, goal: Double) -> CGFloat {

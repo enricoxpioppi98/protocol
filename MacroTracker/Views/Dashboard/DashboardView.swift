@@ -6,8 +6,6 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var goals: [DailyGoal]
     @Query(sort: \DiaryEntry.date) private var allEntries: [DiaryEntry]
-    @Query private var allWaterEntries: [WaterEntry]
-
     @State private var selectedDate = Date()
     @State private var addingMealType: MealType?
     @State private var showMessageCompose = false
@@ -22,7 +20,7 @@ struct DashboardView: View {
     @State private var quickAddToast: String?
 
     private var goal: DailyGoal {
-        goals.first ?? DailyGoal()
+        goals.goal(for: selectedDate)
     }
 
     private var todayEntries: [DiaryEntry] {
@@ -71,11 +69,6 @@ struct DashboardView: View {
     private var totalProtein: Double { todayEntries.reduce(0) { $0 + $1.protein } }
     private var totalCarbs: Double { todayEntries.reduce(0) { $0 + $1.carbs } }
     private var totalFat: Double { todayEntries.reduce(0) { $0 + $1.fat } }
-
-    private var todayWater: WaterEntry? {
-        let today = Calendar.current.startOfDay(for: selectedDate)
-        return allWaterEntries.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
-    }
 
     var body: some View {
         NavigationStack {
@@ -251,17 +244,6 @@ struct DashboardView: View {
                 )
                 .padding(.horizontal, 16)
 
-                // Water tracking
-                if Calendar.current.isDateInToday(selectedDate) {
-                    WaterTrackingView(
-                        glasses: todayWater?.glasses ?? 0,
-                        goal: 8,
-                        onTap: { incrementWater() },
-                        onLongPress: { decrementWater() }
-                    )
-                    .padding(.horizontal, 16)
-                }
-
                 // Quick Add
                 if Calendar.current.isDateInToday(selectedDate) && !recentEntries.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -341,32 +323,6 @@ struct DashboardView: View {
         .background(.black.opacity(0.85))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 16)
-    }
-
-    // MARK: - Water Tracking
-
-    private func incrementWater() {
-        let entry = getOrCreateWaterEntry()
-        if entry.glasses < 8 {
-            entry.glasses += 1
-            try? modelContext.save()
-        }
-    }
-
-    private func decrementWater() {
-        let entry = getOrCreateWaterEntry()
-        if entry.glasses > 0 {
-            entry.glasses -= 1
-            try? modelContext.save()
-        }
-    }
-
-    private func getOrCreateWaterEntry() -> WaterEntry {
-        if let existing = todayWater { return existing }
-        let entry = WaterEntry(date: selectedDate)
-        modelContext.insert(entry)
-        try? modelContext.save()
-        return entry
     }
 
     // MARK: - Deletion with Undo
