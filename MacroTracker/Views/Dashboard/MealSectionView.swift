@@ -16,104 +16,124 @@ struct MealSectionView: View {
     }
 
     var body: some View {
-        Section {
-            if entries.isEmpty {
-                // Empty state for this meal
-                Button {
-                    onAdd()
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: mealType.icon)
-                            .font(.title3)
-                            .foregroundStyle(Color.highlight.opacity(0.5))
-                            .frame(width: 36, height: 36)
-                            .background(Color.highlight.opacity(0.08))
-                            .clipShape(Circle())
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("No \(mealType.rawValue.lowercased()) logged")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Text("Tap to add food")
-                                .font(.caption2)
-                                .foregroundStyle(Color.accent)
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundStyle(Color.accent)
-                    }
-                }
-                .buttonStyle(.plain)
-            } else {
-                ForEach(entries) { entry in
-                    Button {
-                        onEdit(entry)
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.name)
-                                    .font(.subheadline.weight(.medium))
-                                Text(String(format: "%.1f serving%@", entry.numberOfServings, entry.numberOfServings == 1 ? "" : "s"))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 3) {
-                                Text("\(Int(entry.calories)) cal")
-                                    .font(.subheadline.bold())
-                                    .foregroundStyle(Color.highlight)
-                                HStack(spacing: 8) {
-                                    MacroPill(value: entry.protein, label: "P", color: Color.accent)
-                                    MacroPill(value: entry.carbs, label: "C", color: Color.highlight)
-                                    MacroPill(value: entry.fat, label: "F", color: .pink)
-                                }
-                            }
-                        }
-                    }
-                    .tint(.primary)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            onDelete(entry)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                }
-
-                Button {
-                    onAdd()
-                } label: {
-                    Label("Add Food", systemImage: "plus")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Color.accent)
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 12)
-                        .background(Color.accent.opacity(0.1))
-                        .clipShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-        } header: {
-            HStack {
+        VStack(spacing: 0) {
+            // Header
+            HStack(spacing: 10) {
                 Image(systemName: mealType.icon)
-                    .foregroundStyle(Color.highlight)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(Color.highlight.gradient)
+                    .clipShape(Circle())
+
                 Text(mealType.rawValue)
                     .font(.subheadline.weight(.semibold))
+
                 Spacer()
+
                 if totalCalories > 0 {
                     Text("\(Int(totalCalories)) cal")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                     Text("\u{00B7}")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.tertiary)
                     Text("\(Int(totalProtein))g P")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Color.accent)
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            Divider().padding(.horizontal, 16)
+
+            // Entries
+            if entries.isEmpty {
+                Button {
+                    onAdd()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus.circle")
+                            .foregroundStyle(Color.accent)
+                        Text("Add \(mealType.rawValue.lowercased())")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.accent)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                }
+                .buttonStyle(ScaleButtonStyle())
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(entries) { entry in
+                        Button {
+                            onEdit(entry)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entry.name)
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                    Text(String(format: "%.1f serving%@", entry.numberOfServings, entry.numberOfServings == 1 ? "" : "s"))
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 3) {
+                                    Text("\(Int(entry.calories)) cal")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(Color.highlight)
+                                    HStack(spacing: 8) {
+                                        MacroPill(value: entry.protein, label: "P", color: Color.accent)
+                                        MacroPill(value: entry.carbs, label: "C", color: Color.highlight)
+                                        MacroPill(value: entry.fat, label: "F", color: Color.fatColor)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                onDelete(entry)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+
+                        if entry.id != entries.last?.id {
+                            Divider().padding(.leading, 16)
+                        }
+                    }
+
+                    Divider().padding(.horizontal, 16)
+
+                    // Add button
+                    Button {
+                        onAdd()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus")
+                                .font(.caption.weight(.semibold))
+                            Text("Add Food")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundStyle(Color.accent)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .background(Color.accent.opacity(0.08))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(ScaleButtonStyle())
+                    .padding(.vertical, 10)
+                }
+            }
         }
+        .background(Color.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 

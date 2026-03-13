@@ -21,7 +21,7 @@ struct MacroRingsView: View {
                     .trim(from: 0, to: ringProgress(calories, goal: calorieGoal))
                     .stroke(calories > calorieGoal ? .red : Color.highlight, style: StrokeStyle(lineWidth: 14, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.5), value: calories)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.7), value: calories)
 
                 VStack(spacing: 2) {
                     Text("\(Int(calories))")
@@ -42,12 +42,10 @@ struct MacroRingsView: View {
             HStack(spacing: 24) {
                 MiniRing(label: "P", value: protein, goal: proteinGoal, color: Color.accent)
                 MiniRing(label: "C", value: carbs, goal: carbsGoal, color: Color.highlight)
-                MiniRing(label: "F", value: fat, goal: fatGoal, color: .pink)
+                MiniRing(label: "F", value: fat, goal: fatGoal, color: Color.fatColor)
             }
         }
-        .padding()
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.vertical, 4)
     }
 
     private func ringProgress(_ value: Double, goal: Double) -> CGFloat {
@@ -81,7 +79,7 @@ private struct MiniRing: View {
                     .trim(from: 0, to: progress)
                     .stroke(value > goal ? .red : color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.5), value: value)
+                    .animation(.spring(response: 0.6, dampingFraction: 0.7), value: value)
 
                 Text("\(Int(value))")
                     .font(.caption2.bold())

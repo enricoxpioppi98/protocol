@@ -6,7 +6,6 @@ struct QuickAddView: View {
     let date: Date
     let onQuickAdd: (DiaryEntry) -> Void
 
-    /// Deduplicated recent foods/recipes by name, most recent first
     private var quickItems: [DiaryEntry] {
         var seen = Set<String>()
         var result: [DiaryEntry] = []
@@ -28,7 +27,6 @@ struct QuickAddView: View {
                     ForEach(quickItems) { entry in
                         Button {
                             onQuickAdd(entry)
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         } label: {
                             VStack(spacing: 6) {
                                 Image(systemName: entry.mealType.icon)
@@ -57,7 +55,7 @@ struct QuickAddView: View {
                                     .stroke(Color.subtleBorder, lineWidth: 1)
                             )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(ScaleButtonStyle())
                     }
                 }
                 .padding(.horizontal, 16)

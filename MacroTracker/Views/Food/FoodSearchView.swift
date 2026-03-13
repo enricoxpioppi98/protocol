@@ -8,6 +8,7 @@ struct FoodSearchView: View {
     let mealType: MealType
     let date: Date
 
+    @AppStorage("recent_searches") private var recentSearchesData: String = ""
     @State private var searchText = ""
     @State private var usdaResults: [FoodProduct] = []
     @State private var offResults: [FoodProduct] = []
@@ -42,6 +43,10 @@ struct FoodSearchView: View {
         return allRecipes.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
+    private var recentSearches: [String] {
+        recentSearchesData.components(separatedBy: "|||").filter { !$0.isEmpty }
+    }
+
     private var isSearching: Bool {
         isSearchingUSDA || isSearchingOFF || isSearchingNutritionix
     }
@@ -65,6 +70,36 @@ struct FoodSearchView: View {
                         Label("Create Food", systemImage: "plus.circle")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(Color.accent)
+                    }
+                }
+
+                // Recent searches
+                if searchText.isEmpty && !recentSearches.isEmpty {
+                    Section("Recent Searches") {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(recentSearches, id: \.self) { query in
+                                    Button {
+                                        searchText = query
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "clock.arrow.circlepath")
+                                                .font(.system(size: 9))
+                                            Text(query)
+                                                .font(.caption.weight(.medium))
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.accent.opacity(0.08))
+                                        .foregroundStyle(Color.accent)
+                                        .clipShape(Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                        }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
                     }
                 }
 
@@ -282,7 +317,8 @@ struct FoodSearchView: View {
                                         detail: product.brand.isEmpty
                                             ? "\(Int(product.calories)) cal · \(product.servingSize)"
                                             : "\(product.brand) · \(product.servingSize)",
-                                        calories: product.calories
+                                        calories: product.calories,
+                                        sourceColor: Color.accent
                                     )
                                 }
                                 .tint(.primary)
@@ -344,7 +380,8 @@ struct FoodSearchView: View {
                                         detail: product.brand.isEmpty
                                             ? "\(Int(product.calories)) cal · \(product.servingSize)"
                                             : "\(product.brand) · \(product.servingSize)",
-                                        calories: product.calories
+                                        calories: product.calories,
+                                        sourceColor: .blue
                                     )
                                 }
                                 .tint(.primary)
@@ -416,6 +453,9 @@ struct FoodSearchView: View {
 
             try? await Task.sleep(for: .milliseconds(400)) // debounce
             guard !Task.isCancelled else { return }
+
+            // Save to recent searches
+            saveRecentSearch(query)
 
             // Fire all API searches in parallel
             async let usdaSearch = USDAFoodService.shared.searchProducts(query: query)
@@ -491,6 +531,13 @@ struct FoodSearchView: View {
             : String(format: "%.1f", qty)
     }
 
+    private func saveRecentSearch(_ query: String) {
+        var searches = recentSearches.filter { $0 != query }
+        searches.insert(query, at: 0)
+        if searches.count > 5 { searches = Array(searches.prefix(5)) }
+        recentSearchesData = searches.joined(separator: "|||")
+    }
+
     private func deleteFood(_ food: Food) {
         modelContext.delete(food)
         try? modelContext.save()
@@ -515,9 +562,15 @@ private struct FoodRow: View {
     let name: String
     let detail: String
     let calories: Double
+    var sourceColor: Color?
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
+            if let color = sourceColor {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(color)
+                    .frame(width: 3, height: 32)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(name)
                     .font(.subheadline.weight(.medium))

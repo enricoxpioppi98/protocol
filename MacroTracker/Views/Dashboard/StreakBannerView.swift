@@ -67,14 +67,28 @@ struct StreakBannerView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
-                    .background(streakColor.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(streakColor.opacity(0.12))
+                    )
                 }
             }
         }
         .padding()
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(
+                            LinearGradient(
+                                colors: [streakColor.opacity(0.06), Color.clear],
+                                startPoint: .topTrailing,
+                                endPoint: .bottomLeading
+                            )
+                        )
+                )
+        )
     }
 
     private var streakColor: Color {

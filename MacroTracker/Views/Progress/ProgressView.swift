@@ -39,7 +39,6 @@ struct ProgressTabView: View {
         return last.weight - first.weight
     }
 
-    /// Daily calorie averages for the chart
     private var dailyCalories: [(date: Date, calories: Double)] {
         let days: Int
         switch selectedRange {
@@ -76,22 +75,19 @@ struct ProgressTabView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                // Time range picker
-                Section {
+            ScrollView {
+                VStack(spacing: 12) {
+                    // Time range picker
                     Picker("Range", selection: $selectedRange) {
                         ForEach(TimeRange.allCases, id: \.self) { range in
                             Text(range.rawValue).tag(range)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-                }
+                    .padding(.horizontal, 16)
 
-                // Stats cards
-                Section {
-                    HStack(spacing: 12) {
+                    // Stats cards
+                    HStack(spacing: 10) {
                         StatCard(
                             title: "Avg Calories",
                             value: "\(Int(averageCalories))",
@@ -101,7 +97,7 @@ struct ProgressTabView: View {
                         )
                         StatCard(
                             title: "Avg Weight",
-                            value: averageWeight > 0 ? String(format: "%.1f", averageWeight) : "—",
+                            value: averageWeight > 0 ? String(format: "%.1f", averageWeight) : "--",
                             unit: averageWeight > 0 ? "lbs" : "",
                             icon: "scalemass.fill",
                             color: Color.accent
@@ -116,119 +112,166 @@ struct ProgressTabView: View {
                             )
                         }
                     }
-                }
-                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                .listRowBackground(Color.clear)
+                    .padding(.horizontal, 16)
 
-                // Weight chart
-                if !filteredWeights.isEmpty {
-                    Section("Weight Trend") {
-                        Chart(filteredWeights) { entry in
-                            LineMark(
-                                x: .value("Date", entry.date),
-                                y: .value("Weight", entry.weight)
-                            )
-                            .foregroundStyle(Color.accent)
-                            .interpolationMethod(.catmullRom)
+                    // Weight chart
+                    if !filteredWeights.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Weight Trend")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
 
-                            AreaMark(
-                                x: .value("Date", entry.date),
-                                y: .value("Weight", entry.weight)
-                            )
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.accent.opacity(0.2), Color.accent.opacity(0.0)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
+                            Chart(filteredWeights) { entry in
+                                LineMark(
+                                    x: .value("Date", entry.date),
+                                    y: .value("Weight", entry.weight)
                                 )
-                            )
-                            .interpolationMethod(.catmullRom)
+                                .foregroundStyle(Color.accent)
+                                .interpolationMethod(.catmullRom)
 
-                            PointMark(
-                                x: .value("Date", entry.date),
-                                y: .value("Weight", entry.weight)
-                            )
-                            .foregroundStyle(Color.accent)
-                            .symbolSize(20)
-                        }
-                        .chartYScale(domain: weightYDomain)
-                        .frame(height: 180)
-                    }
-                }
-
-                // Calorie chart
-                if !dailyCalories.isEmpty {
-                    Section("Daily Calories") {
-                        Chart {
-                            ForEach(dailyCalories, id: \.date) { item in
-                                BarMark(
-                                    x: .value("Date", item.date),
-                                    y: .value("Calories", item.calories)
+                                AreaMark(
+                                    x: .value("Date", entry.date),
+                                    y: .value("Weight", entry.weight)
                                 )
                                 .foregroundStyle(
-                                    item.calories > goal.calories
-                                        ? Color.orange.opacity(0.7)
-                                        : Color.highlight.opacity(0.7)
+                                    LinearGradient(
+                                        colors: [Color.accent.opacity(0.2), Color.accent.opacity(0.0)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
                                 )
-                                .cornerRadius(3)
-                            }
+                                .interpolationMethod(.catmullRom)
 
-                            RuleMark(y: .value("Goal", goal.calories))
+                                PointMark(
+                                    x: .value("Date", entry.date),
+                                    y: .value("Weight", entry.weight)
+                                )
                                 .foregroundStyle(Color.accent)
-                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 3]))
-                                .annotation(position: .top, alignment: .trailing) {
-                                    Text("Goal")
-                                        .font(.system(size: 9, weight: .medium))
-                                        .foregroundStyle(Color.accent)
-                                }
+                                .symbolSize(20)
+                            }
+                            .chartYScale(domain: weightYDomain)
+                            .frame(height: 180)
                         }
-                        .frame(height: 160)
-                    }
-                }
-
-                // Weight log
-                Section {
-                    Button {
-                        showAddWeight = true
-                    } label: {
-                        Label("Log Weight", systemImage: "plus.circle.fill")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color.accent)
+                        .cardStyle()
+                        .padding(.horizontal, 16)
                     }
 
-                    ForEach(filteredWeights.reversed()) { entry in
+                    // Calorie chart
+                    if !dailyCalories.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Daily Calories")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+
+                            Chart {
+                                ForEach(dailyCalories, id: \.date) { item in
+                                    BarMark(
+                                        x: .value("Date", item.date),
+                                        y: .value("Calories", item.calories)
+                                    )
+                                    .foregroundStyle(
+                                        item.calories > goal.calories
+                                            ? Color.orange.opacity(0.7)
+                                            : Color.highlight.opacity(0.7)
+                                    )
+                                    .cornerRadius(3)
+                                }
+
+                                RuleMark(y: .value("Goal", goal.calories))
+                                    .foregroundStyle(Color.accent)
+                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 3]))
+                                    .annotation(position: .top, alignment: .trailing) {
+                                        Text("Goal")
+                                            .font(.system(size: 9, weight: .medium))
+                                            .foregroundStyle(Color.accent)
+                                    }
+                            }
+                            .frame(height: 160)
+                        }
+                        .cardStyle()
+                        .padding(.horizontal, 16)
+                    }
+
+                    // Weight log
+                    VStack(spacing: 0) {
                         HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.date.formatted(.dateTime.month(.abbreviated).day()))
-                                    .font(.subheadline.weight(.medium))
-                                if !entry.note.isEmpty {
-                                    Text(entry.note)
+                            Text("Weight Log")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button {
+                                showAddWeight = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "plus")
+                                        .font(.caption.weight(.bold))
+                                    Text("Log")
+                                        .font(.caption.weight(.semibold))
+                                }
+                                .foregroundStyle(Color.accent)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.accent.opacity(0.08))
+                                .clipShape(Capsule())
+                            }
+                            .buttonStyle(ScaleButtonStyle())
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+
+                        if filteredWeights.isEmpty {
+                            Text("No weight entries yet")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .padding(.vertical, 20)
+                        } else {
+                            ForEach(filteredWeights.reversed()) { entry in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(entry.date.formatted(.dateTime.month(.abbreviated).day()))
+                                            .font(.subheadline.weight(.medium))
+                                        if !entry.note.isEmpty {
+                                            Text(entry.note)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    Spacer()
+                                    Text(String(format: "%.1f", entry.weight))
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(Color.accent)
+                                    Text("lbs")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
-                                        .lineLimit(1)
                                 }
-                            }
-                            Spacer()
-                            Text(String(format: "%.1f", entry.weight))
-                                .font(.subheadline.bold())
-                                .foregroundStyle(Color.accent)
-                            Text("lbs")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                modelContext.delete(entry)
-                                try? modelContext.save()
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        modelContext.delete(entry)
+                                        try? modelContext.save()
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+
+                                if entry.id != filteredWeights.first?.id {
+                                    Divider().padding(.leading, 16)
+                                }
                             }
                         }
                     }
-                } header: {
-                    Text("Weight Log")
+                    .background(Color.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .padding(.horizontal, 16)
+
+                    // Bottom padding for floating tab bar
+                    Spacer().frame(height: 80)
                 }
+                .padding(.top, 8)
             }
+            .background(Color.surfaceBackground)
             .navigationTitle("Progress")
             .sheet(isPresented: $showAddWeight) {
                 addWeightSheet
@@ -283,6 +326,7 @@ struct ProgressTabView: View {
             }
         }
         .presentationDetents([.medium])
+        .presentationCornerRadius(24)
     }
 
     private func saveWeight() {
@@ -313,6 +357,7 @@ private struct StatCard: View {
                 .foregroundStyle(color)
             Text(value)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
+                .contentTransition(.numericText())
             Text(unit)
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
@@ -322,7 +367,19 @@ private struct StatCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.06), Color.clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                )
+        )
     }
 }

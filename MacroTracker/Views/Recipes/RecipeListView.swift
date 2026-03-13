@@ -29,6 +29,9 @@ struct RecipeListView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                Spacer().frame(height: 70)
+            }
             .navigationTitle("Recipes")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {

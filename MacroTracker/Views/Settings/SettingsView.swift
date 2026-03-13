@@ -157,6 +157,9 @@ struct SettingsView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .bottom) {
+                Spacer().frame(height: 70)
+            }
             .navigationTitle("Settings")
             .alert("Reset All Data?", isPresented: $showDeleteConfirm) {
                 Button("Reset", role: .destructive) {

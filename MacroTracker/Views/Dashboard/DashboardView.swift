@@ -6,6 +6,7 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var goals: [DailyGoal]
     @Query(sort: \DiaryEntry.date) private var allEntries: [DiaryEntry]
+    @Query private var allWaterEntries: [WaterEntry]
 
     @State private var selectedDate = Date()
     @State private var addingMealType: MealType?
@@ -36,7 +37,6 @@ struct DashboardView: View {
         return allEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: yesterday) }
     }
 
-    /// Recent entries from last 7 days (excluding today) for quick-add
     private var recentEntries: [DiaryEntry] {
         let calendar = Calendar.current
         let weekAgo = calendar.date(byAdding: .day, value: -7, to: selectedDate) ?? selectedDate
@@ -46,21 +46,15 @@ struct DashboardView: View {
         }
     }
 
-    /// Consecutive days with at least one logged entry, counting back from yesterday
     private var currentStreak: Int {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         var streak = 0
-
-        // Check if today has entries — if so, count today
         let todayHasEntries = allEntries.contains { calendar.isDate($0.date, inSameDayAs: today) }
         if todayHasEntries { streak = 1 }
-
-        // Count consecutive past days
         for offset in 1..<365 {
             guard let date = calendar.date(byAdding: .day, value: -offset, to: today) else { break }
-            let hasEntries = allEntries.contains { calendar.isDate($0.date, inSameDayAs: date) }
-            if hasEntries {
+            if allEntries.contains(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
                 streak += 1
             } else {
                 break
@@ -78,13 +72,9 @@ struct DashboardView: View {
     private var totalCarbs: Double { todayEntries.reduce(0) { $0 + $1.carbs } }
     private var totalFat: Double { todayEntries.reduce(0) { $0 + $1.fat } }
 
-    private func changeDate(by days: Int) {
-        // Commit any pending deletion before changing date
-        commitPendingDeletion()
-        withAnimation(.easeInOut(duration: 0.2)) {
-            selectedDate = Calendar.current.date(byAdding: .day, value: days, to: selectedDate) ?? selectedDate
-        }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    private var todayWater: WaterEntry? {
+        let today = Calendar.current.startOfDay(for: selectedDate)
+        return allWaterEntries.first { Calendar.current.isDate($0.date, inSameDayAs: today) }
     }
 
     var body: some View {
@@ -93,53 +83,45 @@ struct DashboardView: View {
                 if todayEntries.isEmpty && goals.isEmpty {
                     emptyStateView
                 } else {
-                    mainListView
+                    mainScrollView
                 }
             }
             .navigationTitle("MacroTracker")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        if DailySummaryMessageView.canSendText {
-                            showMessageCompose = true
-                        } else {
-                            showMessageUnavailable = true
+                    Menu {
+                        Button {
+                            if DailySummaryMessageView.canSendText {
+                                showMessageCompose = true
+                            } else {
+                                showMessageUnavailable = true
+                            }
+                        } label: {
+                            Label("Share Summary", systemImage: "message.fill")
                         }
+                        Button {
+                            showMealTemplates = true
+                        } label: {
+                            Label("Meal Templates", systemImage: "tray.2.fill")
+                        }
+                        Button {
+                            showCopyConfirmation = true
+                        } label: {
+                            Label("Copy Yesterday", systemImage: "doc.on.doc")
+                        }
+                        .disabled(yesterdayEntries.isEmpty)
                     } label: {
-                        Image(systemName: "message.fill")
+                        Image(systemName: "ellipsis.circle")
                     }
-                }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button {
-                        showMealTemplates = true
-                    } label: {
-                        Label("Meal Templates", systemImage: "tray.2.fill")
-                    }
-                }
-                ToolbarItem(placement: .secondaryAction) {
-                    Button {
-                        showCopyConfirmation = true
-                    } label: {
-                        Label("Copy Yesterday", systemImage: "doc.on.doc")
-                    }
-                    .disabled(yesterdayEntries.isEmpty)
                 }
             }
-            .gesture(
-                DragGesture(minimumDistance: 50, coordinateSpace: .local)
-                    .onEnded { value in
-                        if value.translation.width > 80 {
-                            changeDate(by: -1)
-                        } else if value.translation.width < -80 {
-                            changeDate(by: 1)
-                        }
-                    }
-            )
             .sheet(item: $addingMealType) { mealType in
                 FoodSearchView(mealType: mealType, date: selectedDate)
+                    .presentationCornerRadius(24)
             }
             .sheet(item: $editingEntry) { entry in
                 EditEntrySheet(entry: entry)
+                    .presentationCornerRadius(24)
             }
             .sheet(isPresented: $showMessageCompose) {
                 DailySummaryMessageView(messageBody: formatDailySummary())
@@ -153,6 +135,7 @@ struct DashboardView: View {
                         withAnimation { quickAddToast = nil }
                     }
                 }
+                .presentationCornerRadius(24)
             }
             .sheet(isPresented: $showGoalsOnboarding) {
                 NavigationStack {
@@ -164,6 +147,7 @@ struct DashboardView: View {
                             }
                         }
                 }
+                .presentationCornerRadius(24)
             }
             .alert("Messaging Unavailable", isPresented: $showMessageUnavailable) {
                 Button("OK", role: .cancel) {}
@@ -203,13 +187,8 @@ struct DashboardView: View {
                         showGoalsOnboarding = true
                     } label: {
                         Label("Set Your Goals", systemImage: "target")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.accent)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
+                    .buttonStyle(PrimaryButtonStyle())
 
                     Button {
                         addingMealType = .breakfast
@@ -226,6 +205,7 @@ struct DashboardView: View {
                                     .stroke(Color.accent.opacity(0.3), lineWidth: 1)
                             )
                     }
+                    .buttonStyle(ScaleButtonStyle())
                 }
                 .padding(.horizontal, 24)
 
@@ -235,13 +215,13 @@ struct DashboardView: View {
         .background(Color.surfaceBackground)
     }
 
-    // MARK: - Main List
+    // MARK: - Main ScrollView
 
-    private var mainListView: some View {
-        List {
-            // Streak banner
-            if Calendar.current.isDateInToday(selectedDate) {
-                Section {
+    private var mainScrollView: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                // Streak
+                if Calendar.current.isDateInToday(selectedDate) {
                     StreakBannerView(
                         streak: currentStreak,
                         todayCalories: totalCalories,
@@ -249,50 +229,17 @@ struct DashboardView: View {
                         todayProtein: totalProtein,
                         proteinGoal: goal.protein
                     )
+                    .padding(.horizontal, 16)
                 }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
 
-            // Date picker
-            Section {
-                DatePicker("Date", selection: $selectedDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .tint(Color.accent)
-
-                HStack {
-                    Button { changeDate(by: -1) } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.body.weight(.semibold))
-                    }
-
-                    Spacer()
-
-                    if Calendar.current.isDateInToday(selectedDate) {
-                        Text("Today")
-                            .font(.headline)
-                    } else {
-                        Button("Go to Today") {
-                            commitPendingDeletion()
-                            withAnimation { selectedDate = Date() }
-                        }
-                        .font(.subheadline.weight(.medium))
-                    }
-
-                    Spacer()
-
-                    Button { changeDate(by: 1) } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.body.weight(.semibold))
-                    }
+                // Date strip
+                DateStripView(selectedDate: $selectedDate) {
+                    commitPendingDeletion()
                 }
-                .buttonStyle(.plain)
-                .tint(Color.accent)
-            }
+                .padding(.horizontal, 16)
 
-            // Macro rings
-            Section {
-                MacroRingsView(
+                // Macro summary card (rings + compact bars + remaining)
+                MacroSummaryCard(
                     calories: totalCalories,
                     calorieGoal: goal.calories,
                     protein: totalProtein,
@@ -302,73 +249,66 @@ struct DashboardView: View {
                     fat: totalFat,
                     fatGoal: goal.fat
                 )
-                .frame(maxWidth: .infinity)
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
+                .padding(.horizontal, 16)
 
-            // Macro progress bars
-            Section("Macros") {
-                MacroProgressBar(label: "Calories", current: totalCalories, goal: goal.calories, color: Color.highlight, unit: "kcal")
-                MacroProgressBar(label: "Protein", current: totalProtein, goal: goal.protein, color: Color.accent, unit: "g")
-                MacroProgressBar(label: "Carbs", current: totalCarbs, goal: goal.carbs, color: Color.highlight, unit: "g")
-                MacroProgressBar(label: "Fat", current: totalFat, goal: goal.fat, color: .pink, unit: "g")
-            }
-
-            // Remaining summary
-            if totalCalories > 0 {
-                Section {
-                    HStack(spacing: 16) {
-                        RemainingPill(label: "Cal", remaining: goal.calories - totalCalories, color: Color.highlight)
-                        RemainingPill(label: "P", remaining: goal.protein - totalProtein, color: Color.accent)
-                        RemainingPill(label: "C", remaining: goal.carbs - totalCarbs, color: Color.highlight)
-                        RemainingPill(label: "F", remaining: goal.fat - totalFat, color: .pink)
-                    }
-                    .frame(maxWidth: .infinity)
-                } header: {
-                    Text("Remaining")
-                }
-            }
-
-            // Quick Add recent foods
-            if Calendar.current.isDateInToday(selectedDate) && !recentEntries.isEmpty {
-                Section("Quick Add") {
-                    QuickAddView(
-                        recentEntries: recentEntries,
-                        date: selectedDate,
-                        onQuickAdd: { entry in
-                            quickAddEntry(from: entry)
-                        }
+                // Water tracking
+                if Calendar.current.isDateInToday(selectedDate) {
+                    WaterTrackingView(
+                        glasses: todayWater?.glasses ?? 0,
+                        goal: 8,
+                        onTap: { incrementWater() },
+                        onLongPress: { decrementWater() }
                     )
+                    .padding(.horizontal, 16)
                 }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
 
-            // Meal sections
-            ForEach(MealType.allCases) { mealType in
-                MealSectionView(
-                    mealType: mealType,
-                    entries: entries(for: mealType),
-                    onAdd: {
-                        addingMealType = mealType
-                    },
-                    onDelete: { entry in
-                        stageForDeletion(entry)
-                    },
-                    onEdit: { entry in
-                        editingEntry = entry
+                // Quick Add
+                if Calendar.current.isDateInToday(selectedDate) && !recentEntries.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Quick Add")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 20)
+
+                        QuickAddView(
+                            recentEntries: recentEntries,
+                            date: selectedDate,
+                            onQuickAdd: { entry in
+                                quickAddEntry(from: entry)
+                            }
+                        )
                     }
-                )
-            }
+                }
 
-            // Weekly trends
-            Section("Weekly Trends") {
-                WeeklyTrendsView(entries: allEntries, goal: goal)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
+                // Meal sections
+                ForEach(MealType.allCases) { mealType in
+                    MealSectionView(
+                        mealType: mealType,
+                        entries: entries(for: mealType),
+                        onAdd: { addingMealType = mealType },
+                        onDelete: { entry in stageForDeletion(entry) },
+                        onEdit: { entry in editingEntry = entry }
+                    )
+                    .padding(.horizontal, 16)
+                }
+
+                // Weekly trends
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Weekly Trends")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 20)
+
+                    WeeklyTrendsView(entries: allEntries, goal: goal)
+                        .padding(.horizontal, 16)
+                }
+
+                // Bottom padding for floating tab bar
+                Spacer().frame(height: 80)
             }
+            .padding(.top, 8)
         }
+        .background(Color.surfaceBackground)
         .overlay(alignment: .bottom) {
             VStack(spacing: 8) {
                 if let toast = quickAddToast {
@@ -384,7 +324,7 @@ struct DashboardView: View {
                     }
                 }
             }
-            .padding(.bottom, 8)
+            .padding(.bottom, 90) // above tab bar
         }
     }
 
@@ -403,16 +343,39 @@ struct DashboardView: View {
         .padding(.horizontal, 16)
     }
 
+    // MARK: - Water Tracking
+
+    private func incrementWater() {
+        let entry = getOrCreateWaterEntry()
+        if entry.glasses < 8 {
+            entry.glasses += 1
+            try? modelContext.save()
+        }
+    }
+
+    private func decrementWater() {
+        let entry = getOrCreateWaterEntry()
+        if entry.glasses > 0 {
+            entry.glasses -= 1
+            try? modelContext.save()
+        }
+    }
+
+    private func getOrCreateWaterEntry() -> WaterEntry {
+        if let existing = todayWater { return existing }
+        let entry = WaterEntry(date: selectedDate)
+        modelContext.insert(entry)
+        try? modelContext.save()
+        return entry
+    }
+
     // MARK: - Deletion with Undo
 
     private func stageForDeletion(_ entry: DiaryEntry) {
-        // Commit any previous pending deletion
         commitPendingDeletion()
-
         pendingDeletion = entry
         withAnimation { showUndoToast = true }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-
         undoTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled else { return }
@@ -443,7 +406,6 @@ struct DashboardView: View {
         modelContext.insert(entry)
         try? modelContext.save()
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-
         withAnimation { quickAddToast = "\(entry.name) added" }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(2))
@@ -473,7 +435,6 @@ struct DashboardView: View {
     private func formatDailySummary() -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .medium
-
         var lines: [String] = []
         lines.append("MacroTracker - \(dateFormatter.string(from: selectedDate))")
         lines.append("")
@@ -481,25 +442,108 @@ struct DashboardView: View {
         lines.append("Protein: \(Int(totalProtein)) / \(Int(goal.protein))g")
         lines.append("Carbs: \(Int(totalCarbs)) / \(Int(goal.carbs))g")
         lines.append("Fat: \(Int(totalFat)) / \(Int(goal.fat))g")
-
         for mealType in MealType.allCases {
             let mealEntries = entries(for: mealType)
             guard !mealEntries.isEmpty else { continue }
-
             let mealCal = mealEntries.reduce(0) { $0 + $1.calories }
             lines.append("")
             lines.append("\(mealType.rawValue) (\(Int(mealCal)) cal)")
             for entry in mealEntries {
-                let servingsStr = String(format: "%.1f", entry.numberOfServings)
-                lines.append("- \(entry.name) x\(servingsStr)")
+                lines.append("- \(entry.name) x\(String(format: "%.1f", entry.numberOfServings))")
             }
         }
-
         return lines.joined(separator: "\n")
     }
 }
 
-// MARK: - Remaining Pill
+// MARK: - Macro Summary Card
+
+private struct MacroSummaryCard: View {
+    let calories: Double
+    let calorieGoal: Double
+    let protein: Double
+    let proteinGoal: Double
+    let carbs: Double
+    let carbsGoal: Double
+    let fat: Double
+    let fatGoal: Double
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // Rings
+            MacroRingsView(
+                calories: calories,
+                calorieGoal: calorieGoal,
+                protein: protein,
+                proteinGoal: proteinGoal,
+                carbs: carbs,
+                carbsGoal: carbsGoal,
+                fat: fat,
+                fatGoal: fatGoal
+            )
+
+            Divider().padding(.horizontal, 8)
+
+            // Compact progress bars
+            VStack(spacing: 8) {
+                CompactProgressBar(label: "Protein", current: protein, goal: proteinGoal, color: Color.accent)
+                CompactProgressBar(label: "Carbs", current: carbs, goal: carbsGoal, color: Color.highlight)
+                CompactProgressBar(label: "Fat", current: fat, goal: fatGoal, color: Color.fatColor)
+            }
+
+            // Remaining row
+            if calories > 0 {
+                Divider().padding(.horizontal, 8)
+                HStack(spacing: 16) {
+                    RemainingPill(label: "Cal", remaining: calorieGoal - calories, color: Color.highlight)
+                    RemainingPill(label: "P", remaining: proteinGoal - protein, color: Color.accent)
+                    RemainingPill(label: "C", remaining: carbsGoal - carbs, color: Color.highlight)
+                    RemainingPill(label: "F", remaining: fatGoal - fat, color: Color.fatColor)
+                }
+            }
+        }
+        .padding()
+        .background(Color.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+private struct CompactProgressBar: View {
+    let label: String
+    let current: Double
+    let goal: Double
+    let color: Color
+
+    private var progress: Double {
+        guard goal > 0 else { return 0 }
+        return min(current / goal, 1.0)
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.caption.weight(.medium))
+                .frame(width: 50, alignment: .leading)
+
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(color.opacity(0.15))
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(current > goal ? .red : color)
+                        .frame(width: geometry.size.width * progress)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: current)
+                }
+            }
+            .frame(height: 6)
+
+            Text("\(Int(current))/\(Int(goal))g")
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+                .frame(width: 58, alignment: .trailing)
+        }
+    }
+}
 
 private struct RemainingPill: View {
     let label: String
@@ -514,6 +558,7 @@ private struct RemainingPill: View {
             Text("\(Int(remaining))")
                 .font(.subheadline.bold())
                 .foregroundStyle(remaining < 0 ? .red : color)
+                .contentTransition(.numericText())
         }
         .frame(maxWidth: .infinity)
     }
@@ -535,7 +580,6 @@ private struct EditEntrySheet: View {
         return values
     }()
 
-    /// Find the closest option to the current value
     private var closestOption: Double {
         Self.servingOptions.min(by: { abs($0 - entry.numberOfServings) < abs($1 - entry.numberOfServings) }) ?? 1.0
     }
@@ -544,7 +588,6 @@ private struct EditEntrySheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Entry name header
                     VStack(spacing: 6) {
                         Text(entry.name)
                             .font(.title2.bold())
@@ -578,7 +621,7 @@ private struct EditEntrySheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .padding(.horizontal)
 
-                    // Serving count editor — wheel picker
+                    // Servings wheel picker
                     VStack(spacing: 4) {
                         Text("Number of Servings")
                             .font(.caption.weight(.semibold))
@@ -604,7 +647,6 @@ private struct EditEntrySheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .padding(.horizontal)
 
-                    // Live nutrition preview
                     NutritionLabelView(
                         calories: entry.calories,
                         protein: entry.protein,

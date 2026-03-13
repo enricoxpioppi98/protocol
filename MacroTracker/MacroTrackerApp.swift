@@ -15,7 +15,8 @@ struct MacroTrackerApp: App {
             DailyGoal.self,
             WeightEntry.self,
             MealTemplate.self,
-            MealTemplateItem.self
+            MealTemplateItem.self,
+            WaterEntry.self
         ])
     }
 }
