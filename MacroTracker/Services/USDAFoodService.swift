@@ -4,7 +4,6 @@ actor USDAFoodService {
     static let shared = USDAFoodService()
 
     private let baseURL = "https://api.nal.usda.gov/fdc/v1"
-    private let apiKey = "DEMO_KEY"
     private let session: URLSession
 
     private init() {
@@ -13,12 +12,21 @@ actor USDAFoodService {
         self.session = URLSession(configuration: config)
     }
 
-    /// Search USDA FoodData Central for branded food products.
+    /// Uses a user-configured key if available, otherwise falls back to DEMO_KEY.
+    /// DEMO_KEY is limited to 30 req/hour. A free key from api.data.gov gives 1000/hour.
+    private var apiKey: String {
+        let custom = UserDefaults.standard.string(forKey: "usda_api_key") ?? ""
+        return custom.isEmpty ? "DEMO_KEY" : custom
+    }
+
+    /// Search USDA FoodData Central for branded products AND prepared/survey foods.
+    /// Including "Survey (FNDDS)" picks up restaurant-style prepared meals.
     func searchProducts(query: String) async throws -> [FoodProduct] {
         guard !query.isEmpty else { return [] }
 
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-        let urlString = "\(baseURL)/foods/search?query=\(encoded)&pageSize=25&dataType=Branded&api_key=\(apiKey)"
+        let dataTypes = "Branded,Survey%20%28FNDDS%29"
+        let urlString = "\(baseURL)/foods/search?query=\(encoded)&pageSize=25&dataType=\(dataTypes)&api_key=\(apiKey)"
 
         guard let url = URL(string: urlString) else { return [] }
 
@@ -39,6 +47,7 @@ actor USDAFoodService {
             ?? raw["brandName"] as? String
             ?? ""
 
+        let dataType = raw["dataType"] as? String ?? ""
         let nutrients = raw["foodNutrients"] as? [[String: Any]] ?? []
 
         func nutrientValue(_ nutrientId: Int) -> Double {
@@ -51,7 +60,9 @@ actor USDAFoodService {
             return 0
         }
 
-        // USDA Branded nutrients are per 100g — scale to per-serving
+        // USDA Branded nutrients are per 100g — scale to per-serving.
+        // Survey (FNDDS) nutrients are already per 100g but usually no serving size,
+        // so we default to 100g as one serving.
         let servingSizeVal = raw["servingSize"] as? Double
         let scaleFactor: Double
         if let val = servingSizeVal, val > 0 {
@@ -83,12 +94,22 @@ actor USDAFoodService {
             servingString = "100g"
         }
 
+        // Provide a more useful brand for Survey foods
+        let brand: String
+        if !brandOwner.isEmpty {
+            brand = brandOwner
+        } else if dataType == "Survey (FNDDS)" {
+            brand = "USDA Survey"
+        } else {
+            brand = ""
+        }
+
         // gtinUpc field provides the barcode for branded products
         let barcode = raw["gtinUpc"] as? String ?? ""
 
         return FoodProduct(
             name: name,
-            brand: brandOwner,
+            brand: brand,
             barcode: barcode,
             calories: calories,
             protein: protein,

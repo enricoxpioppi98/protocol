@@ -3,6 +3,7 @@ import Foundation
 enum FoodSource: String, Sendable {
     case openFoodFacts = "OpenFoodFacts"
     case usda = "USDA"
+    case nutritionix = "Nutritionix"
 }
 
 struct FoodProduct: Identifiable, Sendable {

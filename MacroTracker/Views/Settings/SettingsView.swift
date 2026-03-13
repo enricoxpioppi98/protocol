@@ -11,6 +11,12 @@ struct SettingsView: View {
     @State private var showExportSheet = false
     @State private var exportText = ""
 
+    // API keys
+    @AppStorage("nutritionix_app_id") private var nutritionixAppId = ""
+    @AppStorage("nutritionix_app_key") private var nutritionixAppKey = ""
+    @AppStorage("usda_api_key") private var usdaApiKey = ""
+    @State private var showAPISection = false
+
     var body: some View {
         NavigationStack {
             Form {
@@ -58,6 +64,71 @@ struct SettingsView: View {
                     } label: {
                         Label("Export Diary (CSV)", systemImage: "square.and.arrow.up")
                     }
+                }
+
+                // API Keys
+                Section {
+                    DisclosureGroup("API Keys", isExpanded: $showAPISection) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Add API keys to unlock restaurant & chain food search (Nutritionix) and increase USDA rate limits.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            // Nutritionix
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text("Nutritionix")
+                                        .font(.subheadline.weight(.semibold))
+                                    Spacer()
+                                    if !nutritionixAppId.isEmpty && !nutritionixAppKey.isEmpty {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.green)
+                                            .font(.caption)
+                                    }
+                                }
+                                TextField("App ID", text: $nutritionixAppId)
+                                    .font(.caption)
+                                    .textFieldStyle(.roundedBorder)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                                TextField("App Key", text: $nutritionixAppKey)
+                                    .font(.caption)
+                                    .textFieldStyle(.roundedBorder)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                                Text("Free at developer.nutritionix.com")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+
+                            Divider()
+
+                            // USDA
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Text("USDA FoodData Central")
+                                        .font(.subheadline.weight(.semibold))
+                                    Spacer()
+                                    if !usdaApiKey.isEmpty {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.green)
+                                            .font(.caption)
+                                    }
+                                }
+                                TextField("API Key (optional)", text: $usdaApiKey)
+                                    .font(.caption)
+                                    .textFieldStyle(.roundedBorder)
+                                    .autocorrectionDisabled()
+                                    .textInputAutocapitalization(.never)
+                                Text("Defaults to DEMO_KEY (limited). Get yours at fdc.nal.usda.gov")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Label("Food Search", systemImage: "magnifyingglass")
                 }
 
                 // About

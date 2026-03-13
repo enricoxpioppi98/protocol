@@ -11,8 +11,11 @@ struct FoodSearchView: View {
     @State private var searchText = ""
     @State private var usdaResults: [FoodProduct] = []
     @State private var offResults: [FoodProduct] = []
+    @State private var nutritionixResults: [NutritionixBrandedResult] = []
     @State private var isSearchingUSDA = false
     @State private var isSearchingOFF = false
+    @State private var isSearchingNutritionix = false
+    @State private var fetchingNixItemId: String?
     @State private var searchTask: Task<Void, Never>?
     @State private var showCreateFood = false
     @State private var showScanner = false
@@ -20,6 +23,7 @@ struct FoodSearchView: View {
     @State private var selectedRecipe: Recipe?
     @State private var usdaError: String?
     @State private var offError: String?
+    @State private var nutritionixError: String?
 
     @Query(sort: \Food.createdAt, order: .reverse) private var allFoods: [Food]
     @Query(sort: \Recipe.createdAt, order: .reverse) private var allRecipes: [Recipe]
@@ -39,7 +43,7 @@ struct FoodSearchView: View {
     }
 
     private var isSearching: Bool {
-        isSearchingUSDA || isSearchingOFF
+        isSearchingUSDA || isSearchingOFF || isSearchingNutritionix
     }
 
     var body: some View {
@@ -159,6 +163,81 @@ struct FoodSearchView: View {
                                     Label("Delete", systemImage: "trash")
                                 }
                             }
+                        }
+                    }
+                }
+
+                // Nutritionix Restaurant & Chain Foods
+                if !searchText.isEmpty && (isSearchingNutritionix || !nutritionixResults.isEmpty || nutritionixError != nil) {
+                    Section {
+                        if isSearchingNutritionix {
+                            HStack {
+                                ProgressView()
+                                    .tint(Color.accent)
+                                Text("Searching restaurants...")
+                                    .foregroundStyle(.secondary)
+                                    .font(.subheadline)
+                            }
+                        } else if let error = nutritionixError {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .foregroundStyle(.orange)
+                                    .font(.caption)
+                                Text(error)
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                Spacer()
+                                Button("Retry") {
+                                    performSearch(query: searchText)
+                                }
+                                .font(.caption.bold())
+                                .foregroundStyle(Color.accent)
+                            }
+                        } else {
+                            ForEach(nutritionixResults) { item in
+                                Button {
+                                    fetchNutritionixDetails(item)
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(item.foodName)
+                                                .font(.subheadline.weight(.medium))
+                                                .lineLimit(1)
+                                            Text("\(item.brandName) · \(formatQty(item.servingQty)) \(item.servingUnit)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                        Spacer()
+                                        if fetchingNixItemId == item.nixItemId {
+                                            ProgressView()
+                                                .controlSize(.small)
+                                        } else {
+                                            Text("\(Int(item.calories))")
+                                                .font(.subheadline.bold())
+                                                .foregroundStyle(Color.highlight)
+                                            Text("cal")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                                .tint(.primary)
+                                .disabled(fetchingNixItemId != nil)
+                            }
+                        }
+                    } header: {
+                        HStack {
+                            Text("Restaurant & Chain Foods")
+                            Spacer()
+                            if !nutritionixResults.isEmpty {
+                                Text("\(nutritionixResults.count) results")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            Image(systemName: "fork.knife.circle")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -320,23 +399,44 @@ struct FoodSearchView: View {
         searchTask?.cancel()
         usdaError = nil
         offError = nil
+        nutritionixError = nil
 
         guard !query.isEmpty else {
             usdaResults = []
             offResults = []
+            nutritionixResults = []
             return
         }
 
         searchTask = Task {
             isSearchingUSDA = true
             isSearchingOFF = true
+            let nixConfigured = await NutritionixService.shared.isConfigured
+            if nixConfigured { isSearchingNutritionix = true }
 
             try? await Task.sleep(for: .milliseconds(400)) // debounce
             guard !Task.isCancelled else { return }
 
-            // Fire both API searches in parallel
+            // Fire all API searches in parallel
             async let usdaSearch = USDAFoodService.shared.searchProducts(query: query)
             async let offSearch = OpenFoodFactsService.shared.searchProducts(query: query)
+
+            // Nutritionix (only if configured)
+            if nixConfigured {
+                do {
+                    let nix = try await NutritionixService.shared.searchBranded(query: query)
+                    if !Task.isCancelled { nutritionixResults = nix }
+                } catch {
+                    if !Task.isCancelled {
+                        nutritionixError = "Restaurant search failed."
+                        nutritionixResults = []
+                    }
+                }
+                isSearchingNutritionix = false
+            } else {
+                nutritionixResults = []
+                isSearchingNutritionix = false
+            }
 
             // Collect USDA results
             do {
@@ -369,6 +469,26 @@ struct FoodSearchView: View {
         modelContext.insert(food)
         try? modelContext.save()
         selectedFood = food
+    }
+
+    private func fetchNutritionixDetails(_ item: NutritionixBrandedResult) {
+        fetchingNixItemId = item.nixItemId
+        Task {
+            do {
+                if let product = try await NutritionixService.shared.getItemDetails(nixItemId: item.nixItemId) {
+                    saveAndSelect(product)
+                }
+            } catch {
+                // Silently fail — user can tap again
+            }
+            fetchingNixItemId = nil
+        }
+    }
+
+    private func formatQty(_ qty: Double) -> String {
+        qty.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", qty)
+            : String(format: "%.1f", qty)
     }
 
     private func deleteFood(_ food: Food) {
