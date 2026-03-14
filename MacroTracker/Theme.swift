@@ -2,9 +2,9 @@ import SwiftUI
 
 extension Color {
     // Primary palette
-    static let accent = Color(red: 0.08, green: 0.72, blue: 0.65)     // Teal
-    static let highlight = Color(red: 0.96, green: 0.62, blue: 0.04)  // Amber
-    static let fatColor: Color = .pink
+    static let accent = Color(red: 0.23, green: 0.51, blue: 0.96)     // Electric Blue
+    static let highlight = Color(red: 0.96, green: 0.62, blue: 0.04)  // Soft Amber
+    static let fatColor = Color(red: 0.55, green: 0.36, blue: 0.96)   // Violet
 
     // Adaptive colors for dark mode
     static let cardBackground = Color(.secondarySystemBackground)
@@ -13,7 +13,7 @@ extension Color {
 
     // Gradients
     static let accentGradient = LinearGradient(
-        colors: [Color.accent, Color(red: 0.04, green: 0.55, blue: 0.52)],
+        colors: [Color.accent, Color(red: 0.26, green: 0.22, blue: 0.79)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )

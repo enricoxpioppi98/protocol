@@ -5,228 +5,110 @@ struct GoalsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var goals: [DailyGoal]
 
+    @State private var selectedDay: Int = 0
+    @State private var showTDEECalculator = false
+    @State private var showSavedToast = false
+
+    // ALL display state — single source of truth for the UI
+    @State private var calories: Double = 2000
+    @State private var proteinGrams: Double = 150
+    @State private var carbsRatio: Double = 0.5  // 0…1, fraction of remaining cals → carbs
+
+    // Text fields
+    @State private var caloriesText = "2000"
+    @FocusState private var caloriesFocused: Bool
+
+    // Protein calculator inputs (persisted in UserDefaults)
     @State private var bodyWeightText = ""
     @State private var proteinPerLbText = "1.0"
-    @State private var showSavedToast = false
-    @State private var showTDEECalculator = false
-    @State private var selectedDay: Int = 0 // 0 = default, 1-7 = weekday
 
     private static let dayLabels: [(id: Int, short: String, full: String)] = [
         (0, "Default", "Default"),
-        (1, "S", "Sunday"),
-        (2, "M", "Monday"),
-        (3, "T", "Tuesday"),
-        (4, "W", "Wednesday"),
-        (5, "T", "Thursday"),
-        (6, "F", "Friday"),
-        (7, "S", "Saturday")
+        (1, "S", "Sunday"), (2, "M", "Monday"), (3, "T", "Tuesday"),
+        (4, "W", "Wednesday"), (5, "T", "Thursday"), (6, "F", "Friday"), (7, "S", "Saturday"),
     ]
 
-    /// Returns the goal for the currently selected day, creating default if needed.
-    private var goal: DailyGoal {
-        if let existing = goals.first(where: { $0.dayOfWeek == selectedDay }) {
-            return existing
-        }
-        if selectedDay == 0 {
-            let newGoal = DailyGoal()
-            modelContext.insert(newGoal)
-            try? modelContext.save()
-            return newGoal
-        }
-        // For specific days, return default goal (but don't create an override yet)
-        return goals.first(where: { $0.dayOfWeek == 0 }) ?? DailyGoal()
+    // MARK: - Derived (all from @State, never from model)
+
+    private var proteinCal: Double { proteinGrams * 4 }
+    private var remainingCal: Double { max(calories - proteinCal, 0) }
+    private var carbsGrams: Double { (remainingCal * carbsRatio) / 4 }
+    private var fatGrams: Double { (remainingCal * (1 - carbsRatio)) / 9 }
+
+    private var proteinPct: Double {
+        guard calories > 0 else { return 0 }
+        return proteinCal / calories * 100
+    }
+    private var carbsPct: Double {
+        guard calories > 0 else { return 0 }
+        return (carbsGrams * 4) / calories * 100
+    }
+    private var fatPct: Double {
+        guard calories > 0 else { return 0 }
+        return (fatGrams * 9) / calories * 100
     }
 
-    /// Whether a specific day override exists.
+    // MARK: - Goal helpers
+
     private var hasOverride: Bool {
         selectedDay != 0 && goals.contains(where: { $0.dayOfWeek == selectedDay })
     }
 
-    /// Whether we're viewing a specific day that uses the default.
     private var usesDefault: Bool {
         selectedDay != 0 && !hasOverride
     }
 
+    /// Find or create the persisted goal for the selected day.
+    private func persistedGoal() -> DailyGoal {
+        if let existing = goals.first(where: { $0.dayOfWeek == selectedDay }) {
+            return existing
+        }
+        let def = goals.first(where: { $0.dayOfWeek == 0 })
+        let g = DailyGoal(
+            calories: def?.calories ?? 2000,
+            protein: def?.protein ?? 150,
+            carbs: def?.carbs ?? 250,
+            fat: def?.fat ?? 65,
+            dayOfWeek: selectedDay
+        )
+        modelContext.insert(g)
+        try? modelContext.save()
+        return g
+    }
+
+    // MARK: - Body
+
     var body: some View {
         NavigationStack {
             Form {
-                // Day-of-week selector
-                Section {
-                    daySelector
-                } header: {
-                    Text("Schedule")
-                } footer: {
-                    if selectedDay == 0 {
-                        Text("Default goals apply to all days without a specific override.")
-                    } else if usesDefault {
-                        Text("Using default goals for \(Self.dayLabels[selectedDay].full). Tap \"Customize\" to set different targets.")
-                    } else {
-                        Text("Custom goals for \(Self.dayLabels[selectedDay].full).")
-                    }
-                }
+                scheduleSection
 
                 if usesDefault {
-                    // Show prompt to create day-specific override
                     Section {
                         Button {
                             createOverride()
                         } label: {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundStyle(Color.accent)
-                                Text("Customize \(Self.dayLabels[selectedDay].full)")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Color.accent)
-                            }
+                            Label(
+                                "Customize \(Self.dayLabels[selectedDay].full)",
+                                systemImage: "plus.circle.fill"
+                            )
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.accent)
                         }
                     }
                 } else {
-                    // Macro target rows
-                    Section("Daily Targets\(selectedDay != 0 ? " — \(Self.dayLabels[selectedDay].full)" : "")") {
-                        MacroGoalRow(label: "Calories", value: Binding(
-                            get: { goal.calories },
-                            set: { goal.calories = $0 }
-                        ), unit: "kcal", color: Color.highlight)
+                    caloriesSection
+                    proteinSection
+                    macroSplitSection
 
-                        MacroGoalRow(label: "Protein", value: Binding(
-                            get: { goal.protein },
-                            set: { goal.protein = $0 }
-                        ), unit: "g", color: Color.accent)
-
-                        MacroGoalRow(label: "Carbs", value: Binding(
-                            get: { goal.carbs },
-                            set: { goal.carbs = $0 }
-                        ), unit: "g", color: Color.highlight)
-
-                        MacroGoalRow(label: "Fat", value: Binding(
-                            get: { goal.fat },
-                            set: { goal.fat = $0 }
-                        ), unit: "g", color: .pink)
-                    }
-
-                    // Macro split visualization
-                    Section {
-                        macroSplitView
-                    }
-
-                    // Reset to default (only for day-specific overrides)
                     if hasOverride {
                         Section {
-                            Button(role: .destructive) {
-                                deleteOverride()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "arrow.uturn.backward.circle")
-                                    Text("Reset to Default")
-                                }
+                            Button(role: .destructive) { deleteOverride() } label: {
+                                Label(
+                                    "Reset to Default",
+                                    systemImage: "arrow.uturn.backward.circle")
                             }
                         }
-                    }
-
-                    // TDEE Calculator
-                    Section {
-                        Button {
-                            showTDEECalculator = true
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "function")
-                                    .font(.body.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 36, height: 36)
-                                    .background(
-                                        LinearGradient(
-                                            colors: [Color.accent, Color.highlight],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("TDEE Calculator")
-                                        .font(.subheadline.weight(.semibold))
-                                    Text("Calculate your ideal macros based on your body and goals")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        .tint(.primary)
-                    }
-
-                    Section("Protein Calculator") {
-                        HStack {
-                            Text("Body Weight")
-                                .font(.subheadline.weight(.medium))
-                            Spacer()
-                            TextField("0", text: $bodyWeightText)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 80)
-                            Text("lb")
-                                .foregroundStyle(.secondary)
-                                .frame(width: 35, alignment: .leading)
-                        }
-
-                        HStack {
-                            Text("Protein per lb")
-                                .font(.subheadline.weight(.medium))
-                            Spacer()
-                            TextField("0", text: $proteinPerLbText)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 80)
-                            Text("g/lb")
-                                .foregroundStyle(.secondary)
-                                .frame(width: 35, alignment: .leading)
-                        }
-
-                        if let bw = Double(bodyWeightText), let ppl = Double(proteinPerLbText), bw > 0, ppl > 0 {
-                            let calculated = bw * ppl
-                            HStack {
-                                Text("= \(Int(calculated))g protein")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Color.accent)
-                                Spacer()
-                                Button("Apply") {
-                                    ensureGoalExists()
-                                    goal.protein = calculated
-                                    saveGoals()
-                                }
-                                .font(.subheadline.bold())
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 6)
-                                .background(Color.accent)
-                                .clipShape(Capsule())
-                            }
-                        }
-                    }
-
-                    Section {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Quick Presets")
-                                .font(.headline)
-
-                            HStack(spacing: 12) {
-                                PresetButton(title: "Cut", subtitle: "1800 cal", icon: "arrow.down.circle") {
-                                    applyPreset(calories: 1800, protein: 180, carbs: 150, fat: 60)
-                                }
-                                PresetButton(title: "Maintain", subtitle: "2200 cal", icon: "equal.circle") {
-                                    applyPreset(calories: 2200, protein: 160, carbs: 250, fat: 70)
-                                }
-                                PresetButton(title: "Bulk", subtitle: "2800 cal", icon: "arrow.up.circle") {
-                                    applyPreset(calories: 2800, protein: 200, carbs: 350, fat: 80)
-                                }
-                            }
-                        }
-                        .padding(.vertical, 4)
                     }
                 }
             }
@@ -235,45 +117,252 @@ struct GoalsView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") {
-                        UIApplication.shared.sendAction(
-                            #selector(UIResponder.resignFirstResponder),
-                            to: nil, from: nil, for: nil
-                        )
-                    }
-                    .font(.subheadline.bold())
+                    Button("Done") { caloriesFocused = false }
+                        .font(.subheadline.bold())
                 }
             }
-            .onChange(of: goal.calories) { _, _ in saveGoals() }
-            .onChange(of: goal.protein) { _, _ in saveGoals() }
-            .onChange(of: goal.carbs) { _, _ in saveGoals() }
-            .onChange(of: goal.fat) { _, _ in saveGoals() }
+            .onAppear {
+                bodyWeightText = UserDefaults.standard.string(forKey: "goals_bodyWeight") ?? ""
+                proteinPerLbText =
+                    UserDefaults.standard.string(forKey: "goals_proteinPerLb") ?? "1.0"
+                loadStateFromModel()
+            }
+            .onChange(of: selectedDay) { _, _ in loadStateFromModel() }
             .sheet(isPresented: $showTDEECalculator) {
                 TDEECalculatorView { result in
-                    applyPreset(
-                        calories: result.calories,
-                        protein: result.protein,
-                        carbs: result.carbs,
-                        fat: result.fat
-                    )
+                    calories = result.calories
+                    caloriesText = "\(Int(calories))"
+                    saveToModel()
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    showToast()
                 }
             }
             .overlay(alignment: .bottom) {
-                if showSavedToast {
-                    HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("Goals saved")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.white)
+                if showSavedToast { toastView }
+            }
+        }
+    }
+
+    // MARK: - Schedule
+
+    private var scheduleSection: some View {
+        Section {
+            daySelector
+        } header: {
+            Text("Schedule")
+        } footer: {
+            if selectedDay == 0 {
+                Text("Default goals apply to all days without a specific override.")
+            } else if usesDefault {
+                Text(
+                    "Using default goals for \(Self.dayLabels[selectedDay].full). Tap \"Customize\" to set different targets."
+                )
+            } else {
+                Text("Custom goals for \(Self.dayLabels[selectedDay].full).")
+            }
+        }
+    }
+
+    // MARK: - Calories
+
+    private var caloriesSection: some View {
+        Section {
+            HStack {
+                Image(systemName: "flame.fill")
+                    .foregroundStyle(Color.highlight)
+                    .frame(width: 24)
+                Text("Total Calories")
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                TextField("2000", text: $caloriesText)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .font(.system(.title3, design: .rounded).bold())
+                    .foregroundStyle(Color.highlight)
+                    .frame(width: 100)
+                    .focused($caloriesFocused)
+                    .onChange(of: caloriesText) { _, newValue in
+                        guard caloriesFocused, let cal = Double(newValue), cal > 0 else { return }
+                        calories = cal
+                        saveToModel()
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(.black.opacity(0.85))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .padding(.bottom, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                Text("kcal")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, alignment: .leading)
+            }
+
+            Button { showTDEECalculator = true } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "function")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 32, height: 32)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.accent, Color.highlight],
+                                startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("TDEE Calculator").font(.subheadline.weight(.semibold))
+                        Text("Calculate based on your body and activity")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
                 }
+            }
+            .tint(.primary)
+        } header: {
+            Text(
+                "Calories\(selectedDay != 0 ? " — \(Self.dayLabels[selectedDay].full)" : "")"
+            )
+        }
+    }
+
+    // MARK: - Protein
+
+    private var proteinSection: some View {
+        Section("Protein") {
+            HStack {
+                Text("Body Weight").font(.subheadline.weight(.medium))
+                Spacer()
+                TextField("175", text: $bodyWeightText)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+                    .onChange(of: bodyWeightText) { _, val in
+                        UserDefaults.standard.set(val, forKey: "goals_bodyWeight")
+                    }
+                Text("lb").foregroundStyle(.secondary).frame(width: 35, alignment: .leading)
+            }
+
+            HStack {
+                Text("Protein per lb").font(.subheadline.weight(.medium))
+                Spacer()
+                TextField("1.0", text: $proteinPerLbText)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+                    .onChange(of: proteinPerLbText) { _, val in
+                        UserDefaults.standard.set(val, forKey: "goals_proteinPerLb")
+                    }
+                Text("g/lb").foregroundStyle(.secondary).frame(width: 35, alignment: .leading)
+            }
+
+            if let bw = Double(bodyWeightText), let ppl = Double(proteinPerLbText), bw > 0, ppl > 0
+            {
+                let calculated = bw * ppl
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("= \(Int(calculated))g protein")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.accent)
+                        if calories > 0 {
+                            let pct = (calculated * 4) / calories * 100
+                            Text("That's \(Int(pct))% of \(Int(calories)) cal")
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        proteinGrams = calculated
+                        saveToModel()
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        showToast()
+                    } label: {
+                        Text("Apply")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 6)
+                            .background(Color.accent)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+
+            HStack {
+                Text("Current protein")
+                    .font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
+                Spacer()
+                Text("\(Int(proteinGrams))g")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.accent)
+            }
+        }
+    }
+
+    // MARK: - Macro Split
+
+    private var macroSplitSection: some View {
+        Section("Macro Split") {
+            GeometryReader { geo in
+                let w = geo.size.width
+                HStack(spacing: 2) {
+                    RoundedRectangle(cornerRadius: 3).fill(Color.accent)
+                        .frame(width: max(w * proteinPct / 100, 4))
+                    RoundedRectangle(cornerRadius: 3).fill(Color.highlight)
+                        .frame(width: max(w * carbsPct / 100, 4))
+                    RoundedRectangle(cornerRadius: 3).fill(Color.fatColor)
+                        .frame(width: max(w * fatPct / 100, 4))
+                }
+            }
+            .frame(height: 12)
+            .padding(.vertical, 4)
+
+            macroRow(
+                color: .accent, name: "Protein",
+                pct: proteinPct, grams: proteinGrams, calPerGram: 4)
+
+            VStack(spacing: 6) {
+                Slider(value: $carbsRatio, in: 0...1, step: 0.01)
+                    .tint(Color.highlight)
+                    .onChange(of: carbsRatio) { _, _ in saveToModel() }
+                HStack {
+                    Text("More Carbs").font(.caption2).foregroundStyle(.secondary)
+                    Spacer()
+                    Text("More Fat").font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 4)
+
+            macroRow(
+                color: .highlight, name: "Carbs",
+                pct: carbsPct, grams: carbsGrams, calPerGram: 4)
+
+            macroRow(
+                color: .fatColor, name: "Fat",
+                pct: fatPct, grams: fatGrams, calPerGram: 9)
+
+            HStack {
+                Text("Total").font(.subheadline.weight(.semibold))
+                Spacer()
+                let total = proteinPct + carbsPct + fatPct
+                Text("\(Int(round(total)))%")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(abs(total - 100) < 2 ? .green : .orange)
+            }
+        }
+    }
+
+    private func macroRow(color: Color, name: String, pct: Double, grams: Double, calPerGram: Double)
+        -> some View
+    {
+        HStack(spacing: 8) {
+            Circle().fill(color).frame(width: 10, height: 10)
+            Text(name).font(.subheadline.weight(.medium)).frame(width: 55, alignment: .leading)
+            Text("\(Int(round(pct)))%")
+                .font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                .frame(width: 40, alignment: .trailing)
+            Spacer()
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("\(Int(round(grams)))g")
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(color)
+                Text("\(Int(round(grams * calPerGram))) cal")
+                    .font(.caption2).foregroundStyle(.secondary)
             }
         }
     }
@@ -285,8 +374,7 @@ struct GoalsView: View {
             HStack(spacing: 6) {
                 ForEach(Self.dayLabels, id: \.id) { day in
                     let isSelected = selectedDay == day.id
-                    let hasDayOverride = day.id != 0 && goals.contains(where: { $0.dayOfWeek == day.id })
-
+                    let hasDot = day.id != 0 && goals.contains(where: { $0.dayOfWeek == day.id })
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                             selectedDay = day.id
@@ -294,19 +382,17 @@ struct GoalsView: View {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     } label: {
                         VStack(spacing: 2) {
-                            Text(day.short)
-                                .font(day.id == 0 ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
-                            if hasDayOverride {
-                                Circle()
-                                    .fill(Color.accent)
-                                    .frame(width: 4, height: 4)
+                            Text(day.short).font(
+                                day.id == 0
+                                    ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
+                            if hasDot {
+                                Circle().fill(Color.accent).frame(width: 4, height: 4)
                             }
                         }
                         .frame(width: day.id == 0 ? 64 : 36, height: 44)
                         .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(isSelected ? Color.accent : Color.clear)
-                        )
+                            RoundedRectangle(cornerRadius: 10).fill(
+                                isSelected ? Color.accent : .clear))
                         .foregroundStyle(isSelected ? .white : .primary)
                     }
                     .buttonStyle(.plain)
@@ -316,195 +402,77 @@ struct GoalsView: View {
         }
     }
 
-    // MARK: - Macro Split View
+    // MARK: - Toast
 
-    private var macroSplitView: some View {
-        VStack(spacing: 8) {
-            Text("Macro Split")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .tracking(0.5)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            let totalMacroCal = (goal.protein * 4) + (goal.carbs * 4) + (goal.fat * 9)
-            let proteinPct = totalMacroCal > 0 ? (goal.protein * 4) / totalMacroCal * 100 : 0
-            let carbsPct = totalMacroCal > 0 ? (goal.carbs * 4) / totalMacroCal * 100 : 0
-            let fatPct = totalMacroCal > 0 ? (goal.fat * 9) / totalMacroCal * 100 : 0
-
-            GeometryReader { geometry in
-                HStack(spacing: 2) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.accent)
-                        .frame(width: max(geometry.size.width * proteinPct / 100, 4))
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.highlight)
-                        .frame(width: max(geometry.size.width * carbsPct / 100, 4))
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.pink)
-                        .frame(width: max(geometry.size.width * fatPct / 100, 4))
-                }
-            }
-            .frame(height: 10)
-
-            HStack(spacing: 16) {
-                MacroSplitLabel(label: "Protein", pct: proteinPct, color: Color.accent)
-                MacroSplitLabel(label: "Carbs", pct: carbsPct, color: Color.highlight)
-                MacroSplitLabel(label: "Fat", pct: fatPct, color: .pink)
-            }
-
-            let macroCalories = (goal.protein * 4) + (goal.carbs * 4) + (goal.fat * 9)
-            if abs(macroCalories - goal.calories) > 50 {
-                HStack(spacing: 4) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                    Text("Macros total \(Int(macroCalories)) cal vs \(Int(goal.calories)) cal goal")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                }
-                .padding(.top, 2)
-            }
+    private var toastView: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            Text("Goals saved").font(.subheadline.weight(.medium)).foregroundStyle(.white)
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(.black.opacity(0.85))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.bottom, 8)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
-    // MARK: - Actions
+    // MARK: - State ↔ Model
 
-    private func saveGoals() {
+    /// Pull values from the persisted model into @State.
+    private func loadStateFromModel() {
+        let g: DailyGoal
+        if let existing = goals.first(where: { $0.dayOfWeek == selectedDay }) {
+            g = existing
+        } else if let def = goals.first(where: { $0.dayOfWeek == 0 }) {
+            g = def
+        } else {
+            g = DailyGoal()
+        }
+
+        calories = g.calories
+        caloriesText = "\(Int(g.calories))"
+        proteinGrams = g.protein
+
+        let protCal = g.protein * 4
+        let remaining = g.calories - protCal
+        if remaining > 0 {
+            carbsRatio = min(max((g.carbs * 4) / remaining, 0), 1)
+        } else {
+            carbsRatio = 0.5
+        }
+    }
+
+    /// Push current @State values into the persisted model.
+    private func saveToModel() {
+        let g = persistedGoal()
+        g.calories = calories
+        g.protein = proteinGrams
+        g.carbs = carbsGrams
+        g.fat = fatGrams
         try? modelContext.save()
     }
 
-    private func ensureGoalExists() {
-        if selectedDay != 0 && !goals.contains(where: { $0.dayOfWeek == selectedDay }) {
-            let defaultGoal = goals.first(where: { $0.dayOfWeek == 0 })
-            let newGoal = DailyGoal(
-                calories: defaultGoal?.calories ?? 2000,
-                protein: defaultGoal?.protein ?? 150,
-                carbs: defaultGoal?.carbs ?? 250,
-                fat: defaultGoal?.fat ?? 65,
-                dayOfWeek: selectedDay
-            )
-            modelContext.insert(newGoal)
-            try? modelContext.save()
-        }
-    }
-
     private func createOverride() {
-        ensureGoalExists()
+        _ = persistedGoal()
+        loadStateFromModel()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        withAnimation { showSavedToast = true }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.5))
-            withAnimation { showSavedToast = false }
-        }
+        showToast()
     }
 
     private func deleteOverride() {
-        if let override = goals.first(where: { $0.dayOfWeek == selectedDay }) {
-            modelContext.delete(override)
+        if let o = goals.first(where: { $0.dayOfWeek == selectedDay }) {
+            modelContext.delete(o)
             try? modelContext.save()
+            loadStateFromModel()
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
     }
 
-    private func applyPreset(calories: Double, protein: Double, carbs: Double, fat: Double) {
-        ensureGoalExists()
-        goal.calories = calories
-        goal.protein = protein
-        goal.carbs = carbs
-        goal.fat = fat
-        saveGoals()
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    private func showToast() {
         withAnimation { showSavedToast = true }
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(1.5))
             withAnimation { showSavedToast = false }
         }
-    }
-}
-
-private struct MacroSplitLabel: View {
-    let label: String
-    let pct: Double
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(color)
-                .frame(width: 6, height: 6)
-            Text("\(label) \(Int(pct))%")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private struct MacroGoalRow: View {
-    let label: String
-    @Binding var value: Double
-    let unit: String
-    let color: Color
-
-    @State private var text: String = ""
-
-    var body: some View {
-        HStack {
-            Circle()
-                .fill(color)
-                .frame(width: 10, height: 10)
-            Text(label)
-                .font(.subheadline.weight(.medium))
-            Spacer()
-            TextField("0", text: $text)
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 80)
-                .onChange(of: text) { _, newValue in
-                    if let intVal = Int(newValue) {
-                        value = Double(intVal)
-                    }
-                }
-            Text(unit)
-                .foregroundStyle(.secondary)
-                .frame(width: 35, alignment: .leading)
-        }
-        .onAppear {
-            text = "\(Int(value))"
-        }
-        .onChange(of: value) { _, newValue in
-            let newText = "\(Int(newValue))"
-            if text != newText {
-                text = newText
-            }
-        }
-    }
-}
-
-private struct PresetButton: View {
-    let title: String
-    let subtitle: String
-    let icon: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.body)
-                    .foregroundStyle(Color.accent)
-                Text(title)
-                    .font(.subheadline.bold())
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Color.accent.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-        .buttonStyle(.plain)
     }
 }

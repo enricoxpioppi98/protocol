@@ -78,7 +78,7 @@ private struct RecipeRow: View {
                 Text("C: \(Int(recipe.carbsPerServing))g")
                     .foregroundStyle(Color.highlight)
                 Text("F: \(Int(recipe.fatPerServing))g")
-                    .foregroundStyle(.pink)
+                    .foregroundStyle(Color.fatColor)
             }
             .font(.caption)
 
