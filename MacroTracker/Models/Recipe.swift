@@ -14,6 +14,8 @@ final class Recipe {
     var diaryEntries: [DiaryEntry]?
 
     var createdAt: Date
+    var updatedAt: Date
+    var deletedAt: Date?
 
     init(name: String, servings: Double = 1) {
         self.id = UUID()
@@ -21,6 +23,8 @@ final class Recipe {
         self.servings = max(servings, 1)
         self.ingredients = []
         self.createdAt = Date()
+        self.updatedAt = Date()
+        self.deletedAt = nil
     }
 
     var totalCalories: Double {

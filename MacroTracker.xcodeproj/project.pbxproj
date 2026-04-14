@@ -13,9 +13,11 @@
 		078B36396E7B5D01DA7790A8 /* DailyGoal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 475CCF4DA05A5006F1242B9F /* DailyGoal.swift */; };
 		0CFA33A2A0625C44FB8E9B96 /* MacroTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C898FD80F1AC325AC522C534 /* MacroTrackerApp.swift */; };
 		1566913EF09B118644B7CACB /* MealSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 139A46368C73AEAF69CC8B6A /* MealSectionView.swift */; };
+		17A8E72FE5DF74833D223B30 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 505B78B9DD110821A33A7324 /* Supabase */; };
 		1AC1CDE6EC62BA15B6EBCC20 /* TDEECalculatorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EADBF57D2E6A5FFDCCD7A2C9 /* TDEECalculatorViewModel.swift */; };
 		1F06D183D7534B1EE41D61D7 /* USDAFoodService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E5CE5DE024ACE3D7FEE9E6 /* USDAFoodService.swift */; };
 		2C91684350974007BD909236 /* MacroProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 871C44DF4CDC2CAA51DF2034 /* MacroProgressBar.swift */; };
+		32D366A8BE198C2EA97EA2B0 /* SupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C63940914C7AF84D0B0D3D1 /* SupabaseManager.swift */; };
 		356E6FA71F4940B30671B9AE /* RecipeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F282DA5B274C438A505C705 /* RecipeListView.swift */; };
 		39AA54D446F4A22F5F005F22 /* DateStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F4EFCDF1D3FD16CE9969C7D /* DateStripView.swift */; };
 		3F52DC89BF4E5B00763F8BA3 /* DailyGoal+Resolved.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4DB93296188CAD2E064753D /* DailyGoal+Resolved.swift */; };
@@ -23,10 +25,12 @@
 		4A40176CC810BAC4CF4FC76D /* TDEECalculatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AEB580943A28492368DF8B5 /* TDEECalculatorView.swift */; };
 		4E1E4F9F39E886E468ED52AF /* FoodSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAD28FD0DF541C12AD386D4E /* FoodSearchView.swift */; };
 		59EE7868648D57E187AE2717 /* RecipeIngredient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE108E31C4CC7600CC5A8AF /* RecipeIngredient.swift */; };
+		5B9D7BD1F8607ADAC2388142 /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B584B347606425F81474B7C /* SyncService.swift */; };
 		5BBB2247150A646E25150761 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ECD660646BC91D18F5A0F1 /* Theme.swift */; };
 		5F4A588F2819400F4F8CFE15 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BA9AF3D74EC382A242416E /* SettingsView.swift */; };
 		619CCB94301934C6D77B09FC /* CreateFoodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61455C32C79BEA5695759FC0 /* CreateFoodView.swift */; };
 		816F0EBEC101843D8D6215D2 /* UndoToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 971B0987B0E1BE5EE005CFC3 /* UndoToastView.swift */; };
+		81E4707DF39C35BA655E8449 /* settings.local.json in Resources */ = {isa = PBXBuildFile; fileRef = BB250A5B4603E71D2BADE253 /* settings.local.json */; };
 		84CCF7D0F2398F2BA99C7325 /* MealTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35E9F3E3219F11808797A420 /* MealTemplate.swift */; };
 		8821B7E45805E0A66C399FA7 /* SwipeToDeleteWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BA6D727915860782024935F /* SwipeToDeleteWrapper.swift */; };
 		95ED2B34D62AA0530D3FA7FD /* NutritionLabelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38D2237431B7241E26F89623 /* NutritionLabelView.swift */; };
@@ -66,6 +70,7 @@
 		35E9F3E3219F11808797A420 /* MealTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealTemplate.swift; sourceTree = "<group>"; };
 		38D2237431B7241E26F89623 /* NutritionLabelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionLabelView.swift; sourceTree = "<group>"; };
 		3B31DAE55D7EC2B5CB41C97F /* DailySummaryMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailySummaryMessageView.swift; sourceTree = "<group>"; };
+		3B584B347606425F81474B7C /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
 		3BA6D727915860782024935F /* SwipeToDeleteWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeToDeleteWrapper.swift; sourceTree = "<group>"; };
 		3FE0DE542538C2439338DE52 /* Food.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Food.swift; sourceTree = "<group>"; };
 		46FB30FDC1185F7F739274EE /* MealTemplatesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealTemplatesView.swift; sourceTree = "<group>"; };
@@ -79,6 +84,7 @@
 		74AEDFEA23F683B8B28ACA24 /* MacroRingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroRingsView.swift; sourceTree = "<group>"; };
 		7706F5179A0D76337F3EDC64 /* Recipe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recipe.swift; sourceTree = "<group>"; };
 		7AEB580943A28492368DF8B5 /* TDEECalculatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TDEECalculatorView.swift; sourceTree = "<group>"; };
+		7C63940914C7AF84D0B0D3D1 /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		871C44DF4CDC2CAA51DF2034 /* MacroProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroProgressBar.swift; sourceTree = "<group>"; };
 		8BD7CB161238BC3748257040 /* DiaryEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryEntry.swift; sourceTree = "<group>"; };
 		8C0721AD5075CB136B774B7F /* NutritionixService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionixService.swift; sourceTree = "<group>"; };
@@ -88,6 +94,7 @@
 		A013BB9F266F3B0043CB5C78 /* FoodDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDetailView.swift; sourceTree = "<group>"; };
 		A0E5CE5DE024ACE3D7FEE9E6 /* USDAFoodService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = USDAFoodService.swift; sourceTree = "<group>"; };
 		B85151FA1015AC5BA70C4BE1 /* StreakBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakBannerView.swift; sourceTree = "<group>"; };
+		BB250A5B4603E71D2BADE253 /* settings.local.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = settings.local.json; sourceTree = "<group>"; };
 		BF08FDA3BDDD0FFC2F679D60 /* GoalSuggestionBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalSuggestionBanner.swift; sourceTree = "<group>"; };
 		C898FD80F1AC325AC522C534 /* MacroTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacroTrackerApp.swift; sourceTree = "<group>"; };
 		D217CBDCDB766F02AE61A326 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerView.swift; sourceTree = "<group>"; };
@@ -96,6 +103,17 @@
 		FAD28FD0DF541C12AD386D4E /* FoodSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodSearchView.swift; sourceTree = "<group>"; };
 		FFE108E31C4CC7600CC5A8AF /* RecipeIngredient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeIngredient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E3B5316E3FE642A16B2B2918 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				17A8E72FE5DF74833D223B30 /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		285A06198A0D08D4AD3B0425 /* Progress */ = {
@@ -113,6 +131,8 @@
 				4841A2860FF997DE6AA542CB /* GoalSuggestionService.swift */,
 				8C0721AD5075CB136B774B7F /* NutritionixService.swift */,
 				255B25D1943979122C4876C1 /* OpenFoodFactsService.swift */,
+				7C63940914C7AF84D0B0D3D1 /* SupabaseManager.swift */,
+				3B584B347606425F81474B7C /* SyncService.swift */,
 				A0E5CE5DE024ACE3D7FEE9E6 /* USDAFoodService.swift */,
 			);
 			path = Services;
@@ -228,6 +248,14 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		E85F3EBD0E9D89E605F96207 /* .claude */ = {
+			isa = PBXGroup;
+			children = (
+				BB250A5B4603E71D2BADE253 /* settings.local.json */,
+			);
+			path = .claude;
+			sourceTree = "<group>";
+		};
 		EF5E80E8105A0EAFB1109B4D /* MacroTracker */ = {
 			isa = PBXGroup;
 			children = (
@@ -235,6 +263,7 @@
 				0A966CA01F44C4296240A7D4 /* ContentView.swift */,
 				C898FD80F1AC325AC522C534 /* MacroTrackerApp.swift */,
 				13ECD660646BC91D18F5A0F1 /* Theme.swift */,
+				E85F3EBD0E9D89E605F96207 /* .claude */,
 				633D9F96038F8EADB159A257 /* Components */,
 				9D36637AE29FF27915F98149 /* Extensions */,
 				9E6A842795033DAA1C886FD0 /* Models */,
@@ -268,6 +297,7 @@
 			buildPhases = (
 				18FB11D7E90112C6DBA2ECEA /* Sources */,
 				4A867EA27A0EE6BF160153D6 /* Resources */,
+				E3B5316E3FE642A16B2B2918 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -275,6 +305,7 @@
 			);
 			name = MacroTracker;
 			packageProductDependencies = (
+				505B78B9DD110821A33A7324 /* Supabase */,
 			);
 			productName = MacroTracker;
 			productReference = 321AED89BB488D1EC7C1154B /* MacroTracker.app */;
@@ -304,6 +335,9 @@
 			);
 			mainGroup = 668FA3785FAF4C97B86AFCD3;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3DCEC33D06B02C92270ABD4C /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
@@ -319,6 +353,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9ABF5A17A9E34A1AAC40B644 /* Assets.xcassets in Resources */,
+				81E4707DF39C35BA655E8449 /* settings.local.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -362,7 +397,9 @@
 				356E6FA71F4940B30671B9AE /* RecipeListView.swift in Sources */,
 				5F4A588F2819400F4F8CFE15 /* SettingsView.swift in Sources */,
 				C3511959665A51FB300D6034 /* StreakBannerView.swift in Sources */,
+				32D366A8BE198C2EA97EA2B0 /* SupabaseManager.swift in Sources */,
 				8821B7E45805E0A66C399FA7 /* SwipeToDeleteWrapper.swift in Sources */,
+				5B9D7BD1F8607ADAC2388142 /* SyncService.swift in Sources */,
 				4A40176CC810BAC4CF4FC76D /* TDEECalculatorView.swift in Sources */,
 				1AC1CDE6EC62BA15B6EBCC20 /* TDEECalculatorViewModel.swift in Sources */,
 				5BBB2247150A646E25150761 /* Theme.swift in Sources */,
@@ -575,6 +612,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3DCEC33D06B02C92270ABD4C /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		505B78B9DD110821A33A7324 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3DCEC33D06B02C92270ABD4C /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AF3B5E7AD96EB2D0C56C5B12 /* Project object */;
 }

@@ -36,6 +36,19 @@ struct MacroTrackerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task {
+                    // Check if user has an active Supabase session
+                    await SupabaseManager.shared.checkSession()
+
+                    // Auto-sync if signed in
+                    if SupabaseManager.shared.isSignedIn {
+                        let syncService = SyncService(
+                            supabase: SupabaseManager.shared.client,
+                            modelContainer: container
+                        )
+                        try? await syncService.sync()
+                    }
+                }
         }
         .modelContainer(container)
     }

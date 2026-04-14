@@ -93,6 +93,17 @@ struct DashboardView: View {
                             Label("Share Summary", systemImage: "message.fill")
                         }
                         Button {
+                            UIPasteboard.general.string = formatClaudePrompt()
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            withAnimation { quickAddToast = "Prompt copied to clipboard" }
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .seconds(2))
+                                withAnimation { quickAddToast = nil }
+                            }
+                        } label: {
+                            Label("Ask Claude: Next Meal", systemImage: "sparkles")
+                        }
+                        Button {
                             showMealTemplates = true
                         } label: {
                             Label("Meal Templates", systemImage: "tray.2.fill")
@@ -388,11 +399,84 @@ struct DashboardView: View {
 
     // MARK: - Message
 
+    private func formatClaudePrompt() -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .medium
+        var lines: [String] = []
+
+        lines.append("I'm tracking my nutrition today (\(dateFormatter.string(from: selectedDate))). Here's what I've eaten so far and my daily targets. Please suggest what I should eat for my next meal.")
+        lines.append("")
+
+        lines.append("## My Daily Targets")
+        lines.append("- Calories: \(Int(goal.calories)) kcal")
+        lines.append("- Protein: \(Int(goal.protein))g")
+        lines.append("- Carbs: \(Int(goal.carbs))g")
+        lines.append("- Fat: \(Int(goal.fat))g")
+        lines.append("")
+
+        lines.append("## Today's Totals So Far")
+        lines.append("- Calories: \(Int(totalCalories)) / \(Int(goal.calories)) kcal")
+        lines.append("- Protein: \(Int(totalProtein)) / \(Int(goal.protein))g")
+        lines.append("- Carbs: \(Int(totalCarbs)) / \(Int(goal.carbs))g")
+        lines.append("- Fat: \(Int(totalFat)) / \(Int(goal.fat))g")
+        lines.append("")
+
+        lines.append("## Remaining")
+        lines.append("- Calories: \(Int(max(goal.calories - totalCalories, 0))) kcal")
+        lines.append("- Protein: \(Int(max(goal.protein - totalProtein, 0)))g")
+        lines.append("- Carbs: \(Int(max(goal.carbs - totalCarbs, 0)))g")
+        lines.append("- Fat: \(Int(max(goal.fat - totalFat, 0)))g")
+        lines.append("")
+
+        lines.append("## What I've Eaten Today")
+        var hasAnyMeals = false
+        for mealType in MealType.allCases {
+            let mealEntries = entries(for: mealType)
+            guard !mealEntries.isEmpty else { continue }
+            hasAnyMeals = true
+            let mealCal = mealEntries.reduce(0) { $0 + $1.calories }
+            let mealProtein = mealEntries.reduce(0) { $0 + $1.protein }
+            let mealCarbs = mealEntries.reduce(0) { $0 + $1.carbs }
+            let mealFat = mealEntries.reduce(0) { $0 + $1.fat }
+            lines.append("")
+            lines.append("### \(mealType.rawValue) (\(Int(mealCal)) cal, P:\(Int(mealProtein))g C:\(Int(mealCarbs))g F:\(Int(mealFat))g)")
+            for entry in mealEntries {
+                lines.append("- \(entry.name) (\(Int(entry.calories)) cal, P:\(Int(entry.protein))g C:\(Int(entry.carbs))g F:\(Int(entry.fat))g)")
+            }
+        }
+        if !hasAnyMeals {
+            lines.append("Nothing logged yet today.")
+        }
+        lines.append("")
+
+        let nextMeal = determineNextMeal()
+        lines.append("Based on what I've eaten and what I still need, what should I eat for \(nextMeal)? Please suggest a specific meal that helps me hit my remaining macro targets, especially protein. Keep it practical and realistic.")
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func determineNextMeal() -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let hasBreakfast = !entries(for: .breakfast).isEmpty
+        let hasLunch = !entries(for: .lunch).isEmpty
+        let hasDinner = !entries(for: .dinner).isEmpty
+
+        if !hasBreakfast && hour < 11 {
+            return "breakfast"
+        } else if !hasLunch && hour < 15 {
+            return "lunch"
+        } else if !hasDinner && hour < 21 {
+            return "dinner"
+        } else {
+            return "my next meal or snack"
+        }
+    }
+
     private func formatDailySummary() -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .medium
         var lines: [String] = []
-        lines.append("MacroTracker - \(dateFormatter.string(from: selectedDate))")
+        lines.append(dateFormatter.string(from: selectedDate))
         lines.append("")
         lines.append("Calories: \(Int(totalCalories)) / \(Int(goal.calories)) kcal")
         lines.append("Protein: \(Int(totalProtein)) / \(Int(goal.protein))g")
@@ -405,7 +489,7 @@ struct DashboardView: View {
             lines.append("")
             lines.append("\(mealType.rawValue) (\(Int(mealCal)) cal)")
             for entry in mealEntries {
-                lines.append("- \(entry.name) x\(String(format: "%.1f", entry.numberOfServings))")
+                lines.append("- \(entry.name)")
             }
         }
         return lines.joined(separator: "\n")
@@ -493,10 +577,10 @@ private struct CompactProgressBar: View {
             }
             .frame(height: 6)
 
-            Text("\(Int(current))/\(Int(goal))g")
+            Text("\(Int(current))/\(Int(goal))g (\(Int(goal > 0 ? current / goal * 100 : 0))%)")
                 .font(.system(size: 10, weight: .medium, design: .rounded))
                 .foregroundStyle(.secondary)
-                .frame(width: 58, alignment: .trailing)
+                .frame(width: 84, alignment: .trailing)
         }
     }
 }

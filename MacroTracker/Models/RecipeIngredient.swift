@@ -5,6 +5,7 @@ import SwiftData
 final class RecipeIngredient {
     var id: UUID
     var quantity: Double // number of servings of the food
+    var updatedAt: Date
 
     var food: Food?
     var recipe: Recipe?
@@ -13,6 +14,7 @@ final class RecipeIngredient {
         self.id = UUID()
         self.food = food
         self.quantity = quantity
+        self.updatedAt = Date()
     }
 
     var calories: Double {

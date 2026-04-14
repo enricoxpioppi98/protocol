@@ -7,6 +7,8 @@ final class DiaryEntry {
     var date: Date
     var mealTypeRaw: String
     var numberOfServings: Double
+    var updatedAt: Date
+    var deletedAt: Date?
 
     var food: Food?
     var recipe: Recipe?
@@ -18,6 +20,8 @@ final class DiaryEntry {
         self.food = food
         self.recipe = recipe
         self.numberOfServings = numberOfServings
+        self.updatedAt = Date()
+        self.deletedAt = nil
     }
 
     var mealType: MealType {

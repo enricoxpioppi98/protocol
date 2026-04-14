@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Adaptive colors — change with light/dark mode
+   ============================================================ */
+
+:root {
+  --app-bg: rgb(255, 255, 255);
+  --app-fg: rgb(23, 23, 23);
+  --app-card: rgb(242, 242, 247);
+  --app-card-hover: rgb(229, 229, 234);
+  --app-border: rgba(0, 0, 0, 0.08);
+  --app-muted: rgb(99, 99, 102);
+  --app-scrollbar: rgba(0, 0, 0, 0.15);
+  --app-scrollbar-hover: rgba(0, 0, 0, 0.25);
+  --app-chart-grid: rgba(0, 0, 0, 0.06);
+  --app-chart-axis: rgba(0, 0, 0, 0.3);
+  --app-chart-tooltip-bg: rgb(255, 255, 255);
+  --app-chart-tooltip-border: rgba(0, 0, 0, 0.1);
+}
+
+/* System dark preference (unless user forced light) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --app-bg: rgb(0, 0, 0);
+    --app-fg: rgb(237, 237, 237);
+    --app-card: rgb(28, 28, 30);
+    --app-card-hover: rgb(44, 44, 46);
+    --app-border: rgba(255, 255, 255, 0.06);
+    --app-muted: rgb(142, 142, 147);
+    --app-scrollbar: rgba(255, 255, 255, 0.1);
+    --app-scrollbar-hover: rgba(255, 255, 255, 0.2);
+    --app-chart-grid: rgba(255, 255, 255, 0.05);
+    --app-chart-axis: rgba(255, 255, 255, 0.3);
+    --app-chart-tooltip-bg: rgb(28, 28, 30);
+    --app-chart-tooltip-border: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Manual dark override */
+[data-theme="dark"] {
+  --app-bg: rgb(0, 0, 0);
+  --app-fg: rgb(237, 237, 237);
+  --app-card: rgb(28, 28, 30);
+  --app-card-hover: rgb(44, 44, 46);
+  --app-border: rgba(255, 255, 255, 0.06);
+  --app-muted: rgb(142, 142, 147);
+  --app-scrollbar: rgba(255, 255, 255, 0.1);
+  --app-scrollbar-hover: rgba(255, 255, 255, 0.2);
+  --app-chart-grid: rgba(255, 255, 255, 0.05);
+  --app-chart-axis: rgba(255, 255, 255, 0.3);
+  --app-chart-tooltip-bg: rgb(28, 28, 30);
+  --app-chart-tooltip-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Manual light override */
+[data-theme="light"] {
+  --app-bg: rgb(255, 255, 255);
+  --app-fg: rgb(23, 23, 23);
+  --app-card: rgb(242, 242, 247);
+  --app-card-hover: rgb(229, 229, 234);
+  --app-border: rgba(0, 0, 0, 0.08);
+  --app-muted: rgb(99, 99, 102);
+  --app-scrollbar: rgba(0, 0, 0, 0.15);
+  --app-scrollbar-hover: rgba(0, 0, 0, 0.25);
+  --app-chart-grid: rgba(0, 0, 0, 0.06);
+  --app-chart-axis: rgba(0, 0, 0, 0.3);
+  --app-chart-tooltip-bg: rgb(255, 255, 255);
+  --app-chart-tooltip-border: rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================
+   Tailwind theme — registers utilities (bg-card, text-muted, etc.)
+   ============================================================ */
+
+@theme inline {
+  /* Adaptive colors (reference CSS variables above) */
+  --color-background: var(--app-bg);
+  --color-foreground: var(--app-fg);
+  --color-card: var(--app-card);
+  --color-card-hover: var(--app-card-hover);
+  --color-border: var(--app-border);
+  --color-muted: var(--app-muted);
+
+  /* Static accent colors (same in light & dark) */
+  --color-accent: rgb(59, 130, 245);
+  --color-accent-light: rgba(59, 130, 245, 0.15);
+  --color-highlight: rgb(245, 158, 10);
+  --color-highlight-light: rgba(245, 158, 10, 0.15);
+  --color-fat: rgb(140, 92, 245);
+  --color-fat-light: rgba(140, 92, 245, 0.15);
+  --color-danger: rgb(255, 69, 58);
+  --color-success: rgb(48, 209, 88);
+
+  /* Fonts */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--app-scrollbar);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--app-scrollbar-hover);
+}
+
+/* Page fade-in transition */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

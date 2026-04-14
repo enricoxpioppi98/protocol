@@ -16,6 +16,8 @@ final class Food {
     var isCustom: Bool
     var isFavorite: Bool
     var createdAt: Date
+    var updatedAt: Date
+    var deletedAt: Date?
 
     @Relationship(inverse: \DiaryEntry.food)
     var diaryEntries: [DiaryEntry]?
@@ -48,5 +50,7 @@ final class Food {
         self.isCustom = isCustom
         self.isFavorite = false
         self.createdAt = Date()
+        self.updatedAt = Date()
+        self.deletedAt = nil
     }
 }

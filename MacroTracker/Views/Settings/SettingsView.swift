@@ -10,6 +10,8 @@ struct SettingsView: View {
     @State private var showDeleteConfirm = false
     @State private var showExportSheet = false
     @State private var exportText = ""
+    @State private var showSignIn = false
+    @State private var syncError: String?
 
     // API keys
     @AppStorage("nutritionix_app_id") private var nutritionixAppId = ""
@@ -20,6 +22,9 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // Cloud Sync
+                cloudSyncSection
+
                 // Goals (navigate to full GoalsView)
                 Section {
                     NavigationLink {
@@ -169,11 +174,106 @@ struct SettingsView: View {
             } message: {
                 Text("This will permanently delete all diary entries, saved foods, recipes, and weight data. This cannot be undone.")
             }
+            .sheet(isPresented: $showSignIn) {
+                SignInSheet()
+            }
             .sheet(isPresented: $showExportSheet) {
                 ShareSheet(text: exportText)
             }
         }
     }
+
+    // MARK: - Cloud Sync Section
+
+    @ViewBuilder
+    private var cloudSyncSection: some View {
+        let manager = SupabaseManager.shared
+
+        Section {
+            if manager.isSignedIn {
+                // Signed in state
+                HStack {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(manager.userEmail ?? "Signed In")
+                                .font(.subheadline)
+                            if let lastSync = manager.lastSyncDate {
+                                Text("Last synced \(lastSync, style: .relative) ago")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: "checkmark.icloud.fill")
+                            .foregroundStyle(.green)
+                    }
+                    Spacer()
+                    if manager.isSyncing {
+                        ProgressView()
+                    }
+                }
+
+                Button {
+                    Task { await performSync() }
+                } label: {
+                    Label("Sync Now", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(manager.isSyncing)
+
+                if let syncError {
+                    Text(syncError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Button(role: .destructive) {
+                    Task {
+                        try? await manager.signOut()
+                    }
+                } label: {
+                    Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            } else {
+                // Signed out state
+                Button {
+                    showSignIn = true
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Enable Cloud Sync")
+                                .font(.subheadline.weight(.medium))
+                            Text("Sign in to sync across devices")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "icloud")
+                            .foregroundStyle(Color.accent)
+                    }
+                }
+            }
+        } header: {
+            Label("Cloud Sync", systemImage: "icloud")
+        }
+    }
+
+    // MARK: - Sync
+
+    @MainActor
+    private func performSync() async {
+        syncError = nil
+        do {
+            let syncService = SyncService(
+                supabase: SupabaseManager.shared.client,
+                modelContainer: modelContext.container
+            )
+            try await syncService.sync()
+        } catch {
+            syncError = error.localizedDescription
+        }
+    }
+
+    // MARK: - Export & Reset
 
     private func generateExport() {
         var csv = "Date,Meal,Food,Servings,Calories,Protein(g),Carbs(g),Fat(g)\n"
@@ -201,6 +301,92 @@ struct SettingsView: View {
         for weight in allWeights { modelContext.delete(weight) }
         try? modelContext.save()
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+}
+
+// MARK: - Sign In Sheet
+
+private struct SignInSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var email = ""
+    @State private var password = ""
+    @State private var isSignUp = false
+    @State private var loading = false
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Email", text: $email)
+                        .textContentType(.emailAddress)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    SecureField("Password", text: $password)
+                        .textContentType(isSignUp ? .newPassword : .password)
+                }
+
+                if let error {
+                    Section {
+                        Text(error)
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                    }
+                }
+
+                Section {
+                    Button {
+                        Task { await authenticate() }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if loading {
+                                ProgressView()
+                            } else {
+                                Text(isSignUp ? "Create Account" : "Sign In")
+                                    .fontWeight(.semibold)
+                            }
+                            Spacer()
+                        }
+                    }
+                    .disabled(email.isEmpty || password.isEmpty || loading)
+                }
+
+                Section {
+                    Button {
+                        isSignUp.toggle()
+                        error = nil
+                    } label: {
+                        Text(isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up")
+                            .font(.caption)
+                    }
+                }
+            }
+            .navigationTitle(isSignUp ? "Create Account" : "Sign In")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func authenticate() async {
+        loading = true
+        error = nil
+        do {
+            let manager = SupabaseManager.shared
+            if isSignUp {
+                try await manager.signUp(email: email, password: password)
+            } else {
+                try await manager.signIn(email: email, password: password)
+            }
+            dismiss()
+        } catch {
+            self.error = error.localizedDescription
+        }
+        loading = false
     }
 }
 

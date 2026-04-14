@@ -10,6 +10,7 @@ final class DailyGoal {
     var fat: Double
     /// 0 = default (all days), 1-7 = Calendar weekday (1=Sunday, 2=Monday, ..., 7=Saturday)
     var dayOfWeek: Int
+    var updatedAt: Date
 
     init(calories: Double = 2000, protein: Double = 150, carbs: Double = 250, fat: Double = 65, dayOfWeek: Int = 0) {
         self.id = UUID()
@@ -18,5 +19,6 @@ final class DailyGoal {
         self.carbs = carbs
         self.fat = fat
         self.dayOfWeek = dayOfWeek
+        self.updatedAt = Date()
     }
 }

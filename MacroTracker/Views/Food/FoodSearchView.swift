@@ -25,6 +25,7 @@ struct FoodSearchView: View {
     @State private var usdaError: String?
     @State private var offError: String?
     @State private var nutritionixError: String?
+    @State private var copiedPrompt = false
 
     @Query(sort: \Food.createdAt, order: .reverse) private var allFoods: [Food]
     @Query(sort: \Recipe.createdAt, order: .reverse) private var allRecipes: [Recipe]
@@ -400,6 +401,42 @@ struct FoodSearchView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
+                    }
+                }
+
+                // Copy prompt for Claude fallback
+                if !searchText.isEmpty && !isSearching {
+                    Section {
+                        Button {
+                            let prompt = """
+                            What are the approximate nutritional values per serving of "\(searchText.trimmingCharacters(in: .whitespaces))"?
+                            Please format as:
+                            Food: [name]
+                            Serving: [amount]
+                            Calories: [X]
+                            Protein: [X]g
+                            Carbs: [X]g
+                            Fat: [X]g
+                            """
+                            UIPasteboard.general.string = prompt
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            copiedPrompt = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                copiedPrompt = false
+                            }
+                        } label: {
+                            if copiedPrompt {
+                                Label("Copied!", systemImage: "checkmark")
+                                    .foregroundStyle(Color.accent)
+                            } else {
+                                Label("Copy prompt for Claude", systemImage: "doc.on.clipboard")
+                                    .foregroundStyle(Color.accent)
+                            }
+                        }
+                    } header: {
+                        Text("Can't find what you're looking for?")
+                    } footer: {
+                        Text("Paste this prompt into Claude to get estimated nutrition info.")
                     }
                 }
             }

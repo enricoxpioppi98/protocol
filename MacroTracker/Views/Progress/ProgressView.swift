@@ -4,16 +4,13 @@ import Charts
 
 struct ProgressTabView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \WeightEntry.date) private var weightEntries: [WeightEntry]
     @Query(sort: \DiaryEntry.date) private var diaryEntries: [DiaryEntry]
     @Query private var goals: [DailyGoal]
 
     @AppStorage("suggestion_dismissed_date") private var suggestionDismissedDate: Double = 0
 
-    @State private var showAddWeight = false
-    @State private var weightText = ""
-    @State private var noteText = ""
     @State private var selectedRange: TimeRange = .month
+    @State private var selectedMacro: MacroChart = .calories
 
     private var goal: DailyGoal { goals.goal(for: Date()) }
 
@@ -23,25 +20,7 @@ struct ProgressTabView: View {
         case threeMonths = "90D"
     }
 
-    private var filteredWeights: [WeightEntry] {
-        let days: Int
-        switch selectedRange {
-        case .week: days = 7
-        case .month: days = 30
-        case .threeMonths: days = 90
-        }
-        let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
-        return weightEntries.filter { $0.date >= cutoff }
-    }
-
-    private var weightChange: Double? {
-        guard let first = filteredWeights.first, let last = filteredWeights.last, first.id != last.id else {
-            return nil
-        }
-        return last.weight - first.weight
-    }
-
-    private var dailyCalories: [(date: Date, calories: Double)] {
+    private func dailyMacroData(_ keyPath: KeyPath<DiaryEntry, Double>) -> [(date: Date, value: Double)] {
         let days: Int
         switch selectedRange {
         case .week: days = 7
@@ -49,28 +28,43 @@ struct ProgressTabView: View {
         case .threeMonths: days = 90
         }
         let calendar = Calendar.current
-        var result: [(date: Date, calories: Double)] = []
+        var result: [(date: Date, value: Double)] = []
         for offset in (0..<days).reversed() {
             guard let date = calendar.date(byAdding: .day, value: -offset, to: Date()) else { continue }
             let start = calendar.startOfDay(for: date)
             let total = diaryEntries
                 .filter { calendar.isDate($0.date, inSameDayAs: start) }
-                .reduce(0.0) { $0 + $1.calories }
+                .reduce(0.0) { $0 + $1[keyPath: keyPath] }
             if total > 0 {
-                result.append((date: start, calories: total))
+                result.append((date: start, value: total))
             }
         }
         return result
     }
 
+    private var dailyCalories: [(date: Date, value: Double)] { dailyMacroData(\.calories) }
+    private var dailyProtein: [(date: Date, value: Double)] { dailyMacroData(\.protein) }
+    private var dailyCarbs: [(date: Date, value: Double)] { dailyMacroData(\.carbs) }
+    private var dailyFat: [(date: Date, value: Double)] { dailyMacroData(\.fat) }
+
     private var averageCalories: Double {
         guard !dailyCalories.isEmpty else { return 0 }
-        return dailyCalories.reduce(0) { $0 + $1.calories } / Double(dailyCalories.count)
+        return dailyCalories.reduce(0) { $0 + $1.value } / Double(dailyCalories.count)
     }
 
-    private var averageWeight: Double {
-        guard !filteredWeights.isEmpty else { return 0 }
-        return filteredWeights.reduce(0) { $0 + $1.weight } / Double(filteredWeights.count)
+    private var averageProtein: Double {
+        guard !dailyProtein.isEmpty else { return 0 }
+        return dailyProtein.reduce(0) { $0 + $1.value } / Double(dailyProtein.count)
+    }
+
+    private var averageCarbs: Double {
+        guard !dailyCarbs.isEmpty else { return 0 }
+        return dailyCarbs.reduce(0) { $0 + $1.value } / Double(dailyCarbs.count)
+    }
+
+    private var averageFat: Double {
+        guard !dailyFat.isEmpty else { return 0 }
+        return dailyFat.reduce(0) { $0 + $1.value } / Double(dailyFat.count)
     }
 
     private var goalSuggestion: GoalSuggestion? {
@@ -78,7 +72,7 @@ struct ProgressTabView: View {
         let dismissedDate = Date(timeIntervalSince1970: suggestionDismissedDate)
         guard Date().timeIntervalSince(dismissedDate) > 7 * 24 * 3600 else { return nil }
         return GoalSuggestionService.generate(
-            weightEntries: weightEntries,
+            weightEntries: [],
             diaryEntries: diaryEntries,
             goal: goal
         )
@@ -87,7 +81,7 @@ struct ProgressTabView: View {
     // MARK: - Body
 
     private var isEmpty: Bool {
-        weightEntries.isEmpty && diaryEntries.isEmpty
+        diaryEntries.isEmpty
     }
 
     var body: some View {
@@ -105,319 +99,198 @@ struct ProgressTabView: View {
             VStack(spacing: 24) {
                 Spacer().frame(height: 60)
 
-                Image(systemName: "chart.line.uptrend.xyaxis.circle.fill")
+                Image(systemName: "chart.bar.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(Color.accent)
 
                 Text("No Progress Data Yet")
                     .font(.title2.bold())
 
-                Text("Start logging meals and weight\nto see your trends here.")
+                Text("Start logging meals to see\nyour trends here.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-
-                Button {
-                    showAddWeight = true
-                } label: {
-                    Label("Log Your First Weight", systemImage: "scalemass.fill")
-                }
-                .buttonStyle(PrimaryButtonStyle())
-                .padding(.horizontal, 24)
 
                 Spacer()
             }
         }
         .background(Color.surfaceBackground)
         .navigationTitle("Progress")
-        .sheet(isPresented: $showAddWeight) {
-            addWeightSheet
-        }
     }
 
     private var mainContent: some View {
         ScrollView {
             VStack(spacing: 12) {
                 // Time range picker
-                    Picker("Range", selection: $selectedRange) {
-                        ForEach(TimeRange.allCases, id: \.self) { range in
-                            Text(range.rawValue).tag(range)
-                        }
+                Picker("Range", selection: $selectedRange) {
+                    ForEach(TimeRange.allCases, id: \.self) { range in
+                        Text(range.rawValue).tag(range)
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 16)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
 
-                    // Stats cards
-                    HStack(spacing: 10) {
-                        StatCard(
-                            title: "Avg Calories",
-                            value: "\(Int(averageCalories))",
-                            unit: "kcal",
-                            icon: "flame.fill",
-                            color: Color.highlight
-                        )
-                        StatCard(
-                            title: "Avg Weight",
-                            value: averageWeight > 0 ? String(format: "%.1f", averageWeight) : "--",
-                            unit: averageWeight > 0 ? "lbs" : "",
-                            icon: "scalemass.fill",
-                            color: Color.accent
-                        )
-                        if let change = weightChange {
-                            StatCard(
-                                title: "Change",
-                                value: String(format: "%+.1f", change),
-                                unit: "lbs",
-                                icon: change < 0 ? "arrow.down.right" : "arrow.up.right",
-                                color: change < 0 ? .green : (change > 0 ? .orange : .secondary)
-                            )
+                // Stat cards - 2x2 macro averages
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    StatCardView(title: "Avg Calories", value: "\(Int(averageCalories))", icon: "flame.fill", color: .highlight)
+                    StatCardView(title: "Avg Protein", value: "\(Int(averageProtein))g", icon: "p.circle.fill", color: .accent)
+                    StatCardView(title: "Avg Carbs", value: "\(Int(averageCarbs))g", icon: "c.circle.fill", color: .highlight)
+                    StatCardView(title: "Avg Fat", value: "\(Int(averageFat))g", icon: "f.circle.fill", color: .fatColor)
+                }
+                .padding(.horizontal, 16)
+
+                // Goal suggestion banner
+                if let suggestion = goalSuggestion {
+                    GoalSuggestionBanner(suggestion: suggestion) {
+                        withAnimation {
+                            suggestionDismissedDate = Date().timeIntervalSince1970
                         }
                     }
                     .padding(.horizontal, 16)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
 
-                    // Goal suggestion banner
-                    if let suggestion = goalSuggestion {
-                        GoalSuggestionBanner(suggestion: suggestion) {
-                            withAnimation {
-                                suggestionDismissedDate = Date().timeIntervalSince1970
+                // Daily macros chart
+                if !dailyCalories.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Daily Macros")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        // Macro selector
+                        HStack(spacing: 6) {
+                            ForEach(MacroChart.allCases, id: \.self) { macro in
+                                let isSelected = selectedMacro == macro
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedMacro = macro
+                                    }
+                                } label: {
+                                    VStack(spacing: 2) {
+                                        Text(macro.label)
+                                            .font(.system(size: 11, weight: .semibold))
+                                        Text(macro == .calories
+                                             ? "\(Int(selectedAverage(for: macro))) kcal"
+                                             : "\(Int(selectedAverage(for: macro)))g")
+                                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                                            .foregroundStyle(isSelected ? macro.color : .secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(isSelected ? macro.color.opacity(0.12) : Color.clear)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(isSelected ? macro.color.opacity(0.3) : Color.clear, lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
 
-                    // Weight chart
-                    if !filteredWeights.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Weight Trend")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.secondary)
-
-                            Chart(filteredWeights) { entry in
-                                LineMark(
-                                    x: .value("Date", entry.date),
-                                    y: .value("Weight", entry.weight)
-                                )
-                                .foregroundStyle(Color.accent)
-                                .interpolationMethod(.catmullRom)
-
-                                AreaMark(
-                                    x: .value("Date", entry.date),
-                                    y: .value("Weight", entry.weight)
+                        // Chart
+                        Chart {
+                            ForEach(selectedMacroData, id: \.date) { item in
+                                BarMark(
+                                    x: .value("Date", item.date),
+                                    y: .value(selectedMacro.label, item.value)
                                 )
                                 .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [Color.accent.opacity(0.2), Color.accent.opacity(0.0)],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
+                                    item.value > selectedMacroGoal
+                                        ? Color.orange.opacity(0.7)
+                                        : selectedMacro.color.opacity(0.7)
                                 )
-                                .interpolationMethod(.catmullRom)
-
-                                PointMark(
-                                    x: .value("Date", entry.date),
-                                    y: .value("Weight", entry.weight)
-                                )
-                                .foregroundStyle(Color.accent)
-                                .symbolSize(20)
+                                .cornerRadius(3)
                             }
-                            .chartYScale(domain: weightYDomain)
-                            .frame(height: 180)
+
+                            RuleMark(y: .value("Goal", selectedMacroGoal))
+                                .foregroundStyle(selectedMacro.color.opacity(0.5))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 3]))
+                                .annotation(position: .top, alignment: .trailing) {
+                                    Text("\(Int(selectedMacroGoal))\(selectedMacro == .calories ? "" : "g")")
+                                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                                        .foregroundStyle(selectedMacro.color.opacity(0.7))
+                                }
                         }
-                        .cardStyle()
-                        .padding(.horizontal, 16)
+                        .frame(height: 240)
                     }
-
-                    // Calorie chart
-                    if !dailyCalories.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Daily Calories")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.secondary)
-
-                            Chart {
-                                ForEach(dailyCalories, id: \.date) { item in
-                                    BarMark(
-                                        x: .value("Date", item.date),
-                                        y: .value("Calories", item.calories)
-                                    )
-                                    .foregroundStyle(
-                                        item.calories > goal.calories
-                                            ? Color.orange.opacity(0.7)
-                                            : Color.highlight.opacity(0.7)
-                                    )
-                                    .cornerRadius(3)
-                                }
-
-                                RuleMark(y: .value("Goal", goal.calories))
-                                    .foregroundStyle(Color.accent)
-                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 3]))
-                                    .annotation(position: .top, alignment: .trailing) {
-                                        Text("Goal")
-                                            .font(.system(size: 9, weight: .medium))
-                                            .foregroundStyle(Color.accent)
-                                    }
-                            }
-                            .frame(height: 160)
-                        }
-                        .cardStyle()
-                        .padding(.horizontal, 16)
-                    }
-
-                    // Weight log
-                    VStack(spacing: 0) {
-                        HStack {
-                            Text("Weight Log")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Button {
-                                showAddWeight = true
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "plus")
-                                        .font(.caption.weight(.bold))
-                                    Text("Log")
-                                        .font(.caption.weight(.semibold))
-                                }
-                                .foregroundStyle(Color.accent)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color.accent.opacity(0.08))
-                                .clipShape(Capsule())
-                            }
-                            .buttonStyle(ScaleButtonStyle())
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-
-                        if filteredWeights.isEmpty {
-                            Text("No weight entries yet")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                                .padding(.vertical, 20)
-                        } else {
-                            ForEach(filteredWeights.reversed()) { entry in
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(entry.date.formatted(.dateTime.month(.abbreviated).day()))
-                                            .font(.subheadline.weight(.medium))
-                                        if !entry.note.isEmpty {
-                                            Text(entry.note)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                                .lineLimit(1)
-                                        }
-                                    }
-                                    Spacer()
-                                    Text(String(format: "%.1f", entry.weight))
-                                        .font(.subheadline.bold())
-                                        .foregroundStyle(Color.accent)
-                                    Text("lbs")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        modelContext.delete(entry)
-                                        try? modelContext.save()
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-
-                                if entry.id != filteredWeights.first?.id {
-                                    Divider().padding(.leading, 16)
-                                }
-                            }
-                        }
-                    }
-                    .background(Color.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .cardStyle()
                     .padding(.horizontal, 16)
-
-                    // Bottom padding for floating tab bar
-                    Spacer().frame(height: 80)
                 }
-                .padding(.top, 8)
+
+                // Bottom padding for floating tab bar
+                Spacer().frame(height: 80)
             }
-            .background(Color.surfaceBackground)
-            .navigationTitle("Progress")
-            .sheet(isPresented: $showAddWeight) {
-                addWeightSheet
-            }
-    }
-
-    // MARK: - Helpers
-
-    private var weightYDomain: ClosedRange<Double> {
-        let weights = filteredWeights.map(\.weight)
-        let minW = (weights.min() ?? 100) - 2
-        let maxW = (weights.max() ?? 200) + 2
-        return minW...maxW
-    }
-
-    // MARK: - Add Weight Sheet
-
-    private var addWeightSheet: some View {
-        NavigationStack {
-            Form {
-                Section("Weight") {
-                    HStack {
-                        TextField("e.g. 175", text: $weightText)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                        Text("lbs")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Section("Note (optional)") {
-                    TextField("e.g. morning, post-workout", text: $noteText)
-                }
-            }
-            .navigationTitle("Log Weight")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        showAddWeight = false
-                        weightText = ""
-                        noteText = ""
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveWeight()
-                    }
-                    .bold()
-                    .disabled(Double(weightText) == nil)
-                }
-            }
+            .padding(.top, 8)
         }
-        .presentationDetents([.medium])
-        .presentationCornerRadius(24)
+        .background(Color.surfaceBackground)
+        .navigationTitle("Progress")
     }
 
-    private func saveWeight() {
-        guard let weight = Double(weightText), weight > 0 else { return }
-        let entry = WeightEntry(weight: weight, note: noteText)
-        modelContext.insert(entry)
-        try? modelContext.save()
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        showAddWeight = false
-        weightText = ""
-        noteText = ""
+    // MARK: - Macro Chart Helpers
+
+    private var selectedMacroData: [(date: Date, value: Double)] {
+        switch selectedMacro {
+        case .calories: return dailyCalories
+        case .protein: return dailyProtein
+        case .carbs: return dailyCarbs
+        case .fat: return dailyFat
+        }
+    }
+
+    private var selectedMacroGoal: Double {
+        switch selectedMacro {
+        case .calories: return goal.calories
+        case .protein: return goal.protein
+        case .carbs: return goal.carbs
+        case .fat: return goal.fat
+        }
+    }
+
+    private func selectedAverage(for macro: MacroChart) -> Double {
+        switch macro {
+        case .calories: return averageCalories
+        case .protein: return averageProtein
+        case .carbs: return averageCarbs
+        case .fat: return averageFat
+        }
+    }
+}
+
+// MARK: - Macro Chart Type
+
+private enum MacroChart: String, CaseIterable {
+    case calories = "Cal"
+    case protein = "Pro"
+    case carbs = "Carb"
+    case fat = "Fat"
+
+    var label: String {
+        switch self {
+        case .calories: return "Calories"
+        case .protein: return "Protein"
+        case .carbs: return "Carbs"
+        case .fat: return "Fat"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .calories: return Color.highlight
+        case .protein: return Color.accent
+        case .carbs: return Color.highlight
+        case .fat: return Color.fatColor
+        }
     }
 }
 
 // MARK: - Stat Card
 
-private struct StatCard: View {
+private struct StatCardView: View {
     let title: String
     let value: String
-    let unit: String
     let icon: String
     let color: Color
 
@@ -429,20 +302,17 @@ private struct StatCard: View {
             Text(value)
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .contentTransition(.numericText())
-            Text(unit)
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
             Text(title)
-                .font(.system(size: 9))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 14)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 14)
                 .fill(Color.cardBackground)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: 14)
                         .fill(
                             LinearGradient(
                                 colors: [color.opacity(0.06), Color.clear],

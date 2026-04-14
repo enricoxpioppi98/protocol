@@ -7,6 +7,8 @@ final class MealTemplate {
     var name: String
     var mealTypeRaw: String
     var createdAt: Date
+    var updatedAt: Date
+    var deletedAt: Date?
 
     @Relationship(deleteRule: .cascade)
     var items: [MealTemplateItem]
@@ -16,6 +18,8 @@ final class MealTemplate {
         self.name = name
         self.mealTypeRaw = mealType.rawValue
         self.createdAt = Date()
+        self.updatedAt = Date()
+        self.deletedAt = nil
         self.items = []
     }
 
@@ -37,6 +41,7 @@ final class MealTemplate {
 final class MealTemplateItem {
     var id: UUID
     var numberOfServings: Double
+    var updatedAt: Date
     var food: Food?
     var template: MealTemplate?
 
@@ -44,5 +49,6 @@ final class MealTemplateItem {
         self.id = UUID()
         self.food = food
         self.numberOfServings = numberOfServings
+        self.updatedAt = Date()
     }
 }
