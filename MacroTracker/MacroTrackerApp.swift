@@ -37,16 +37,29 @@ struct MacroTrackerApp: App {
         WindowGroup {
             ContentView()
                 .task {
-                    // Check if user has an active Supabase session
-                    await SupabaseManager.shared.checkSession()
+                    let manager = SupabaseManager.shared
 
-                    // Auto-sync if signed in
-                    if SupabaseManager.shared.isSignedIn {
+                    // Check if user has an active Supabase session
+                    await manager.checkSession()
+
+                    // Auto-sync and start realtime if signed in
+                    if manager.isSignedIn {
                         let syncService = SyncService(
-                            supabase: SupabaseManager.shared.client,
+                            supabase: manager.client,
                             modelContainer: container
                         )
                         try? await syncService.sync()
+
+                        // Wire up realtime — when a remote change arrives, re-sync
+                        let capturedContainer = container
+                        manager.onRemoteChange = {
+                            let service = SyncService(
+                                supabase: manager.client,
+                                modelContainer: capturedContainer
+                            )
+                            try? await service.sync()
+                        }
+                        await manager.startRealtime()
                     }
                 }
         }

@@ -31,6 +31,24 @@ export function useDiary(selectedDate: Date) {
     fetchEntries();
   }, [fetchEntries]);
 
+  // Realtime subscription — refetch when diary_entries change from another device
+  useEffect(() => {
+    const channel = supabase
+      .channel('diary_entries_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'diary_entries' },
+        () => {
+          fetchEntries();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, fetchEntries]);
+
   const addEntry = useCallback(
     async (params: {
       food_id?: string;
@@ -69,7 +87,6 @@ export function useDiary(selectedDate: Date) {
 
   const deleteEntry = useCallback(
     async (id: string) => {
-      // Soft delete
       const { error } = await supabase
         .from('diary_entries')
         .update({ deleted_at: new Date().toISOString() })
@@ -82,7 +99,6 @@ export function useDiary(selectedDate: Date) {
     [supabase]
   );
 
-  // Group by meal type
   const grouped = {
     Breakfast: entries.filter((e) => e.meal_type === 'Breakfast'),
     Lunch: entries.filter((e) => e.meal_type === 'Lunch'),

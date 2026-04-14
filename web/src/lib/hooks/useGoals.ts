@@ -26,6 +26,20 @@ export function useGoals() {
     fetchGoals();
   }, [fetchGoals]);
 
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('daily_goals_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_goals' },
+        () => { fetchGoals(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [supabase, fetchGoals]);
+
   const getGoalForDate = useCallback(
     (date: Date) => goalForDate(goals, date),
     [goals]

@@ -22,6 +22,11 @@ final class SupabaseManager {
         }
     }
 
+    /// Called when a remote change is detected — set by the app to trigger sync
+    var onRemoteChange: (() async -> Void)?
+
+    private var realtimeChannel: RealtimeChannelV2?
+
     private init() {
         client = SupabaseClient(
             supabaseURL: URL(string: "https://oecccaqhxacmnopexmsj.supabase.co")!,
@@ -44,18 +49,61 @@ final class SupabaseManager {
         let session = try await client.auth.signIn(email: email, password: password)
         isSignedIn = true
         userEmail = session.user.email
+        await startRealtime()
     }
 
     func signUp(email: String, password: String) async throws {
         let session = try await client.auth.signUp(email: email, password: password)
         isSignedIn = true
         userEmail = session.user.email
+        await startRealtime()
     }
 
     func signOut() async throws {
+        await stopRealtime()
         try await client.auth.signOut()
         isSignedIn = false
         userEmail = nil
         lastSyncDate = nil
+    }
+
+    // MARK: - Realtime
+
+    func startRealtime() async {
+        guard isSignedIn else { return }
+        await stopRealtime()
+
+        let channel = client.realtimeV2.channel("ios_sync")
+
+        let diaryChanges = channel.postgresChange(AnyAction.self, schema: "public", table: "diary_entries")
+        let foodChanges = channel.postgresChange(AnyAction.self, schema: "public", table: "foods")
+        let goalChanges = channel.postgresChange(AnyAction.self, schema: "public", table: "daily_goals")
+
+        await channel.subscribe()
+        realtimeChannel = channel
+
+        // Listen for changes in background
+        Task {
+            for await _ in diaryChanges {
+                await onRemoteChange?()
+            }
+        }
+        Task {
+            for await _ in foodChanges {
+                await onRemoteChange?()
+            }
+        }
+        Task {
+            for await _ in goalChanges {
+                await onRemoteChange?()
+            }
+        }
+    }
+
+    func stopRealtime() async {
+        if let channel = realtimeChannel {
+            await client.realtimeV2.removeChannel(channel)
+            realtimeChannel = nil
+        }
     }
 }

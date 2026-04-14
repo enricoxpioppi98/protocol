@@ -28,6 +28,25 @@ export function useRecipes() {
     fetchRecipes();
   }, [fetchRecipes]);
 
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('recipes_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'recipes' },
+        () => { fetchRecipes(); }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'recipe_ingredients' },
+        () => { fetchRecipes(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [supabase, fetchRecipes]);
+
   const createRecipe = useCallback(
     async (name: string, servings: number): Promise<Recipe | null> => {
       const { data: { user } } = await supabase.auth.getUser();
