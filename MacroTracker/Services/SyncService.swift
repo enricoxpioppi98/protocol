@@ -58,7 +58,7 @@ actor SyncService {
 
         let descriptor = FetchDescriptor<Food>()
         let localFoods = try context.fetch(descriptor)
-        let localById = Dictionary(uniqueKeysWithValues: localFoods.map { ($0.id.uuidString, $0) })
+        let localById = Dictionary(localFoods.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, last in last })
 
         for remote in remoteFoods {
             if let local = localById[remote.id] {
@@ -121,7 +121,7 @@ actor SyncService {
 
         let descriptor = FetchDescriptor<DiaryEntry>()
         let localEntries = try context.fetch(descriptor)
-        let localById = Dictionary(uniqueKeysWithValues: localEntries.map { ($0.id.uuidString, $0) })
+        let localById = Dictionary(localEntries.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, last in last })
 
         for remote in remoteEntries {
             if let local = localById[remote.id] {
@@ -183,7 +183,7 @@ actor SyncService {
 
         let descriptor = FetchDescriptor<DailyGoal>()
         let localGoals = try context.fetch(descriptor)
-        let localById = Dictionary(uniqueKeysWithValues: localGoals.map { ($0.id.uuidString, $0) })
+        let localById = Dictionary(localGoals.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, last in last })
 
         for remote in remoteGoals {
             if let local = localById[remote.id] {
@@ -231,7 +231,7 @@ actor SyncService {
 
         let descriptor = FetchDescriptor<Recipe>()
         let localRecipes = try context.fetch(descriptor)
-        let localById = Dictionary(uniqueKeysWithValues: localRecipes.map { ($0.id.uuidString, $0) })
+        let localById = Dictionary(localRecipes.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, last in last })
 
         for remote in remoteRecipes {
             if let local = localById[remote.id] {
@@ -278,7 +278,7 @@ actor SyncService {
 
         let descriptor = FetchDescriptor<WeightEntry>()
         let localWeights = try context.fetch(descriptor)
-        let localById = Dictionary(uniqueKeysWithValues: localWeights.map { ($0.id.uuidString, $0) })
+        let localById = Dictionary(localWeights.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, last in last })
 
         for remote in remoteWeights {
             if let local = localById[remote.id] {
