@@ -26,6 +26,7 @@ final class SupabaseManager {
     var onRemoteChange: (() async -> Void)?
 
     private var realtimeChannel: RealtimeChannelV2?
+    private var pendingSyncTask: Task<Void, Never>?
 
     private init() {
         client = SupabaseClient(
@@ -67,6 +68,24 @@ final class SupabaseManager {
         lastSyncDate = nil
     }
 
+    // MARK: - Debounced Sync
+
+    /// Schedule a sync with debounce — multiple rapid calls only trigger one sync
+    private func scheduleDebouncedSync() {
+        // Skip if already syncing
+        guard !isSyncing else { return }
+
+        // Cancel any pending debounce
+        pendingSyncTask?.cancel()
+
+        // Wait 2 seconds before actually syncing (debounce)
+        pendingSyncTask = Task {
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            await onRemoteChange?()
+        }
+    }
+
     // MARK: - Realtime
 
     func startRealtime() async {
@@ -82,25 +101,27 @@ final class SupabaseManager {
         await channel.subscribe()
         realtimeChannel = channel
 
-        // Listen for changes in background
+        // Listen for changes — debounced to avoid sync loops
         Task {
             for await _ in diaryChanges {
-                await onRemoteChange?()
+                await MainActor.run { scheduleDebouncedSync() }
             }
         }
         Task {
             for await _ in foodChanges {
-                await onRemoteChange?()
+                await MainActor.run { scheduleDebouncedSync() }
             }
         }
         Task {
             for await _ in goalChanges {
-                await onRemoteChange?()
+                await MainActor.run { scheduleDebouncedSync() }
             }
         }
     }
 
     func stopRealtime() async {
+        pendingSyncTask?.cancel()
+        pendingSyncTask = nil
         if let channel = realtimeChannel {
             await client.realtimeV2.removeChannel(channel)
             realtimeChannel = nil
