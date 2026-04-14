@@ -2,9 +2,9 @@ import Foundation
 import SwiftData
 import Supabase
 
-/// Simple bidirectional sync: pull remote → merge locally, then push local → remote.
-/// Uses last-write-wins on updatedAt. Errors are logged per-record, never crash.
-actor SyncService {
+/// Bidirectional sync between local SwiftData and Supabase.
+@MainActor
+final class SyncService {
     private let supabase: SupabaseClient
     private let modelContainer: ModelContainer
 
@@ -21,238 +21,278 @@ actor SyncService {
         self.modelContainer = modelContainer
     }
 
-    @MainActor
     func sync() async {
         let manager = SupabaseManager.shared
-        guard manager.isSignedIn, !manager.isSyncing else { return }
+        guard manager.isSignedIn, !manager.isSyncing else {
+            print("[Sync] Skipped: signed_in=\(manager.isSignedIn) syncing=\(manager.isSyncing)")
+            return
+        }
 
         manager.isSyncing = true
         defer { manager.isSyncing = false }
 
-        guard let userId = try? await supabase.auth.session.user.id.uuidString else { return }
+        guard let userId = try? await supabase.auth.session.user.id.uuidString else {
+            print("[Sync] Failed to get user session")
+            return
+        }
+        print("[Sync] Starting sync for user \(userId)")
+
         let context = modelContainer.mainContext
 
-        // Order matters: foods before diary entries (foreign key dependency)
-        await syncFoods(context: context, userId: userId)
-        await syncRecipes(context: context, userId: userId)
-        await syncDiaryEntries(context: context, userId: userId)
-        await syncDailyGoals(context: context, userId: userId)
-        await syncWeightEntries(context: context, userId: userId)
+        // Order: foods & recipes first (diary entries reference them)
+        await pullFoods(context, userId); await pushFoods(context, userId)
+        await pullRecipes(context, userId); await pushRecipes(context, userId)
+        await pullDiaryEntries(context, userId); await pushDiaryEntries(context, userId)
+        await pullDailyGoals(context, userId); await pushDailyGoals(context, userId)
+        await pullWeightEntries(context, userId); await pushWeightEntries(context, userId)
 
-        try? context.save()
+        do {
+            try context.save()
+            print("[Sync] Context saved successfully")
+        } catch {
+            print("[Sync] Context save error: \(error)")
+        }
+
         manager.lastSyncDate = Date()
+        print("[Sync] Complete")
     }
 
     // MARK: - Foods
 
-    @MainActor
-    private func syncFoods(context: ModelContext, userId: String) async {
-        guard let remoteFoods: [RemoteFood] = try? await supabase.from("foods").select().execute().value else { return }
+    private func pullFoods(_ context: ModelContext, _ userId: String) async {
+        do {
+            let remote: [RemoteFood] = try await supabase.from("foods").select().execute().value
+            print("[Sync] Pulled \(remote.count) remote foods")
 
-        let localFoods = (try? context.fetch(FetchDescriptor<Food>())) ?? []
-        let localById = Dictionary(localFoods.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
-        let remoteById = Dictionary(remoteFoods.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
+            let local = (try? context.fetch(FetchDescriptor<Food>())) ?? []
+            let localById = Dictionary(local.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
 
-        // Pull: remote → local
-        for remote in remoteFoods {
-            if let local = localById[remote.id] {
-                if remote.updated_at > local.updatedAt {
-                    local.name = remote.name; local.brand = remote.brand; local.barcode = remote.barcode
-                    local.calories = remote.calories; local.protein = remote.protein
-                    local.carbs = remote.carbs; local.fat = remote.fat
-                    local.servingSize = remote.serving_size; local.servingUnit = remote.serving_unit
-                    local.isCustom = remote.is_custom; local.isFavorite = remote.is_favorite
-                    local.updatedAt = remote.updated_at; local.deletedAt = remote.deleted_at
+            for r in remote {
+                if let l = localById[r.id] {
+                    if r.updated_at > l.updatedAt {
+                        l.name = r.name; l.brand = r.brand; l.barcode = r.barcode
+                        l.calories = r.calories; l.protein = r.protein; l.carbs = r.carbs; l.fat = r.fat
+                        l.servingSize = r.serving_size; l.servingUnit = r.serving_unit
+                        l.isCustom = r.is_custom; l.isFavorite = r.is_favorite
+                        l.updatedAt = r.updated_at; l.deletedAt = r.deleted_at
+                    }
+                } else {
+                    let f = Food(name: r.name, brand: r.brand, barcode: r.barcode,
+                                 calories: r.calories, protein: r.protein, carbs: r.carbs,
+                                 fat: r.fat, servingSize: r.serving_size, servingUnit: r.serving_unit,
+                                 isCustom: r.is_custom)
+                    f.id = UUID(uuidString: r.id) ?? UUID()
+                    f.isFavorite = r.is_favorite; f.createdAt = r.created_at
+                    f.updatedAt = r.updated_at; f.deletedAt = r.deleted_at
+                    context.insert(f)
                 }
-            } else {
-                let f = Food(name: remote.name, brand: remote.brand, barcode: remote.barcode,
-                             calories: remote.calories, protein: remote.protein, carbs: remote.carbs,
-                             fat: remote.fat, servingSize: remote.serving_size, servingUnit: remote.serving_unit,
-                             isCustom: remote.is_custom)
-                f.id = UUID(uuidString: remote.id) ?? UUID()
-                f.isFavorite = remote.is_favorite; f.createdAt = remote.created_at
-                f.updatedAt = remote.updated_at; f.deletedAt = remote.deleted_at
-                context.insert(f)
             }
+        } catch {
+            print("[Sync] Pull foods FAILED: \(error)")
         }
+    }
 
-        // Push: local → remote (only records not on remote, or newer locally)
-        for local in localFoods {
-            let lid = local.id.uuidString
-            if let remote = remoteById[lid] {
-                guard local.updatedAt > remote.updated_at else { continue }
+    private func pushFoods(_ context: ModelContext, _ userId: String) async {
+        let local = (try? context.fetch(FetchDescriptor<Food>())) ?? []
+        for l in local {
+            let dto = RemoteFood(id: l.id.uuidString, user_id: userId, name: l.name, brand: l.brand,
+                                 barcode: l.barcode, calories: l.calories, protein: l.protein,
+                                 carbs: l.carbs, fat: l.fat, serving_size: l.servingSize,
+                                 serving_unit: l.servingUnit, is_custom: l.isCustom,
+                                 is_favorite: l.isFavorite, created_at: l.createdAt,
+                                 updated_at: l.updatedAt, deleted_at: l.deletedAt)
+            do {
+                try await supabase.from("foods").upsert(dto, onConflict: "id").execute()
+            } catch {
+                print("[Sync] Push food '\(l.name)' FAILED: \(error)")
             }
-            let dto = RemoteFood(id: lid, user_id: userId, name: local.name, brand: local.brand,
-                                 barcode: local.barcode, calories: local.calories, protein: local.protein,
-                                 carbs: local.carbs, fat: local.fat, serving_size: local.servingSize,
-                                 serving_unit: local.servingUnit, is_custom: local.isCustom,
-                                 is_favorite: local.isFavorite, created_at: local.createdAt,
-                                 updated_at: local.updatedAt, deleted_at: local.deletedAt)
-            try? await supabase.from("foods").upsert(dto, onConflict: "id").execute()
         }
+        print("[Sync] Pushed \(local.count) foods")
     }
 
     // MARK: - Diary Entries
 
-    @MainActor
-    private func syncDiaryEntries(context: ModelContext, userId: String) async {
-        guard let remoteEntries: [RemoteDiaryEntry] = try? await supabase.from("diary_entries").select().execute().value else { return }
+    private func pullDiaryEntries(_ context: ModelContext, _ userId: String) async {
+        do {
+            let remote: [RemoteDiaryEntry] = try await supabase.from("diary_entries").select().execute().value
+            print("[Sync] Pulled \(remote.count) remote diary entries")
 
-        let localEntries = (try? context.fetch(FetchDescriptor<DiaryEntry>())) ?? []
-        let localById = Dictionary(localEntries.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
-        let remoteById = Dictionary(remoteEntries.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
+            let local = (try? context.fetch(FetchDescriptor<DiaryEntry>())) ?? []
+            let localById = Dictionary(local.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
 
-        // Pull
-        for remote in remoteEntries {
-            if let local = localById[remote.id] {
-                if remote.updated_at > local.updatedAt {
-                    local.mealTypeRaw = remote.meal_type
-                    local.numberOfServings = remote.number_of_servings
-                    local.updatedAt = remote.updated_at; local.deletedAt = remote.deleted_at
+            for r in remote {
+                if let l = localById[r.id] {
+                    if r.updated_at > l.updatedAt {
+                        l.mealTypeRaw = r.meal_type; l.numberOfServings = r.number_of_servings
+                        l.updatedAt = r.updated_at; l.deletedAt = r.deleted_at
+                    }
+                } else {
+                    let date = Self.dateFmt.date(from: r.date) ?? Date()
+                    let entry = DiaryEntry(date: date, mealType: MealType(rawValue: r.meal_type) ?? .snack,
+                                           numberOfServings: r.number_of_servings)
+                    entry.id = UUID(uuidString: r.id) ?? UUID()
+                    entry.updatedAt = r.updated_at; entry.deletedAt = r.deleted_at
+                    if let fid = r.food_id, let uuid = UUID(uuidString: fid) {
+                        entry.food = (try? context.fetch(FetchDescriptor<Food>(predicate: #Predicate { $0.id == uuid })))?.first
+                    }
+                    if let rid = r.recipe_id, let uuid = UUID(uuidString: rid) {
+                        entry.recipe = (try? context.fetch(FetchDescriptor<Recipe>(predicate: #Predicate { $0.id == uuid })))?.first
+                    }
+                    context.insert(entry)
                 }
-            } else {
-                let d = Self.dateFmt.date(from: remote.date) ?? Date()
-                let entry = DiaryEntry(date: d, mealType: MealType(rawValue: remote.meal_type) ?? .snack,
-                                       numberOfServings: remote.number_of_servings)
-                entry.id = UUID(uuidString: remote.id) ?? UUID()
-                entry.updatedAt = remote.updated_at; entry.deletedAt = remote.deleted_at
-                // Link food/recipe by UUID lookup
-                if let fid = remote.food_id, let uuid = UUID(uuidString: fid) {
-                    entry.food = (try? context.fetch(FetchDescriptor<Food>(predicate: #Predicate { $0.id == uuid })))?.first
-                }
-                if let rid = remote.recipe_id, let uuid = UUID(uuidString: rid) {
-                    entry.recipe = (try? context.fetch(FetchDescriptor<Recipe>(predicate: #Predicate { $0.id == uuid })))?.first
-                }
-                context.insert(entry)
+            }
+        } catch {
+            print("[Sync] Pull diary entries FAILED: \(error)")
+        }
+    }
+
+    private func pushDiaryEntries(_ context: ModelContext, _ userId: String) async {
+        let local = (try? context.fetch(FetchDescriptor<DiaryEntry>())) ?? []
+        for l in local {
+            let dateStr = Self.dateFmt.string(from: Calendar.current.startOfDay(for: l.date))
+            let dto = RemoteDiaryEntry(id: l.id.uuidString, user_id: userId, date: dateStr,
+                                       meal_type: l.mealTypeRaw, number_of_servings: l.numberOfServings,
+                                       food_id: l.food?.id.uuidString, recipe_id: l.recipe?.id.uuidString,
+                                       created_at: l.updatedAt, updated_at: l.updatedAt, deleted_at: l.deletedAt)
+            do {
+                try await supabase.from("diary_entries").upsert(dto, onConflict: "id").execute()
+            } catch {
+                print("[Sync] Push diary entry FAILED: \(error)")
             }
         }
-
-        // Push
-        for local in localEntries {
-            let lid = local.id.uuidString
-            if let remote = remoteById[lid] {
-                guard local.updatedAt > remote.updated_at else { continue }
-            }
-            let dateStr = Self.dateFmt.string(from: Calendar.current.startOfDay(for: local.date))
-            let dto = RemoteDiaryEntry(id: lid, user_id: userId, date: dateStr,
-                                       meal_type: local.mealTypeRaw, number_of_servings: local.numberOfServings,
-                                       food_id: local.food?.id.uuidString, recipe_id: local.recipe?.id.uuidString,
-                                       created_at: local.updatedAt, updated_at: local.updatedAt, deleted_at: local.deletedAt)
-            try? await supabase.from("diary_entries").upsert(dto, onConflict: "id").execute()
-        }
+        print("[Sync] Pushed \(local.count) diary entries")
     }
 
     // MARK: - Daily Goals
 
-    @MainActor
-    private func syncDailyGoals(context: ModelContext, userId: String) async {
-        guard let remoteGoals: [RemoteDailyGoal] = try? await supabase.from("daily_goals").select().execute().value else { return }
+    private func pullDailyGoals(_ context: ModelContext, _ userId: String) async {
+        do {
+            let remote: [RemoteDailyGoal] = try await supabase.from("daily_goals").select().execute().value
+            print("[Sync] Pulled \(remote.count) remote goals")
 
-        let localGoals = (try? context.fetch(FetchDescriptor<DailyGoal>())) ?? []
-        let localById = Dictionary(localGoals.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
-        let remoteById = Dictionary(remoteGoals.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
+            let local = (try? context.fetch(FetchDescriptor<DailyGoal>())) ?? []
+            let localById = Dictionary(local.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
 
-        // Pull
-        for remote in remoteGoals {
-            if let local = localById[remote.id] {
-                if remote.updated_at > local.updatedAt {
-                    local.calories = remote.calories; local.protein = remote.protein
-                    local.carbs = remote.carbs; local.fat = remote.fat
-                    local.dayOfWeek = remote.day_of_week; local.updatedAt = remote.updated_at
+            for r in remote {
+                if let l = localById[r.id] {
+                    if r.updated_at > l.updatedAt {
+                        l.calories = r.calories; l.protein = r.protein
+                        l.carbs = r.carbs; l.fat = r.fat
+                        l.dayOfWeek = r.day_of_week; l.updatedAt = r.updated_at
+                    }
+                } else {
+                    let g = DailyGoal(calories: r.calories, protein: r.protein,
+                                      carbs: r.carbs, fat: r.fat, dayOfWeek: r.day_of_week)
+                    g.id = UUID(uuidString: r.id) ?? UUID()
+                    g.updatedAt = r.updated_at
+                    context.insert(g)
                 }
-            } else {
-                let g = DailyGoal(calories: remote.calories, protein: remote.protein,
-                                  carbs: remote.carbs, fat: remote.fat, dayOfWeek: remote.day_of_week)
-                g.id = UUID(uuidString: remote.id) ?? UUID()
-                g.updatedAt = remote.updated_at
-                context.insert(g)
             }
+        } catch {
+            print("[Sync] Pull goals FAILED: \(error)")
         }
+    }
 
-        // Push — use onConflict "id" to avoid unique(user_id, day_of_week) clash
-        for local in localGoals {
-            let lid = local.id.uuidString
-            if let remote = remoteById[lid] {
-                guard local.updatedAt > remote.updated_at else { continue }
+    private func pushDailyGoals(_ context: ModelContext, _ userId: String) async {
+        let local = (try? context.fetch(FetchDescriptor<DailyGoal>())) ?? []
+        for l in local {
+            let dto = RemoteDailyGoal(id: l.id.uuidString, user_id: userId, calories: l.calories,
+                                      protein: l.protein, carbs: l.carbs, fat: l.fat,
+                                      day_of_week: l.dayOfWeek, updated_at: l.updatedAt)
+            do {
+                try await supabase.from("daily_goals").upsert(dto, onConflict: "id").execute()
+            } catch {
+                print("[Sync] Push goal FAILED: \(error)")
             }
-            let dto = RemoteDailyGoal(id: lid, user_id: userId, calories: local.calories,
-                                      protein: local.protein, carbs: local.carbs, fat: local.fat,
-                                      day_of_week: local.dayOfWeek, updated_at: local.updatedAt)
-            try? await supabase.from("daily_goals").upsert(dto, onConflict: "id").execute()
         }
+        print("[Sync] Pushed \(local.count) goals")
     }
 
     // MARK: - Recipes
 
-    @MainActor
-    private func syncRecipes(context: ModelContext, userId: String) async {
-        guard let remoteRecipes: [RemoteRecipe] = try? await supabase.from("recipes").select().execute().value else { return }
+    private func pullRecipes(_ context: ModelContext, _ userId: String) async {
+        do {
+            let remote: [RemoteRecipe] = try await supabase.from("recipes").select().execute().value
+            print("[Sync] Pulled \(remote.count) remote recipes")
 
-        let localRecipes = (try? context.fetch(FetchDescriptor<Recipe>())) ?? []
-        let localById = Dictionary(localRecipes.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
-        let remoteById = Dictionary(remoteRecipes.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
+            let local = (try? context.fetch(FetchDescriptor<Recipe>())) ?? []
+            let localById = Dictionary(local.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
 
-        for remote in remoteRecipes {
-            if let local = localById[remote.id] {
-                if remote.updated_at > local.updatedAt {
-                    local.name = remote.name; local.servings = remote.servings
-                    local.updatedAt = remote.updated_at; local.deletedAt = remote.deleted_at
+            for r in remote {
+                if let l = localById[r.id] {
+                    if r.updated_at > l.updatedAt {
+                        l.name = r.name; l.servings = r.servings
+                        l.updatedAt = r.updated_at; l.deletedAt = r.deleted_at
+                    }
+                } else {
+                    let recipe = Recipe(name: r.name, servings: r.servings)
+                    recipe.id = UUID(uuidString: r.id) ?? UUID()
+                    recipe.createdAt = r.created_at; recipe.updatedAt = r.updated_at; recipe.deletedAt = r.deleted_at
+                    context.insert(recipe)
                 }
-            } else {
-                let r = Recipe(name: remote.name, servings: remote.servings)
-                r.id = UUID(uuidString: remote.id) ?? UUID()
-                r.createdAt = remote.created_at; r.updatedAt = remote.updated_at; r.deletedAt = remote.deleted_at
-                context.insert(r)
             }
+        } catch {
+            print("[Sync] Pull recipes FAILED: \(error)")
         }
+    }
 
-        for local in localRecipes {
-            let lid = local.id.uuidString
-            if let remote = remoteById[lid] {
-                guard local.updatedAt > remote.updated_at else { continue }
+    private func pushRecipes(_ context: ModelContext, _ userId: String) async {
+        let local = (try? context.fetch(FetchDescriptor<Recipe>())) ?? []
+        for l in local {
+            let dto = RemoteRecipe(id: l.id.uuidString, user_id: userId, name: l.name, servings: l.servings,
+                                   created_at: l.createdAt, updated_at: l.updatedAt, deleted_at: l.deletedAt)
+            do {
+                try await supabase.from("recipes").upsert(dto, onConflict: "id").execute()
+            } catch {
+                print("[Sync] Push recipe '\(l.name)' FAILED: \(error)")
             }
-            let dto = RemoteRecipe(id: lid, user_id: userId, name: local.name, servings: local.servings,
-                                   created_at: local.createdAt, updated_at: local.updatedAt, deleted_at: local.deletedAt)
-            try? await supabase.from("recipes").upsert(dto, onConflict: "id").execute()
         }
+        print("[Sync] Pushed \(local.count) recipes")
     }
 
     // MARK: - Weight Entries
 
-    @MainActor
-    private func syncWeightEntries(context: ModelContext, userId: String) async {
-        guard let remoteWeights: [RemoteWeightEntry] = try? await supabase.from("weight_entries").select().execute().value else { return }
+    private func pullWeightEntries(_ context: ModelContext, _ userId: String) async {
+        do {
+            let remote: [RemoteWeightEntry] = try await supabase.from("weight_entries").select().execute().value
+            print("[Sync] Pulled \(remote.count) remote weight entries")
 
-        let localWeights = (try? context.fetch(FetchDescriptor<WeightEntry>())) ?? []
-        let localById = Dictionary(localWeights.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
-        let remoteById = Dictionary(remoteWeights.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })
+            let local = (try? context.fetch(FetchDescriptor<WeightEntry>())) ?? []
+            let localById = Dictionary(local.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { _, b in b })
 
-        for remote in remoteWeights {
-            if let local = localById[remote.id] {
-                if remote.updated_at > local.updatedAt {
-                    local.weight = remote.weight; local.note = remote.note
-                    local.updatedAt = remote.updated_at; local.deletedAt = remote.deleted_at
+            for r in remote {
+                if let l = localById[r.id] {
+                    if r.updated_at > l.updatedAt {
+                        l.weight = r.weight; l.note = r.note
+                        l.updatedAt = r.updated_at; l.deletedAt = r.deleted_at
+                    }
+                } else {
+                    let date = Self.dateFmt.date(from: r.date) ?? Date()
+                    let e = WeightEntry(date: date, weight: r.weight, note: r.note)
+                    e.id = UUID(uuidString: r.id) ?? UUID()
+                    e.updatedAt = r.updated_at; e.deletedAt = r.deleted_at
+                    context.insert(e)
                 }
-            } else {
-                let d = Self.dateFmt.date(from: remote.date) ?? Date()
-                let e = WeightEntry(date: d, weight: remote.weight, note: remote.note)
-                e.id = UUID(uuidString: remote.id) ?? UUID()
-                e.updatedAt = remote.updated_at; e.deletedAt = remote.deleted_at
-                context.insert(e)
             }
+        } catch {
+            print("[Sync] Pull weight entries FAILED: \(error)")
         }
+    }
 
-        for local in localWeights {
-            let lid = local.id.uuidString
-            if let remote = remoteById[lid] {
-                guard local.updatedAt > remote.updated_at else { continue }
+    private func pushWeightEntries(_ context: ModelContext, _ userId: String) async {
+        let local = (try? context.fetch(FetchDescriptor<WeightEntry>())) ?? []
+        for l in local {
+            let dateStr = Self.dateFmt.string(from: l.date)
+            let dto = RemoteWeightEntry(id: l.id.uuidString, user_id: userId, date: dateStr,
+                                        weight: l.weight, note: l.note,
+                                        created_at: l.updatedAt, updated_at: l.updatedAt, deleted_at: l.deletedAt)
+            do {
+                try await supabase.from("weight_entries").upsert(dto, onConflict: "id").execute()
+            } catch {
+                print("[Sync] Push weight entry FAILED: \(error)")
             }
-            let dateStr = Self.dateFmt.string(from: local.date)
-            let dto = RemoteWeightEntry(id: lid, user_id: userId, date: dateStr, weight: local.weight,
-                                        note: local.note, created_at: local.updatedAt,
-                                        updated_at: local.updatedAt, deleted_at: local.deletedAt)
-            try? await supabase.from("weight_entries").upsert(dto, onConflict: "id").execute()
         }
+        print("[Sync] Pushed \(local.count) weight entries")
     }
 }
 
