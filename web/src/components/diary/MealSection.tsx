@@ -1,10 +1,10 @@
 'use client';
 
+import { useState, useRef, useCallback } from 'react';
 import { Sunrise, Sun, Moon, Cookie, Plus, Trash2 } from 'lucide-react';
 import type { DiaryEntry, MealType } from '@/lib/types/models';
 import { entryCalories, entryProtein, entryCarbs, entryFat, entryName } from '@/lib/utils/macros';
 import { colors } from '@/lib/constants/theme';
-import { cn } from '@/lib/utils/cn';
 
 const mealIcons: Record<MealType, React.ElementType> = {
   Breakfast: Sunrise,
@@ -73,32 +73,109 @@ export function MealSection({ mealType, entries, onAddFood, onDeleteEntry, onEdi
   );
 }
 
-// MARK: - Swipe to Delete
-
 function DiaryEntryRow({ entry, onEdit, onDelete }: { entry: DiaryEntry; onEdit: () => void; onDelete: () => void }) {
-  return (
-    <div className="group flex items-center justify-between border-b border-border px-4 py-3 last:border-b-0 hover:bg-card-hover">
-      <button
-        onClick={onEdit}
-        className="flex flex-1 flex-col gap-0.5 text-left"
-      >
-        <span className="text-sm font-medium">{entryName(entry)}</span>
-        <div className="flex gap-2 text-[11px] text-muted">
-          <span>{entry.number_of_servings} serving{entry.number_of_servings !== 1 ? 's' : ''}</span>
-          <span className="tabular-nums">{Math.round(entryCalories(entry))} cal</span>
-        </div>
-      </button>
+  const [offset, setOffset] = useState(0);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const direction = useRef<'none' | 'horizontal' | 'vertical'>('none');
+  const animating = useRef(false);
+  const threshold = 70;
 
-      <div className="flex items-center gap-1.5">
-        <MacroPill value={entryProtein(entry)} color={colors.accent} />
-        <MacroPill value={entryCarbs(entry)} color={colors.highlight} />
-        <MacroPill value={entryFat(entry)} color={colors.fat} />
-        <button
-          onClick={onDelete}
-          className="ml-2 rounded-lg p-1.5 text-muted opacity-0 transition-all hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
-        >
-          <Trash2 size={14} />
-        </button>
+  const reset = useCallback(() => {
+    animating.current = true;
+    setOffset(0);
+    setTimeout(() => { animating.current = false; }, 250);
+  }, []);
+
+  function onTouchStart(e: React.TouchEvent) {
+    if (animating.current) return;
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    direction.current = 'none';
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (animating.current) return;
+    const dx = startX.current - e.touches[0].clientX;
+    const dy = e.touches[0].clientY - startY.current;
+
+    // Lock direction on first significant move
+    if (direction.current === 'none') {
+      if (Math.abs(dx) > 8) {
+        direction.current = 'horizontal';
+      } else if (Math.abs(dy) > 8) {
+        direction.current = 'vertical';
+        return;
+      } else {
+        return;
+      }
+    }
+
+    if (direction.current === 'vertical') return;
+
+    // Only swipe left (positive dx)
+    setOffset(Math.max(0, Math.min(dx, 100)));
+  }
+
+  function onTouchEnd() {
+    if (direction.current !== 'horizontal') {
+      direction.current = 'none';
+      return;
+    }
+    direction.current = 'none';
+
+    if (offset >= threshold) {
+      animating.current = true;
+      setOffset(200);
+      setTimeout(() => onDelete(), 200);
+    } else {
+      reset();
+    }
+  }
+
+  return (
+    <div className="relative overflow-hidden border-b border-border last:border-b-0">
+      {/* Red delete background */}
+      <div
+        className="absolute inset-y-0 right-0 flex items-center bg-danger px-5"
+        style={{ opacity: Math.min(offset / threshold, 1) }}
+      >
+        <Trash2 size={16} className="text-white" />
+      </div>
+
+      {/* Row content */}
+      <div
+        className="relative bg-card"
+        style={{
+          transform: `translateX(${-offset}px)`,
+          transition: animating.current ? 'transform 0.25s ease-out' : 'none',
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={() => { direction.current = 'none'; reset(); }}
+      >
+        <div className="group flex items-center justify-between px-4 py-3 hover:bg-card-hover">
+          <button onClick={onEdit} className="flex flex-1 flex-col gap-0.5 text-left">
+            <span className="text-sm font-medium">{entryName(entry)}</span>
+            <div className="flex gap-2 text-[11px] text-muted">
+              <span>{entry.number_of_servings} serving{entry.number_of_servings !== 1 ? 's' : ''}</span>
+              <span className="tabular-nums">{Math.round(entryCalories(entry))} cal</span>
+            </div>
+          </button>
+
+          <div className="flex items-center gap-1.5">
+            <MacroPill value={entryProtein(entry)} color={colors.accent} />
+            <MacroPill value={entryCarbs(entry)} color={colors.highlight} />
+            <MacroPill value={entryFat(entry)} color={colors.fat} />
+            <button
+              onClick={onDelete}
+              className="ml-2 rounded-lg p-1.5 text-muted opacity-0 transition-all hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
