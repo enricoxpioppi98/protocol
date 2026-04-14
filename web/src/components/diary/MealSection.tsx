@@ -92,24 +92,45 @@ export function MealSection({ mealType, entries, onAddFood, onDeleteEntry, onEdi
 
 function SwipeToDelete({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) {
   const [offset, setOffset] = useState(0);
-  const [swiping, setSwiping] = useState(false);
   const startX = useRef(0);
+  const startY = useRef(0);
+  const tracking = useRef(false);
+  const decided = useRef(false);
   const threshold = 80;
 
-  function handlePointerDown(e: React.PointerEvent) {
-    startX.current = e.clientX;
-    setSwiping(true);
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  function handleTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    tracking.current = true;
+    decided.current = false;
   }
 
-  function handlePointerMove(e: React.PointerEvent) {
-    if (!swiping) return;
-    const diff = startX.current - e.clientX;
-    setOffset(Math.max(0, Math.min(diff, 120)));
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!tracking.current) return;
+    const dx = startX.current - e.touches[0].clientX;
+    const dy = Math.abs(e.touches[0].clientY - startY.current);
+
+    // Decide direction on first significant move
+    if (!decided.current && (Math.abs(dx) > 5 || dy > 5)) {
+      decided.current = true;
+      if (dy > Math.abs(dx)) {
+        // Vertical scroll — bail out
+        tracking.current = false;
+        setOffset(0);
+        return;
+      }
+    }
+
+    if (decided.current && tracking.current) {
+      // Horizontal swipe — prevent page scroll
+      e.preventDefault();
+      setOffset(Math.max(0, Math.min(dx, 120)));
+    }
   }
 
-  function handlePointerUp() {
-    setSwiping(false);
+  function handleTouchEnd() {
+    tracking.current = false;
+    decided.current = false;
     if (offset >= threshold) {
       setOffset(300);
       setTimeout(() => onDelete(), 200);
@@ -130,15 +151,15 @@ function SwipeToDelete({ children, onDelete }: { children: React.ReactNode; onDe
 
       {/* Swipeable content */}
       <div
-        className="relative bg-card touch-pan-y select-none"
+        className="relative bg-card select-none"
         style={{
           transform: `translateX(-${offset}px)`,
-          transition: swiping ? 'none' : 'transform 0.25s ease-out',
+          transition: tracking.current ? 'none' : 'transform 0.25s ease-out',
         }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         {children}
       </div>
