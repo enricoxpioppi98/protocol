@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -15,7 +15,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'MacroTracker',
   description: 'Track your macros, hit your goals',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -36,7 +42,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="h-full bg-background text-foreground">{children}</body>
+      <body className="fixed inset-0 overflow-hidden bg-background text-foreground">
+        <div className="h-full overflow-y-auto">{children}</div>
+      </body>
     </html>
   );
 }
