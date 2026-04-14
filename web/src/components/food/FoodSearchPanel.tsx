@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, Star, Loader2, Clipboard, Check } from 'lucide-react';
 import { useFoods, type SearchResults } from '@/lib/hooks/useFoods';
 import type { Food, FoodProduct } from '@/lib/types/models';
@@ -173,10 +173,20 @@ function FoodRow({
   food: FoodProduct;
   onSelect: (food: FoodProduct) => void;
 }) {
+  const moved = useRef(false);
   return (
-    <button
-      onClick={() => onSelect(food)}
-      className="flex w-full items-center justify-between border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-card-hover"
+    <div
+      role="button"
+      tabIndex={0}
+      onTouchStart={() => { moved.current = false; }}
+      onTouchMove={() => { moved.current = true; }}
+      onTouchEnd={() => { if (!moved.current) onSelect(food); }}
+      onClick={(e) => {
+        // Desktop click — only fire if not from touch
+        if (e.detail > 0) onSelect(food);
+      }}
+      onKeyDown={(e) => { if (e.key === 'Enter') onSelect(food); }}
+      className="flex w-full cursor-pointer items-center justify-between border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-card-hover"
     >
       <div className="flex-1 overflow-hidden pr-3">
         <div className="truncate text-sm font-medium">{food.name}</div>
@@ -195,7 +205,7 @@ function FoodRow({
           <span className="text-fat">{food.fat}F</span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
