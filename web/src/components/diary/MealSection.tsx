@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useRef } from 'react';
 import { Sunrise, Sun, Moon, Cookie, Plus, Trash2 } from 'lucide-react';
 import type { DiaryEntry, MealType } from '@/lib/types/models';
 import { entryCalories, entryProtein, entryCarbs, entryFat, entryName } from '@/lib/utils/macros';
@@ -52,26 +51,12 @@ export function MealSection({ mealType, entries, onAddFood, onDeleteEntry, onEdi
       {entries.length > 0 && (
         <div className="border-t border-border">
           {entries.map((entry) => (
-            <SwipeToDelete key={entry.id} onDelete={() => onDeleteEntry(entry.id)}>
-              <div className="flex items-center justify-between px-4 py-3">
-                <button
-                  onClick={() => onEditEntry(entry)}
-                  className="flex flex-1 flex-col gap-0.5 text-left"
-                >
-                  <span className="text-sm font-medium">{entryName(entry)}</span>
-                  <div className="flex gap-2 text-[11px] text-muted">
-                    <span>{entry.number_of_servings} serving{entry.number_of_servings !== 1 ? 's' : ''}</span>
-                    <span className="tabular-nums">{Math.round(entryCalories(entry))} cal</span>
-                  </div>
-                </button>
-
-                <div className="flex items-center gap-1.5">
-                  <MacroPill value={entryProtein(entry)} color={colors.accent} />
-                  <MacroPill value={entryCarbs(entry)} color={colors.highlight} />
-                  <MacroPill value={entryFat(entry)} color={colors.fat} />
-                </div>
-              </div>
-            </SwipeToDelete>
+            <DiaryEntryRow
+              key={entry.id}
+              entry={entry}
+              onEdit={() => onEditEntry(entry)}
+              onDelete={() => onDeleteEntry(entry.id)}
+            />
           ))}
         </div>
       )}
@@ -90,78 +75,30 @@ export function MealSection({ mealType, entries, onAddFood, onDeleteEntry, onEdi
 
 // MARK: - Swipe to Delete
 
-function SwipeToDelete({ children, onDelete }: { children: React.ReactNode; onDelete: () => void }) {
-  const [offset, setOffset] = useState(0);
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const tracking = useRef(false);
-  const decided = useRef(false);
-  const threshold = 80;
-
-  function handleTouchStart(e: React.TouchEvent) {
-    startX.current = e.touches[0].clientX;
-    startY.current = e.touches[0].clientY;
-    tracking.current = true;
-    decided.current = false;
-  }
-
-  function handleTouchMove(e: React.TouchEvent) {
-    if (!tracking.current) return;
-    const dx = startX.current - e.touches[0].clientX;
-    const dy = Math.abs(e.touches[0].clientY - startY.current);
-
-    // Decide direction on first significant move
-    if (!decided.current && (Math.abs(dx) > 5 || dy > 5)) {
-      decided.current = true;
-      if (dy > Math.abs(dx)) {
-        // Vertical scroll — bail out
-        tracking.current = false;
-        setOffset(0);
-        return;
-      }
-    }
-
-    if (decided.current && tracking.current) {
-      // Horizontal swipe — prevent page scroll
-      e.preventDefault();
-      setOffset(Math.max(0, Math.min(dx, 120)));
-    }
-  }
-
-  function handleTouchEnd() {
-    tracking.current = false;
-    decided.current = false;
-    if (offset >= threshold) {
-      setOffset(300);
-      setTimeout(() => onDelete(), 200);
-    } else {
-      setOffset(0);
-    }
-  }
-
+function DiaryEntryRow({ entry, onEdit, onDelete }: { entry: DiaryEntry; onEdit: () => void; onDelete: () => void }) {
   return (
-    <div className="relative overflow-hidden border-b border-border last:border-b-0">
-      {/* Delete background */}
-      <div
-        className="absolute inset-y-0 right-0 flex items-center bg-danger px-6"
-        style={{ opacity: Math.min(offset / threshold, 1) }}
+    <div className="group flex items-center justify-between border-b border-border px-4 py-3 last:border-b-0 hover:bg-card-hover">
+      <button
+        onClick={onEdit}
+        className="flex flex-1 flex-col gap-0.5 text-left"
       >
-        <Trash2 size={18} className="text-white" />
-      </div>
+        <span className="text-sm font-medium">{entryName(entry)}</span>
+        <div className="flex gap-2 text-[11px] text-muted">
+          <span>{entry.number_of_servings} serving{entry.number_of_servings !== 1 ? 's' : ''}</span>
+          <span className="tabular-nums">{Math.round(entryCalories(entry))} cal</span>
+        </div>
+      </button>
 
-      {/* Swipeable content */}
-      <div
-        className="relative bg-card select-none"
-        style={{
-          transform: `translateX(-${offset}px)`,
-          transition: tracking.current ? 'none' : 'transform 0.25s ease-out',
-        }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-      >
-        {children}
+      <div className="flex items-center gap-1.5">
+        <MacroPill value={entryProtein(entry)} color={colors.accent} />
+        <MacroPill value={entryCarbs(entry)} color={colors.highlight} />
+        <MacroPill value={entryFat(entry)} color={colors.fat} />
+        <button
+          onClick={onDelete}
+          className="ml-2 rounded-lg p-1.5 text-muted opacity-0 transition-all hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
     </div>
   );
