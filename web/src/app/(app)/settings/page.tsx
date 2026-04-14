@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Target, Key, Download, LogOut, Database, Trash2 } from 'lucide-react';
+import { Target, Key, Download, LogOut, Database, Palette } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -180,6 +181,15 @@ export default function SettingsPage() {
             {saving ? 'Saving...' : 'Save API Keys'}
           </button>
         </div>
+      </div>
+
+      {/* Appearance */}
+      <div className="flex items-center justify-between rounded-2xl bg-card px-4 py-4">
+        <div className="flex items-center gap-3">
+          <Palette size={20} className="text-accent" />
+          <span className="font-semibold">Appearance</span>
+        </div>
+        <ThemeToggle />
       </div>
 
       {/* Account */}

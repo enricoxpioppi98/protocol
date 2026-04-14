@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BookOpen, ChefHat, TrendingUp, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const tabs = [
   { href: '/diary', label: 'Diary', icon: BookOpen },
@@ -25,9 +24,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Desktop sidebar */}
       <nav className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-border bg-card lg:flex">
-        <div className="flex h-16 items-center justify-between px-6">
+        <div className="flex h-16 items-center px-6">
           <h1 className="text-lg font-bold text-foreground">MacroTracker</h1>
-          <ThemeToggle />
         </div>
         <div className="space-y-1 px-3">
           {tabs.map((tab) => {
