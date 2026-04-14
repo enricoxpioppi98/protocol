@@ -8,6 +8,14 @@ actor SyncService {
     private let supabase: SupabaseClient
     private let modelContainer: ModelContainer
 
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     init(supabase: SupabaseClient, modelContainer: ModelContainer) {
         self.supabase = supabase
         self.modelContainer = modelContainer
@@ -24,14 +32,14 @@ actor SyncService {
         let context = modelContainer.mainContext
         let userId = try await supabase.auth.session.user.id.uuidString
 
-        // Sync each table
-        try await syncFoods(context: context, userId: userId)
-        try await syncDiaryEntries(context: context, userId: userId)
-        try await syncDailyGoals(context: context, userId: userId)
-        try await syncRecipes(context: context, userId: userId)
-        try await syncWeightEntries(context: context, userId: userId)
+        // Sync each table — continue even if one fails
+        do { try await syncFoods(context: context, userId: userId) } catch { print("Sync foods error: \(error)") }
+        do { try await syncDiaryEntries(context: context, userId: userId) } catch { print("Sync diary error: \(error)") }
+        do { try await syncDailyGoals(context: context, userId: userId) } catch { print("Sync goals error: \(error)") }
+        do { try await syncRecipes(context: context, userId: userId) } catch { print("Sync recipes error: \(error)") }
+        do { try await syncWeightEntries(context: context, userId: userId) } catch { print("Sync weights error: \(error)") }
 
-        try context.save()
+        try? context.save()
 
         await MainActor.run {
             SupabaseManager.shared.lastSyncDate = Date()
@@ -42,7 +50,6 @@ actor SyncService {
 
     @MainActor
     private func syncFoods(context: ModelContext, userId: String) async throws {
-        // Pull remote foods
         let remoteFoods: [RemoteFood] = try await supabase
             .from("foods")
             .select()
@@ -53,10 +60,8 @@ actor SyncService {
         let localFoods = try context.fetch(descriptor)
         let localById = Dictionary(uniqueKeysWithValues: localFoods.map { ($0.id.uuidString, $0) })
 
-        // Merge remote → local
         for remote in remoteFoods {
             if let local = localById[remote.id] {
-                // Both exist — last write wins
                 if remote.updated_at > local.updatedAt {
                     local.name = remote.name
                     local.brand = remote.brand
@@ -73,7 +78,6 @@ actor SyncService {
                     local.deletedAt = remote.deleted_at
                 }
             } else {
-                // Remote only — insert locally
                 let food = Food(name: remote.name, brand: remote.brand, barcode: remote.barcode,
                                 calories: remote.calories, protein: remote.protein, carbs: remote.carbs,
                                 fat: remote.fat, servingSize: remote.serving_size, servingUnit: remote.serving_unit,
@@ -87,22 +91,13 @@ actor SyncService {
             }
         }
 
-        // Push local → remote
         let remoteIds = Set(remoteFoods.map(\.id))
         for local in localFoods {
             let localId = local.id.uuidString
-            if !remoteIds.contains(localId) {
-                // Local only — push to remote
-                try await supabase.from("foods").upsert(RemoteFood(
-                    id: localId, user_id: userId, name: local.name, brand: local.brand,
-                    barcode: local.barcode, calories: local.calories, protein: local.protein,
-                    carbs: local.carbs, fat: local.fat, serving_size: local.servingSize,
-                    serving_unit: local.servingUnit, is_custom: local.isCustom, is_favorite: local.isFavorite,
-                    created_at: local.createdAt, updated_at: local.updatedAt, deleted_at: local.deletedAt
-                )).execute()
-            } else if let remote = remoteFoods.first(where: { $0.id == localId }),
-                      local.updatedAt > remote.updated_at {
-                // Local is newer — push update
+            let shouldPush = !remoteIds.contains(localId) ||
+                (remoteFoods.first(where: { $0.id == localId }).map { local.updatedAt > $0.updated_at } ?? false)
+
+            if shouldPush {
                 try await supabase.from("foods").upsert(RemoteFood(
                     id: localId, user_id: userId, name: local.name, brand: local.brand,
                     barcode: local.barcode, calories: local.calories, protein: local.protein,
@@ -128,7 +123,6 @@ actor SyncService {
         let localEntries = try context.fetch(descriptor)
         let localById = Dictionary(uniqueKeysWithValues: localEntries.map { ($0.id.uuidString, $0) })
 
-        // Merge remote → local
         for remote in remoteEntries {
             if let local = localById[remote.id] {
                 if remote.updated_at > local.updatedAt {
@@ -138,41 +132,40 @@ actor SyncService {
                     local.deletedAt = remote.deleted_at
                 }
             } else {
-                // Insert new — need to find associated food/recipe
-                let entry = DiaryEntry(date: remote.date, mealType: MealType(rawValue: remote.meal_type) ?? .snack,
+                let parsedDate = Self.dateFormatter.date(from: remote.date) ?? Date()
+                let entry = DiaryEntry(date: parsedDate, mealType: MealType(rawValue: remote.meal_type) ?? .snack,
                                        numberOfServings: remote.number_of_servings)
                 entry.id = UUID(uuidString: remote.id) ?? UUID()
                 entry.updatedAt = remote.updated_at
                 entry.deletedAt = remote.deleted_at
 
-                if let foodId = remote.food_id {
-                    let foodDescriptor = FetchDescriptor<Food>(predicate: #Predicate { $0.id.uuidString == foodId })
-                    entry.food = try context.fetch(foodDescriptor).first
+                if let foodId = remote.food_id,
+                   let foodUUID = UUID(uuidString: foodId) {
+                    let foodDescriptor = FetchDescriptor<Food>(predicate: #Predicate { $0.id == foodUUID })
+                    entry.food = try? context.fetch(foodDescriptor).first
                 }
-                if let recipeId = remote.recipe_id {
-                    let recipeDescriptor = FetchDescriptor<Recipe>(predicate: #Predicate { $0.id.uuidString == recipeId })
-                    entry.recipe = try context.fetch(recipeDescriptor).first
+                if let recipeId = remote.recipe_id,
+                   let recipeUUID = UUID(uuidString: recipeId) {
+                    let recipeDescriptor = FetchDescriptor<Recipe>(predicate: #Predicate { $0.id == recipeUUID })
+                    entry.recipe = try? context.fetch(recipeDescriptor).first
                 }
                 context.insert(entry)
             }
         }
 
-        // Push local → remote
         let remoteIds = Set(remoteEntries.map(\.id))
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-
         for local in localEntries {
             let localId = local.id.uuidString
             let shouldPush = !remoteIds.contains(localId) ||
                 (remoteEntries.first(where: { $0.id == localId }).map { local.updatedAt > $0.updated_at } ?? false)
 
             if shouldPush {
+                let dateStr = Self.dateFormatter.string(from: Calendar.current.startOfDay(for: local.date))
                 try await supabase.from("diary_entries").upsert(RemoteDiaryEntry(
-                    id: localId, user_id: userId, date: Calendar.current.startOfDay(for: local.date),
+                    id: localId, user_id: userId, date: dateStr,
                     meal_type: local.mealTypeRaw, number_of_servings: local.numberOfServings,
                     food_id: local.food?.id.uuidString, recipe_id: local.recipe?.id.uuidString,
-                    created_at: local.date, updated_at: local.updatedAt, deleted_at: local.deletedAt
+                    created_at: local.updatedAt, updated_at: local.updatedAt, deleted_at: local.deletedAt
                 )).execute()
             }
         }
@@ -226,7 +219,7 @@ actor SyncService {
         }
     }
 
-    // MARK: - Recipes (without ingredients for now — ingredients sync via food_id references)
+    // MARK: - Recipes
 
     @MainActor
     private func syncRecipes(context: ModelContext, userId: String) async throws {
@@ -296,7 +289,8 @@ actor SyncService {
                     local.deletedAt = remote.deleted_at
                 }
             } else {
-                let entry = WeightEntry(date: remote.date, weight: remote.weight, note: remote.note)
+                let parsedDate = Self.dateFormatter.date(from: remote.date) ?? Date()
+                let entry = WeightEntry(date: parsedDate, weight: remote.weight, note: remote.note)
                 entry.id = UUID(uuidString: remote.id) ?? UUID()
                 entry.updatedAt = remote.updated_at
                 entry.deletedAt = remote.deleted_at
@@ -311,9 +305,10 @@ actor SyncService {
                 (remoteWeights.first(where: { $0.id == localId }).map { local.updatedAt > $0.updated_at } ?? false)
 
             if shouldPush {
+                let dateStr = Self.dateFormatter.string(from: local.date)
                 try await supabase.from("weight_entries").upsert(RemoteWeightEntry(
-                    id: localId, user_id: userId, date: local.date, weight: local.weight,
-                    note: local.note, created_at: local.date, updated_at: local.updatedAt, deleted_at: local.deletedAt
+                    id: localId, user_id: userId, date: dateStr, weight: local.weight,
+                    note: local.note, created_at: local.updatedAt, updated_at: local.updatedAt, deleted_at: local.deletedAt
                 )).execute()
             }
         }
@@ -321,6 +316,8 @@ actor SyncService {
 }
 
 // MARK: - Remote DTOs (match Supabase table columns)
+// Note: `date` columns (PostgreSQL date type) are String ("YYYY-MM-DD"), not Date.
+// `timestamptz` columns (created_at, updated_at, deleted_at) are Date.
 
 struct RemoteFood: Codable {
     let id: String
@@ -344,7 +341,7 @@ struct RemoteFood: Codable {
 struct RemoteDiaryEntry: Codable {
     let id: String
     let user_id: String
-    let date: Date
+    let date: String          // PostgreSQL date type → "YYYY-MM-DD"
     let meal_type: String
     let number_of_servings: Double
     let food_id: String?
@@ -378,7 +375,7 @@ struct RemoteRecipe: Codable {
 struct RemoteWeightEntry: Codable {
     let id: String
     let user_id: String
-    let date: Date
+    let date: String          // PostgreSQL date type → "YYYY-MM-DD"
     let weight: Double
     let note: String
     let created_at: Date
