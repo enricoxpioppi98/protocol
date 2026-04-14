@@ -173,17 +173,28 @@ function FoodRow({
   food: FoodProduct;
   onSelect: (food: FoodProduct) => void;
 }) {
-  const moved = useRef(false);
+  const touchStartY = useRef(0);
+  const isTouchDevice = useRef(false);
+
   return (
     <div
       role="button"
       tabIndex={0}
-      onTouchStart={() => { moved.current = false; }}
-      onTouchMove={() => { moved.current = true; }}
-      onTouchEnd={() => { if (!moved.current) onSelect(food); }}
-      onClick={(e) => {
-        // Desktop click — only fire if not from touch
-        if (e.detail > 0) onSelect(food);
+      onTouchStart={(e) => {
+        isTouchDevice.current = true;
+        touchStartY.current = e.touches[0].clientY;
+      }}
+      onTouchEnd={(e) => {
+        const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+        // Only select if finger barely moved (tap, not scroll)
+        if (dy < 10) {
+          e.preventDefault(); // prevent the ghost click
+          onSelect(food);
+        }
+      }}
+      onClick={() => {
+        // Only fire on desktop (mouse). Touch devices handled above.
+        if (!isTouchDevice.current) onSelect(food);
       }}
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(food); }}
       className="flex w-full cursor-pointer items-center justify-between border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-card-hover"
