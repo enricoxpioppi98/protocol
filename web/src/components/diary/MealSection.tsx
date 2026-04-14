@@ -78,6 +78,7 @@ function DiaryEntryRow({ entry, onEdit, onDelete }: { entry: DiaryEntry; onEdit:
   const startX = useRef(0);
   const startY = useRef(0);
   const direction = useRef<'none' | 'horizontal' | 'vertical'>('none');
+  const didSwipe = useRef(false);
   const animating = useRef(false);
   const threshold = 70;
 
@@ -92,6 +93,7 @@ function DiaryEntryRow({ entry, onEdit, onDelete }: { entry: DiaryEntry; onEdit:
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     direction.current = 'none';
+    didSwipe.current = false;
   }
 
   function onTouchMove(e: React.TouchEvent) {
@@ -103,6 +105,7 @@ function DiaryEntryRow({ entry, onEdit, onDelete }: { entry: DiaryEntry; onEdit:
     if (direction.current === 'none') {
       if (Math.abs(dx) > 8) {
         direction.current = 'horizontal';
+        didSwipe.current = true;
       } else if (Math.abs(dy) > 8) {
         direction.current = 'vertical';
         return;
@@ -156,7 +159,7 @@ function DiaryEntryRow({ entry, onEdit, onDelete }: { entry: DiaryEntry; onEdit:
         onTouchCancel={() => { direction.current = 'none'; reset(); }}
       >
         <div className="group flex items-center justify-between px-4 py-3 hover:bg-card-hover">
-          <button onClick={onEdit} className="flex flex-1 flex-col gap-0.5 text-left">
+          <button onClick={() => { if (!didSwipe.current) onEdit(); }} className="flex flex-1 flex-col gap-0.5 text-left">
             <span className="text-sm font-medium">{entryName(entry)}</span>
             <div className="flex gap-2 text-[11px] text-muted">
               <span>{entry.number_of_servings} serving{entry.number_of_servings !== 1 ? 's' : ''}</span>
