@@ -94,27 +94,23 @@ function SwipeToDelete({ children, onDelete }: { children: React.ReactNode; onDe
   const [offset, setOffset] = useState(0);
   const [swiping, setSwiping] = useState(false);
   const startX = useRef(0);
-  const currentX = useRef(0);
   const threshold = 80;
 
-  function handleTouchStart(e: React.TouchEvent) {
-    startX.current = e.touches[0].clientX;
-    currentX.current = startX.current;
+  function handlePointerDown(e: React.PointerEvent) {
+    startX.current = e.clientX;
     setSwiping(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
   }
 
-  function handleTouchMove(e: React.TouchEvent) {
+  function handlePointerMove(e: React.PointerEvent) {
     if (!swiping) return;
-    currentX.current = e.touches[0].clientX;
-    const diff = startX.current - currentX.current;
-    // Only allow swiping left (positive diff)
+    const diff = startX.current - e.clientX;
     setOffset(Math.max(0, Math.min(diff, 120)));
   }
 
-  function handleTouchEnd() {
+  function handlePointerUp() {
     setSwiping(false);
     if (offset >= threshold) {
-      // Animate out then delete
       setOffset(300);
       setTimeout(() => onDelete(), 200);
     } else {
@@ -125,20 +121,24 @@ function SwipeToDelete({ children, onDelete }: { children: React.ReactNode; onDe
   return (
     <div className="relative overflow-hidden border-b border-border last:border-b-0">
       {/* Delete background */}
-      <div className="absolute inset-y-0 right-0 flex items-center bg-danger px-6">
+      <div
+        className="absolute inset-y-0 right-0 flex items-center bg-danger px-6"
+        style={{ opacity: Math.min(offset / threshold, 1) }}
+      >
         <Trash2 size={18} className="text-white" />
       </div>
 
       {/* Swipeable content */}
       <div
-        className="relative bg-card"
+        className="relative bg-card touch-pan-y select-none"
         style={{
           transform: `translateX(-${offset}px)`,
           transition: swiping ? 'none' : 'transform 0.25s ease-out',
         }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
       >
         {children}
       </div>
