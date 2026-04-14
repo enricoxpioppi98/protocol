@@ -97,9 +97,12 @@
   --font-mono: var(--font-geist-mono);
 }
 
-body {
+html, body {
   background: var(--color-background);
   color: var(--color-foreground);
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Custom scrollbar */
