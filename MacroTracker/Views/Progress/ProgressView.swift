@@ -46,6 +46,7 @@ struct ProgressTabView: View {
     private var dailyProtein: [(date: Date, value: Double)] { dailyMacroData(\.protein) }
     private var dailyCarbs: [(date: Date, value: Double)] { dailyMacroData(\.carbs) }
     private var dailyFat: [(date: Date, value: Double)] { dailyMacroData(\.fat) }
+    private var dailyFiber: [(date: Date, value: Double)] { dailyMacroData(\.fiber) }
 
     private var averageCalories: Double {
         guard !dailyCalories.isEmpty else { return 0 }
@@ -65,6 +66,11 @@ struct ProgressTabView: View {
     private var averageFat: Double {
         guard !dailyFat.isEmpty else { return 0 }
         return dailyFat.reduce(0) { $0 + $1.value } / Double(dailyFat.count)
+    }
+
+    private var averageFiber: Double {
+        guard !dailyFiber.isEmpty else { return 0 }
+        return dailyFiber.reduce(0) { $0 + $1.value } / Double(dailyFiber.count)
     }
 
     private var goalSuggestion: GoalSuggestion? {
@@ -136,6 +142,7 @@ struct ProgressTabView: View {
                     StatCardView(title: "Avg Protein", value: "\(Int(averageProtein))g", icon: "p.circle.fill", color: .accent)
                     StatCardView(title: "Avg Carbs", value: "\(Int(averageCarbs))g", icon: "c.circle.fill", color: .highlight)
                     StatCardView(title: "Avg Fat", value: "\(Int(averageFat))g", icon: "f.circle.fill", color: .fatColor)
+                    StatCardView(title: "Avg Fiber", value: "\(Int(averageFiber))g", icon: "leaf.fill", color: Color(red: 0.19, green: 0.82, blue: 0.35))
                 }
                 .padding(.horizontal, 16)
 
@@ -237,6 +244,7 @@ struct ProgressTabView: View {
         case .protein: return dailyProtein
         case .carbs: return dailyCarbs
         case .fat: return dailyFat
+        case .fiber: return dailyFiber
         }
     }
 
@@ -246,6 +254,7 @@ struct ProgressTabView: View {
         case .protein: return goal.protein
         case .carbs: return goal.carbs
         case .fat: return goal.fat
+        case .fiber: return goal.fiber
         }
     }
 
@@ -255,6 +264,7 @@ struct ProgressTabView: View {
         case .protein: return averageProtein
         case .carbs: return averageCarbs
         case .fat: return averageFat
+        case .fiber: return averageFiber
         }
     }
 }
@@ -266,6 +276,7 @@ private enum MacroChart: String, CaseIterable {
     case protein = "Pro"
     case carbs = "Carb"
     case fat = "Fat"
+    case fiber = "Fiber"
 
     var label: String {
         switch self {
@@ -273,6 +284,7 @@ private enum MacroChart: String, CaseIterable {
         case .protein: return "Protein"
         case .carbs: return "Carbs"
         case .fat: return "Fat"
+        case .fiber: return "Fiber"
         }
     }
 
@@ -282,6 +294,7 @@ private enum MacroChart: String, CaseIterable {
         case .protein: return Color.accent
         case .carbs: return Color.highlight
         case .fat: return Color.fatColor
+        case .fiber: return Color(red: 0.19, green: 0.82, blue: 0.35)
         }
     }
 }

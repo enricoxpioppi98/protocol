@@ -10,7 +10,7 @@ import { GoalSuggestionBanner } from '@/components/progress/GoalSuggestionBanner
 import { generateGoalSuggestion } from '@/lib/utils/goalSuggestion';
 import { colors } from '@/lib/constants/theme';
 import { cn } from '@/lib/utils/cn';
-import { entryCalories, entryProtein, entryCarbs, entryFat } from '@/lib/utils/macros';
+import { entryCalories, entryProtein, entryCarbs, entryFat, entryFiber } from '@/lib/utils/macros';
 import type { DiaryEntry } from '@/lib/types/models';
 
 type TimeRange = '7D' | '30D' | '90D';
@@ -57,18 +57,19 @@ export default function ProgressPage() {
   // Build daily totals for the selected range
   const dailyTotals = useMemo(() => {
     const cutoffDate = new Date(Date.now() - days * 24 * 3600 * 1000);
-    const totalsMap: Record<string, { calories: number; protein: number; carbs: number; fat: number }> = {};
+    const totalsMap: Record<string, { calories: number; protein: number; carbs: number; fat: number; fiber: number }> = {};
 
     for (const entry of diaryEntries) {
       if (new Date(entry.date) < cutoffDate) continue;
       const dateStr = entry.date;
       if (!totalsMap[dateStr]) {
-        totalsMap[dateStr] = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+        totalsMap[dateStr] = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
       }
       totalsMap[dateStr].calories += entryCalories(entry);
       totalsMap[dateStr].protein += entryProtein(entry);
       totalsMap[dateStr].carbs += entryCarbs(entry);
       totalsMap[dateStr].fat += entryFat(entry);
+      totalsMap[dateStr].fiber += entryFiber(entry);
     }
 
     return totalsMap;
@@ -78,7 +79,7 @@ export default function ProgressPage() {
   const averages = useMemo(() => {
     const dayKeys = Object.keys(dailyTotals);
     const count = dayKeys.length;
-    if (count === 0) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    if (count === 0) return { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
 
     const sums = dayKeys.reduce(
       (acc, key) => ({
@@ -86,8 +87,9 @@ export default function ProgressPage() {
         protein: acc.protein + dailyTotals[key].protein,
         carbs: acc.carbs + dailyTotals[key].carbs,
         fat: acc.fat + dailyTotals[key].fat,
+        fiber: acc.fiber + dailyTotals[key].fiber,
       }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+      { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
     );
 
     return {
@@ -95,6 +97,7 @@ export default function ProgressPage() {
       protein: Math.round(sums.protein / count),
       carbs: Math.round(sums.carbs / count),
       fat: Math.round(sums.fat / count),
+      fiber: Math.round(sums.fiber / count),
     };
   }, [dailyTotals]);
 
@@ -140,7 +143,7 @@ export default function ProgressPage() {
       )}
 
       {/* Stat cards - macro averages */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <StatCard
           label="Avg Calories"
           value={averages.calories > 0 ? `${averages.calories}` : '—'}
@@ -160,6 +163,11 @@ export default function ProgressPage() {
           label="Avg Fat"
           value={averages.fat > 0 ? `${averages.fat}g` : '—'}
           color={colors.fat}
+        />
+        <StatCard
+          label="Avg Fiber"
+          value={averages.fiber > 0 ? `${averages.fiber}g` : '—'}
+          color={colors.fiber}
         />
       </div>
 
@@ -186,6 +194,7 @@ export default function ProgressPage() {
                   <span className="text-accent">{Math.round(day.protein)}P</span>
                   <span className="text-highlight">{Math.round(day.carbs)}C</span>
                   <span className="text-fat">{Math.round(day.fat)}F</span>
+                  <span className="text-fiber">{Math.round(day.fiber)}Fi</span>
                 </div>
               </div>
             ))}

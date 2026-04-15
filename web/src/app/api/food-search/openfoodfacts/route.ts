@@ -62,6 +62,8 @@ function parseProduct(product: Record<string, unknown>): FoodProduct | null {
     toNumber(nutriments['carbohydrates_100g']) ?? 0;
   const fat = toNumber(nutriments['fat_serving']) ??
     toNumber(nutriments['fat_100g']) ?? 0;
+  const fiber = toNumber(nutriments['fiber_serving']) ??
+    toNumber(nutriments['fiber_100g']) ?? 0;
 
   const servingSize = (product.serving_size as string) || '100g';
 
@@ -73,6 +75,7 @@ function parseProduct(product: Record<string, unknown>): FoodProduct | null {
     protein: Math.round(protein * 10) / 10,
     carbs: Math.round(carbs * 10) / 10,
     fat: Math.round(fat * 10) / 10,
+    fiber: Math.round(fiber * 10) / 10,
     serving_size: servingSize,
     source: 'openfoodfacts',
   };

@@ -71,7 +71,7 @@ final class SyncService {
                 if let l = localById[r.id] {
                     if r.updated_at > l.updatedAt {
                         l.name = r.name; l.brand = r.brand; l.barcode = r.barcode
-                        l.calories = r.calories; l.protein = r.protein; l.carbs = r.carbs; l.fat = r.fat
+                        l.calories = r.calories; l.protein = r.protein; l.carbs = r.carbs; l.fat = r.fat; l.fiber = r.fiber
                         l.servingSize = r.serving_size; l.servingUnit = r.serving_unit
                         l.isCustom = r.is_custom; l.isFavorite = r.is_favorite
                         l.updatedAt = r.updated_at; l.deletedAt = r.deleted_at
@@ -79,7 +79,7 @@ final class SyncService {
                 } else {
                     let f = Food(name: r.name, brand: r.brand, barcode: r.barcode,
                                  calories: r.calories, protein: r.protein, carbs: r.carbs,
-                                 fat: r.fat, servingSize: r.serving_size, servingUnit: r.serving_unit,
+                                 fat: r.fat, fiber: r.fiber, servingSize: r.serving_size, servingUnit: r.serving_unit,
                                  isCustom: r.is_custom)
                     f.id = UUID(uuidString: r.id) ?? UUID()
                     f.isFavorite = r.is_favorite; f.createdAt = r.created_at
@@ -97,7 +97,7 @@ final class SyncService {
         for l in local {
             let dto = RemoteFood(id: l.id.uuidString, user_id: userId, name: l.name, brand: l.brand,
                                  barcode: l.barcode, calories: l.calories, protein: l.protein,
-                                 carbs: l.carbs, fat: l.fat, serving_size: l.servingSize,
+                                 carbs: l.carbs, fat: l.fat, fiber: l.fiber, serving_size: l.servingSize,
                                  serving_unit: l.servingUnit, is_custom: l.isCustom,
                                  is_favorite: l.isFavorite, created_at: l.createdAt,
                                  updated_at: l.updatedAt, deleted_at: l.deletedAt)
@@ -177,12 +177,12 @@ final class SyncService {
                 if let l = localById[r.id] {
                     if r.updated_at > l.updatedAt {
                         l.calories = r.calories; l.protein = r.protein
-                        l.carbs = r.carbs; l.fat = r.fat
+                        l.carbs = r.carbs; l.fat = r.fat; l.fiber = r.fiber
                         l.dayOfWeek = r.day_of_week; l.updatedAt = r.updated_at
                     }
                 } else {
                     let g = DailyGoal(calories: r.calories, protein: r.protein,
-                                      carbs: r.carbs, fat: r.fat, dayOfWeek: r.day_of_week)
+                                      carbs: r.carbs, fat: r.fat, fiber: r.fiber, dayOfWeek: r.day_of_week)
                     g.id = UUID(uuidString: r.id) ?? UUID()
                     g.updatedAt = r.updated_at
                     context.insert(g)
@@ -198,7 +198,7 @@ final class SyncService {
         for l in local {
             let dto = RemoteDailyGoal(id: l.id.uuidString, user_id: userId, calories: l.calories,
                                       protein: l.protein, carbs: l.carbs, fat: l.fat,
-                                      day_of_week: l.dayOfWeek, updated_at: l.updatedAt)
+                                      fiber: l.fiber, day_of_week: l.dayOfWeek, updated_at: l.updatedAt)
             do {
                 try await supabase.from("daily_goals").upsert(dto, onConflict: "id").execute()
             } catch {
@@ -300,7 +300,7 @@ final class SyncService {
 
 struct RemoteFood: Codable {
     let id: String; let user_id: String; let name: String; let brand: String; let barcode: String
-    let calories: Double; let protein: Double; let carbs: Double; let fat: Double
+    let calories: Double; let protein: Double; let carbs: Double; let fat: Double; let fiber: Double
     let serving_size: Double; let serving_unit: String; let is_custom: Bool; let is_favorite: Bool
     let created_at: Date; let updated_at: Date; let deleted_at: Date?
 }
@@ -313,7 +313,7 @@ struct RemoteDiaryEntry: Codable {
 
 struct RemoteDailyGoal: Codable {
     let id: String; let user_id: String; let calories: Double; let protein: Double
-    let carbs: Double; let fat: Double; let day_of_week: Int; let updated_at: Date
+    let carbs: Double; let fat: Double; let fiber: Double; let day_of_week: Int; let updated_at: Date
 }
 
 struct RemoteRecipe: Codable {

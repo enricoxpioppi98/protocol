@@ -5,6 +5,7 @@ struct NutritionLabelView: View {
     let protein: Double
     let carbs: Double
     let fat: Double
+    var fiber: Double = 0
 
     var body: some View {
         VStack(spacing: 14) {
@@ -30,6 +31,8 @@ struct NutritionLabelView: View {
                 MacroColumn(value: carbs, label: "Carbs", unit: "g", color: Color.highlight)
                 Divider().frame(height: 44)
                 MacroColumn(value: fat, label: "Fat", unit: "g", color: .pink)
+                Divider().frame(height: 44)
+                MacroColumn(value: fiber, label: "Fiber", unit: "g", color: Color(red: 0.19, green: 0.82, blue: 0.35))
             }
         }
         .padding(.vertical, 18)

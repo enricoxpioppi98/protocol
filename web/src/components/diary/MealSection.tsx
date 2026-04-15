@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Sunrise, Sun, Moon, Cookie, Plus, Trash2 } from 'lucide-react';
 import type { DiaryEntry, MealType } from '@/lib/types/models';
-import { entryCalories, entryProtein, entryCarbs, entryFat, entryName } from '@/lib/utils/macros';
+import { entryCalories, entryProtein, entryCarbs, entryFat, entryFiber, entryName } from '@/lib/utils/macros';
 import { colors } from '@/lib/constants/theme';
 
 const mealIcons: Record<MealType, React.ElementType> = {
@@ -171,6 +171,7 @@ function DiaryEntryRow({ entry, onEdit, onDelete }: { entry: DiaryEntry; onEdit:
             <MacroPill value={entryProtein(entry)} color={colors.accent} />
             <MacroPill value={entryCarbs(entry)} color={colors.highlight} />
             <MacroPill value={entryFat(entry)} color={colors.fat} />
+            <MacroPill value={entryFiber(entry)} color={colors.fiber} />
             <button
               onClick={onDelete}
               className="ml-2 rounded-lg p-1.5 text-muted opacity-0 transition-all hover:bg-danger/10 hover:text-danger group-hover:opacity-100"

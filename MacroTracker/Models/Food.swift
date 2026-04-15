@@ -11,6 +11,7 @@ final class Food {
     var protein: Double
     var carbs: Double
     var fat: Double
+    var fiber: Double
     var servingSize: Double
     var servingUnit: String
     var isCustom: Bool
@@ -33,6 +34,7 @@ final class Food {
         protein: Double = 0,
         carbs: Double = 0,
         fat: Double = 0,
+        fiber: Double = 0,
         servingSize: Double = 100,
         servingUnit: String = "g",
         isCustom: Bool = true
@@ -45,6 +47,7 @@ final class Food {
         self.protein = protein
         self.carbs = carbs
         self.fat = fat
+        self.fiber = fiber
         self.servingSize = servingSize
         self.servingUnit = servingUnit
         self.isCustom = isCustom

@@ -9,6 +9,8 @@ struct MacroRingsView: View {
     let carbsGoal: Double
     let fat: Double
     let fatGoal: Double
+    let fiber: Double
+    let fiberGoal: Double
 
     var body: some View {
         VStack(spacing: 16) {
@@ -43,6 +45,7 @@ struct MacroRingsView: View {
                 MiniRing(label: "P", value: protein, goal: proteinGoal, color: Color.accent)
                 MiniRing(label: "C", value: carbs, goal: carbsGoal, color: Color.highlight)
                 MiniRing(label: "F", value: fat, goal: fatGoal, color: Color.fatColor)
+                MiniRing(label: "Fb", value: fiber, goal: fiberGoal, color: Color(red: 0.19, green: 0.82, blue: 0.35))
             }
         }
         .padding(.vertical, 4)

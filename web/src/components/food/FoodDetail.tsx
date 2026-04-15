@@ -21,6 +21,7 @@ export function FoodDetail({ food, mealType, onBack, onAdd }: FoodDetailProps) {
   const prot = food.protein * servings;
   const carb = food.carbs * servings;
   const fatVal = food.fat * servings;
+  const fiberVal = (food.fiber ?? 0) * servings;
 
   async function handleAdd() {
     if (adding) return;
@@ -83,7 +84,7 @@ export function FoodDetail({ food, mealType, onBack, onAdd }: FoodDetailProps) {
       </div>
 
       {/* Live nutrition label */}
-      <NutritionLabel calories={cal} protein={prot} carbs={carb} fat={fatVal} />
+      <NutritionLabel calories={cal} protein={prot} carbs={carb} fat={fatVal} fiber={fiberVal} />
 
       {/* Source badge */}
       <div className="flex items-center gap-2 text-xs text-muted">

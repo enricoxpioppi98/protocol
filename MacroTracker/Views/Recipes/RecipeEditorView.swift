@@ -33,7 +33,8 @@ struct RecipeEditorView: View {
                     calories: recipe.caloriesPerServing,
                     protein: recipe.proteinPerServing,
                     carbs: recipe.carbsPerServing,
-                    fat: recipe.fatPerServing
+                    fat: recipe.fatPerServing,
+                    fiber: recipe.fiberPerServing
                 )
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
@@ -190,7 +191,8 @@ private struct IngredientSearchView: View {
                             calories: food.calories * qty,
                             protein: food.protein * qty,
                             carbs: food.carbs * qty,
-                            fat: food.fat * qty
+                            fat: food.fat * qty,
+                            fiber: food.fiber * qty
                         )
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)

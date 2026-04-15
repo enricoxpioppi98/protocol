@@ -192,7 +192,8 @@ struct FoodDetailView: View {
                     calories: food.calories * effectiveMultiplier,
                     protein: food.protein * effectiveMultiplier,
                     carbs: food.carbs * effectiveMultiplier,
-                    fat: food.fat * effectiveMultiplier
+                    fat: food.fat * effectiveMultiplier,
+                    fiber: food.fiber * effectiveMultiplier
                 )
                 .padding(.horizontal)
                 .contentTransition(.numericText())

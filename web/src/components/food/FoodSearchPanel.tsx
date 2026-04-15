@@ -229,6 +229,7 @@ function foodToProduct(food: Food): FoodProduct {
     protein: food.protein,
     carbs: food.carbs,
     fat: food.fat,
+    fiber: food.fiber ?? 0,
     serving_size: `${food.serving_size} ${food.serving_unit}`,
     source: 'openfoodfacts',
   };

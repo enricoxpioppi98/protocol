@@ -7,10 +7,11 @@ interface NutritionLabelProps {
   protein: number;
   carbs: number;
   fat: number;
+  fiber?: number;
   className?: string;
 }
 
-export function NutritionLabel({ calories, protein, carbs, fat, className }: NutritionLabelProps) {
+export function NutritionLabel({ calories, protein, carbs, fat, fiber, className }: NutritionLabelProps) {
   return (
     <div className={cn('flex justify-between rounded-xl bg-background px-4 py-3 text-sm', className)}>
       <div className="text-center">
@@ -29,6 +30,12 @@ export function NutritionLabel({ calories, protein, carbs, fat, className }: Nut
         <div className="font-bold tabular-nums text-fat">{Math.round(fat * 10) / 10}g</div>
         <div className="text-[10px] text-muted">fat</div>
       </div>
+      {fiber !== undefined && (
+        <div className="text-center">
+          <div className="font-bold tabular-nums text-fiber">{Math.round(fiber * 10) / 10}g</div>
+          <div className="text-[10px] text-muted">fiber</div>
+        </div>
+      )}
     </div>
   );
 }

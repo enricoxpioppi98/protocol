@@ -85,6 +85,7 @@ export function useFoods() {
                     protein: f.protein,
                     carbs: f.carbs,
                     fat: f.fat,
+                    fiber: f.fiber ?? 0,
                     serving_size: `${f.serving_size} ${f.serving_unit}`,
                     source: 'openfoodfacts' as const, // placeholder, overridden below
                   })

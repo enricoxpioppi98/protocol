@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
           protein: Math.round((item.nf_protein ?? 0) * 10) / 10,
           carbs: Math.round((item.nf_total_carbohydrate ?? 0) * 10) / 10,
           fat: Math.round((item.nf_total_fat ?? 0) * 10) / 10,
+          fiber: Math.round((item.nf_dietary_fiber ?? 0) * 10) / 10,
           serving_size: `${servingQty} ${servingUnit}`,
           source: 'nutritionix',
         });

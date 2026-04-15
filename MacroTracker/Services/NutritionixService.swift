@@ -116,6 +116,7 @@ actor NutritionixService {
         let protein = raw["nf_protein"] as? Double ?? 0
         let carbs = raw["nf_total_carbohydrate"] as? Double ?? 0
         let fat = raw["nf_total_fat"] as? Double ?? 0
+        let fiber = raw["nf_dietary_fiber"] as? Double ?? 0
         let servingQty = raw["serving_qty"] as? Double ?? 1
         let servingUnit = raw["serving_unit"] as? String ?? "serving"
         let servingWeightGrams = raw["serving_weight_grams"] as? Double
@@ -133,6 +134,7 @@ actor NutritionixService {
             protein: protein,
             carbs: carbs,
             fat: fat,
+            fiber: fiber,
             servingSize: servingString,
             source: .nutritionix
         )

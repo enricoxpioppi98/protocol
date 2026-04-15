@@ -36,4 +36,9 @@ final class RecipeIngredient {
         guard let food else { return 0 }
         return food.fat * quantity
     }
+
+    var fiber: Double {
+        guard let food else { return 0 }
+        return food.fiber * quantity
+    }
 }

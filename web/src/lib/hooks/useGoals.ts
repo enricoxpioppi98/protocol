@@ -46,7 +46,7 @@ export function useGoals() {
   );
 
   const updateGoal = useCallback(
-    async (id: string, updates: Partial<Pick<DailyGoal, 'calories' | 'protein' | 'carbs' | 'fat'>>) => {
+    async (id: string, updates: Partial<Pick<DailyGoal, 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber'>>) => {
       const { error } = await supabase
         .from('daily_goals')
         .update(updates)

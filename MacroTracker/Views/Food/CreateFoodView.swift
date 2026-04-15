@@ -12,6 +12,7 @@ struct CreateFoodView: View {
     @State private var protein = ""
     @State private var carbs = ""
     @State private var fat = ""
+    @State private var fiber = ""
     @State private var servingSize = "100"
     @State private var servingUnit = "g"
 
@@ -40,6 +41,19 @@ struct CreateFoodView: View {
                     NutritionField(label: "Protein", value: $protein, unit: "g", color: Color.accent)
                     NutritionField(label: "Carbs", value: $carbs, unit: "g", color: Color.highlight)
                     NutritionField(label: "Fat", value: $fat, unit: "g", color: .pink)
+                    NutritionField(label: "Fiber", value: $fiber, unit: "g", color: Color(red: 0.19, green: 0.82, blue: 0.35))
+
+                    if !name.isEmpty {
+                        Button {
+                            let prompt = "Estimate nutritional values per serving of \(name). Format: Calories: X, Protein: Xg, Carbs: Xg, Fat: Xg, Fiber: Xg"
+                            UIPasteboard.general.string = prompt
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        } label: {
+                            Label("Estimate with AI", systemImage: "sparkles")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Color(red: 0.19, green: 0.82, blue: 0.35))
+                        }
+                    }
                 }
 
                 Section("Serving Size") {
@@ -68,7 +82,8 @@ struct CreateFoodView: View {
                             calories: cal,
                             protein: Double(protein) ?? 0,
                             carbs: Double(carbs) ?? 0,
-                            fat: Double(fat) ?? 0
+                            fat: Double(fat) ?? 0,
+                            fiber: Double(fiber) ?? 0
                         )
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Color.clear)
@@ -99,6 +114,7 @@ struct CreateFoodView: View {
             protein: Double(protein) ?? 0,
             carbs: Double(carbs) ?? 0,
             fat: Double(fat) ?? 0,
+            fiber: Double(fiber) ?? 0,
             servingSize: Double(servingSize) ?? 100,
             servingUnit: servingUnit,
             isCustom: true

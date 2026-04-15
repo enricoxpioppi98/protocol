@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import { NutritionLabel } from './NutritionLabel';
 import { useFoods } from '@/lib/hooks/useFoods';
 import { cn } from '@/lib/utils/cn';
@@ -14,6 +14,8 @@ interface CreateFoodFormProps {
 export function CreateFoodForm({ onBack, onCreated }: CreateFoodFormProps) {
   const { createFood } = useFoods();
   const [saving, setSaving] = useState(false);
+  const [estimating, setEstimating] = useState(false);
+  const [aiEstimated, setAiEstimated] = useState(false);
 
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
@@ -22,6 +24,7 @@ export function CreateFoodForm({ onBack, onCreated }: CreateFoodFormProps) {
   const [protein, setProtein] = useState('');
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
+  const [fiber, setFiber] = useState('');
   const [servingSize, setServingSize] = useState('1');
   const [servingUnit, setServingUnit] = useState('serving');
 
@@ -29,6 +32,32 @@ export function CreateFoodForm({ onBack, onCreated }: CreateFoodFormProps) {
   const prot = parseFloat(protein) || 0;
   const carb = parseFloat(carbs) || 0;
   const fatVal = parseFloat(fat) || 0;
+  const fiberVal = parseFloat(fiber) || 0;
+
+  async function handleEstimate() {
+    if (!name.trim() || estimating) return;
+    setEstimating(true);
+    try {
+      const res = await fetch('/api/food/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCalories(String(data.calories ?? ''));
+        setProtein(String(data.protein ?? ''));
+        setCarbs(String(data.carbs ?? ''));
+        setFat(String(data.fat ?? ''));
+        setFiber(String(data.fiber ?? ''));
+        setAiEstimated(true);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setEstimating(false);
+    }
+  }
 
   const isValid = name.trim().length > 0 && cal > 0;
 
@@ -44,6 +73,7 @@ export function CreateFoodForm({ onBack, onCreated }: CreateFoodFormProps) {
       protein: prot,
       carbs: carb,
       fat: fatVal,
+      fiber: fiberVal,
       serving_size: parseFloat(servingSize) || 1,
       serving_unit: servingUnit.trim() || 'serving',
       is_custom: true,
@@ -71,11 +101,35 @@ export function CreateFoodForm({ onBack, onCreated }: CreateFoodFormProps) {
       </div>
 
       {/* Live nutrition preview */}
-      <NutritionLabel calories={cal} protein={prot} carbs={carb} fat={fatVal} />
+      <NutritionLabel calories={cal} protein={prot} carbs={carb} fat={fatVal} fiber={fiberVal} />
 
       {/* Form fields */}
       <div className="space-y-3">
-        <FormField label="Name *" value={name} onChange={setName} placeholder="e.g. Greek Yogurt" />
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <FormField label="Name *" value={name} onChange={setName} placeholder="e.g. Greek Yogurt" />
+          </div>
+          <button
+            onClick={handleEstimate}
+            disabled={!name.trim() || estimating}
+            className={cn(
+              'flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+              name.trim() && !estimating
+                ? 'bg-accent/15 text-accent hover:bg-accent/25'
+                : 'bg-card text-muted cursor-not-allowed'
+            )}
+          >
+            {estimating ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Sparkles size={14} />
+            )}
+            Estimate
+          </button>
+        </div>
+        {aiEstimated && (
+          <span className="text-[11px] font-medium text-accent/70">AI estimated</span>
+        )}
         <FormField label="Brand" value={brand} onChange={setBrand} placeholder="e.g. Fage" />
         <FormField label="Barcode" value={barcode} onChange={setBarcode} placeholder="Optional" />
 
@@ -124,6 +178,16 @@ export function CreateFoodForm({ onBack, onCreated }: CreateFoodFormProps) {
             label="Fat (g)"
             value={fat}
             onChange={setFat}
+            type="number"
+            placeholder="0"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <FormField
+            label="Fiber (g)"
+            value={fiber}
+            onChange={setFiber}
             type="number"
             placeholder="0"
           />

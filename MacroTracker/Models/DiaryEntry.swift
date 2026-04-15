@@ -58,4 +58,10 @@ final class DiaryEntry {
         if let recipe { return recipe.fatPerServing * numberOfServings }
         return 0
     }
+
+    var fiber: Double {
+        if let food { return (food.fiber) * numberOfServings }
+        if let recipe { return recipe.fiberPerServing * numberOfServings }
+        return 0
+    }
 }

@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
         const protein = findNutrient(1003);
         const carbs = findNutrient(1005);
         const fat = findNutrient(1004);
+        const fiber = findNutrient(1079);
 
         let servingSize = '100g';
         if (food.servingSize && food.servingSizeUnit) {
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
           protein: Math.round(protein * 10) / 10,
           carbs: Math.round(carbs * 10) / 10,
           fat: Math.round(fat * 10) / 10,
+          fiber: Math.round(fiber * 10) / 10,
           serving_size: servingSize,
           source: 'usda',
         });

@@ -14,9 +14,13 @@ struct GoalsView: View {
     @State private var proteinGrams: Double = 150
     @State private var carbsRatio: Double = 0.5  // 0…1, fraction of remaining cals → carbs
 
+    @State private var fiberGrams: Double = 25
+
     // Text fields
     @State private var caloriesText = "2000"
+    @State private var fiberText = "25"
     @FocusState private var caloriesFocused: Bool
+    @FocusState private var fiberFocused: Bool
 
     // Protein calculator inputs (persisted in UserDefaults)
     @State private var bodyWeightText = ""
@@ -69,6 +73,7 @@ struct GoalsView: View {
             protein: def?.protein ?? 150,
             carbs: def?.carbs ?? 250,
             fat: def?.fat ?? 65,
+            fiber: def?.fiber ?? 25,
             dayOfWeek: selectedDay
         )
         modelContext.insert(g)
@@ -100,6 +105,7 @@ struct GoalsView: View {
                     caloriesSection
                     proteinSection
                     macroSplitSection
+                    fiberSection
 
                     if hasOverride {
                         Section {
@@ -117,7 +123,7 @@ struct GoalsView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") { caloriesFocused = false }
+                    Button("Done") { caloriesFocused = false; fiberFocused = false }
                         .font(.subheadline.bold())
                 }
             }
@@ -348,6 +354,37 @@ struct GoalsView: View {
         }
     }
 
+    // MARK: - Fiber
+
+    private var fiberSection: some View {
+        Section("Fiber") {
+            HStack {
+                Image(systemName: "leaf.fill")
+                    .foregroundStyle(Color(red: 0.19, green: 0.82, blue: 0.35))
+                    .frame(width: 24)
+                Text("Daily Fiber")
+                    .font(.subheadline.weight(.medium))
+                Spacer()
+                TextField("25", text: $fiberText)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .font(.system(.title3, design: .rounded).bold())
+                    .foregroundStyle(Color(red: 0.19, green: 0.82, blue: 0.35))
+                    .frame(width: 80)
+                    .focused($fiberFocused)
+                    .onChange(of: fiberText) { _, newValue in
+                        guard fiberFocused, let val = Double(newValue), val > 0 else { return }
+                        fiberGrams = val
+                        saveToModel()
+                    }
+                Text("g")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, alignment: .leading)
+            }
+        }
+    }
+
     private func macroRow(color: Color, name: String, pct: Double, grams: Double, calPerGram: Double)
         -> some View
     {
@@ -432,6 +469,8 @@ struct GoalsView: View {
         calories = g.calories
         caloriesText = "\(Int(g.calories))"
         proteinGrams = g.protein
+        fiberGrams = g.fiber
+        fiberText = "\(Int(g.fiber))"
 
         let protCal = g.protein * 4
         let remaining = g.calories - protCal
@@ -449,6 +488,7 @@ struct GoalsView: View {
         g.protein = proteinGrams
         g.carbs = carbsGrams
         g.fat = fatGrams
+        g.fiber = fiberGrams
         try? modelContext.save()
     }
 

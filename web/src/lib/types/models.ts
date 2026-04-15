@@ -12,6 +12,7 @@ export interface Food {
   protein: number;
   carbs: number;
   fat: number;
+  fiber: number;
   serving_size: number;
   serving_unit: string;
   is_custom: boolean;
@@ -43,6 +44,7 @@ export interface DailyGoal {
   protein: number;
   carbs: number;
   fat: number;
+  fiber: number;
   day_of_week: number;
   updated_at: string;
 }
@@ -118,6 +120,7 @@ export interface FoodProduct {
   protein: number;
   carbs: number;
   fat: number;
+  fiber: number;
   serving_size: string;
   source: FoodSource;
 }

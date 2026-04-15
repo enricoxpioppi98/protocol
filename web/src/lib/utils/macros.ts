@@ -24,6 +24,12 @@ export function entryFat(entry: DiaryEntry): number {
   return 0;
 }
 
+export function entryFiber(entry: DiaryEntry): number {
+  if (entry.food) return (entry.food.fiber ?? 0) * entry.number_of_servings;
+  if (entry.recipe) return recipeFiberPerServing(entry.recipe) * entry.number_of_servings;
+  return 0;
+}
+
 export function entryName(entry: DiaryEntry): string {
   if (entry.food) return entry.food.name;
   if (entry.recipe) return entry.recipe.name;
@@ -59,6 +65,13 @@ export function recipeTotalFat(recipe: Recipe): number {
   );
 }
 
+export function recipeTotalFiber(recipe: Recipe): number {
+  return (recipe.ingredients ?? []).reduce(
+    (sum, ing) => sum + ((ing.food?.fiber ?? 0)) * ing.quantity,
+    0
+  );
+}
+
 export function recipeCaloriesPerServing(recipe: Recipe): number {
   return recipeTotalCalories(recipe) / (recipe.servings || 1);
 }
@@ -73,6 +86,10 @@ export function recipeCarbsPerServing(recipe: Recipe): number {
 
 export function recipeFatPerServing(recipe: Recipe): number {
   return recipeTotalFat(recipe) / (recipe.servings || 1);
+}
+
+export function recipeFiberPerServing(recipe: Recipe): number {
+  return recipeTotalFiber(recipe) / (recipe.servings || 1);
 }
 
 // Goal resolution (matches DailyGoal+Resolved.swift)
@@ -95,7 +112,8 @@ export function entriesTotals(entries: DiaryEntry[]) {
       protein: acc.protein + entryProtein(entry),
       carbs: acc.carbs + entryCarbs(entry),
       fat: acc.fat + entryFat(entry),
+      fiber: acc.fiber + entryFiber(entry),
     }),
-    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
 }

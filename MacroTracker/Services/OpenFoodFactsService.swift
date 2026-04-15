@@ -15,6 +15,7 @@ struct FoodProduct: Identifiable, Sendable {
     let protein: Double
     let carbs: Double
     let fat: Double
+    let fiber: Double
     let servingSize: String
     let source: FoodSource
 
@@ -28,6 +29,7 @@ struct FoodProduct: Identifiable, Sendable {
             protein: protein,
             carbs: carbs,
             fat: fat,
+            fiber: fiber,
             servingSize: size.0,
             servingUnit: size.1,
             isCustom: false
@@ -102,6 +104,7 @@ actor OpenFoodFactsService {
         let protein = nutrient("proteins_serving").nonZeroOr { nutrient("proteins_100g") }
         let carbs = nutrient("carbohydrates_serving").nonZeroOr { nutrient("carbohydrates_100g") }
         let fat = nutrient("fat_serving").nonZeroOr { nutrient("fat_100g") }
+        let fiber = nutrient("fiber_serving").nonZeroOr { nutrient("fiber_100g") }
 
         return FoodProduct(
             name: name,
@@ -111,6 +114,7 @@ actor OpenFoodFactsService {
             protein: protein,
             carbs: carbs,
             fat: fat,
+            fiber: fiber,
             servingSize: servingSize,
             source: .openFoodFacts
         )

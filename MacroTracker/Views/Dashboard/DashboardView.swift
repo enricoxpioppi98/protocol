@@ -69,6 +69,7 @@ struct DashboardView: View {
     private var totalProtein: Double { todayEntries.reduce(0) { $0 + $1.protein } }
     private var totalCarbs: Double { todayEntries.reduce(0) { $0 + $1.carbs } }
     private var totalFat: Double { todayEntries.reduce(0) { $0 + $1.fat } }
+    private var totalFiber: Double { todayEntries.reduce(0) { $0 + $1.fiber } }
 
     var body: some View {
         NavigationStack {
@@ -251,7 +252,9 @@ struct DashboardView: View {
                     carbs: totalCarbs,
                     carbsGoal: goal.carbs,
                     fat: totalFat,
-                    fatGoal: goal.fat
+                    fatGoal: goal.fat,
+                    fiber: totalFiber,
+                    fiberGoal: goal.fiber
                 )
                 .padding(.horizontal, 16)
 
@@ -412,6 +415,7 @@ struct DashboardView: View {
         lines.append("- Protein: \(Int(goal.protein))g")
         lines.append("- Carbs: \(Int(goal.carbs))g")
         lines.append("- Fat: \(Int(goal.fat))g")
+        lines.append("- Fiber: \(Int(goal.fiber))g")
         lines.append("")
 
         lines.append("## Today's Totals So Far")
@@ -419,6 +423,7 @@ struct DashboardView: View {
         lines.append("- Protein: \(Int(totalProtein)) / \(Int(goal.protein))g")
         lines.append("- Carbs: \(Int(totalCarbs)) / \(Int(goal.carbs))g")
         lines.append("- Fat: \(Int(totalFat)) / \(Int(goal.fat))g")
+        lines.append("- Fiber: \(Int(totalFiber)) / \(Int(goal.fiber))g")
         lines.append("")
 
         lines.append("## Remaining")
@@ -426,6 +431,7 @@ struct DashboardView: View {
         lines.append("- Protein: \(Int(max(goal.protein - totalProtein, 0)))g")
         lines.append("- Carbs: \(Int(max(goal.carbs - totalCarbs, 0)))g")
         lines.append("- Fat: \(Int(max(goal.fat - totalFat, 0)))g")
+        lines.append("- Fiber: \(Int(max(goal.fiber - totalFiber, 0)))g")
         lines.append("")
 
         lines.append("## What I've Eaten Today")
@@ -438,10 +444,11 @@ struct DashboardView: View {
             let mealProtein = mealEntries.reduce(0) { $0 + $1.protein }
             let mealCarbs = mealEntries.reduce(0) { $0 + $1.carbs }
             let mealFat = mealEntries.reduce(0) { $0 + $1.fat }
+            let mealFiber = mealEntries.reduce(0) { $0 + $1.fiber }
             lines.append("")
-            lines.append("### \(mealType.rawValue) (\(Int(mealCal)) cal, P:\(Int(mealProtein))g C:\(Int(mealCarbs))g F:\(Int(mealFat))g)")
+            lines.append("### \(mealType.rawValue) (\(Int(mealCal)) cal, P:\(Int(mealProtein))g C:\(Int(mealCarbs))g F:\(Int(mealFat))g Fb:\(Int(mealFiber))g)")
             for entry in mealEntries {
-                lines.append("- \(entry.name) (\(Int(entry.calories)) cal, P:\(Int(entry.protein))g C:\(Int(entry.carbs))g F:\(Int(entry.fat))g)")
+                lines.append("- \(entry.name) (\(Int(entry.calories)) cal, P:\(Int(entry.protein))g C:\(Int(entry.carbs))g F:\(Int(entry.fat))g Fb:\(Int(entry.fiber))g)")
             }
         }
         if !hasAnyMeals {
@@ -482,6 +489,7 @@ struct DashboardView: View {
         lines.append("Protein: \(Int(totalProtein)) / \(Int(goal.protein))g")
         lines.append("Carbs: \(Int(totalCarbs)) / \(Int(goal.carbs))g")
         lines.append("Fat: \(Int(totalFat)) / \(Int(goal.fat))g")
+        lines.append("Fiber: \(Int(totalFiber)) / \(Int(goal.fiber))g")
         for mealType in MealType.allCases {
             let mealEntries = entries(for: mealType)
             guard !mealEntries.isEmpty else { continue }
@@ -507,6 +515,8 @@ private struct MacroSummaryCard: View {
     let carbsGoal: Double
     let fat: Double
     let fatGoal: Double
+    let fiber: Double
+    let fiberGoal: Double
 
     var body: some View {
         VStack(spacing: 16) {
@@ -519,7 +529,9 @@ private struct MacroSummaryCard: View {
                 carbs: carbs,
                 carbsGoal: carbsGoal,
                 fat: fat,
-                fatGoal: fatGoal
+                fatGoal: fatGoal,
+                fiber: fiber,
+                fiberGoal: fiberGoal
             )
 
             Divider().padding(.horizontal, 8)
@@ -529,6 +541,7 @@ private struct MacroSummaryCard: View {
                 CompactProgressBar(label: "Protein", current: protein, goal: proteinGoal, color: Color.accent)
                 CompactProgressBar(label: "Carbs", current: carbs, goal: carbsGoal, color: Color.highlight)
                 CompactProgressBar(label: "Fat", current: fat, goal: fatGoal, color: Color.fatColor)
+                CompactProgressBar(label: "Fiber", current: fiber, goal: fiberGoal, color: Color(red: 0.19, green: 0.82, blue: 0.35))
             }
 
             // Remaining row
@@ -539,6 +552,7 @@ private struct MacroSummaryCard: View {
                     RemainingPill(label: "P", remaining: proteinGoal - protein, color: Color.accent)
                     RemainingPill(label: "C", remaining: carbsGoal - carbs, color: Color.highlight)
                     RemainingPill(label: "F", remaining: fatGoal - fat, color: Color.fatColor)
+                    RemainingPill(label: "Fb", remaining: fiberGoal - fiber, color: Color(red: 0.19, green: 0.82, blue: 0.35))
                 }
             }
         }
@@ -691,7 +705,8 @@ private struct EditEntrySheet: View {
                         calories: entry.calories,
                         protein: entry.protein,
                         carbs: entry.carbs,
-                        fat: entry.fat
+                        fat: entry.fat,
+                        fiber: entry.fiber
                     )
                     .padding(.horizontal)
                     .contentTransition(.numericText())

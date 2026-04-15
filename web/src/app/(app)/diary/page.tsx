@@ -80,10 +80,12 @@ export default function DiaryPage() {
         protein={totals.protein}
         carbs={totals.carbs}
         fat={totals.fat}
+        fiber={totals.fiber}
         calorieGoal={goal?.calories ?? 2000}
         proteinGoal={goal?.protein ?? 150}
         carbsGoal={goal?.carbs ?? 250}
         fatGoal={goal?.fat ?? 65}
+        fiberGoal={goal?.fiber ?? 25}
       />
 
       {/* Meal sections */}

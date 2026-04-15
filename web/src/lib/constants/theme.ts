@@ -7,6 +7,7 @@ export const colors = {
   highlight: 'rgb(245, 158, 10)',    // Soft Amber (0.96, 0.62, 0.04)
   highlightEnd: 'rgb(235, 115, 13)', // Gradient end (0.92, 0.45, 0.05)
   fat: 'rgb(140, 92, 245)',          // Violet (0.55, 0.36, 0.96)
+  fiber: 'rgb(48, 209, 88)',         // Green (success color)
   card: 'rgb(28, 28, 30)',           // secondarySystemBackground (dark)
   surface: 'rgb(0, 0, 0)',           // systemGroupedBackground (dark)
   subtleBorder: 'rgba(255, 255, 255, 0.06)',
@@ -17,4 +18,5 @@ export const macroColors = {
   protein: colors.accent,
   carbs: colors.highlight,
   fat: colors.fat,
+  fiber: colors.fiber,
 } as const;

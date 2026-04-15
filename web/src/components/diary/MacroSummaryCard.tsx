@@ -8,10 +8,12 @@ interface MacroSummaryCardProps {
   protein: number;
   carbs: number;
   fat: number;
+  fiber: number;
   calorieGoal: number;
   proteinGoal: number;
   carbsGoal: number;
   fatGoal: number;
+  fiberGoal: number;
 }
 
 export function MacroSummaryCard({
@@ -19,10 +21,12 @@ export function MacroSummaryCard({
   protein,
   carbs,
   fat,
+  fiber,
   calorieGoal,
   proteinGoal,
   carbsGoal,
   fatGoal,
+  fiberGoal,
 }: MacroSummaryCardProps) {
   const remaining = Math.max(calorieGoal - calories, 0);
 
@@ -54,6 +58,7 @@ export function MacroSummaryCard({
           <MiniRing label="P" value={protein} goal={proteinGoal} color={colors.accent} />
           <MiniRing label="C" value={carbs} goal={carbsGoal} color={colors.highlight} />
           <MiniRing label="F" value={fat} goal={fatGoal} color={colors.fat} />
+          <MiniRing label="Fi" value={fiber} goal={fiberGoal} color={colors.fiber} />
         </div>
 
         {/* Progress bars */}
@@ -61,6 +66,7 @@ export function MacroSummaryCard({
           <MacroBar label="Protein" value={protein} goal={proteinGoal} color={colors.accent} />
           <MacroBar label="Carbs" value={carbs} goal={carbsGoal} color={colors.highlight} />
           <MacroBar label="Fat" value={fat} goal={fatGoal} color={colors.fat} />
+          <MacroBar label="Fiber" value={fiber} goal={fiberGoal} color={colors.fiber} />
         </div>
       </div>
     </div>

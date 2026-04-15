@@ -89,6 +89,8 @@
   --color-highlight-light: rgba(245, 158, 10, 0.15);
   --color-fat: rgb(140, 92, 245);
   --color-fat-light: rgba(140, 92, 245, 0.15);
+  --color-fiber: rgb(48, 209, 88);
+  --color-fiber-light: rgba(48, 209, 88, 0.15);
   --color-danger: rgb(255, 69, 58);
   --color-success: rgb(48, 209, 88);
 

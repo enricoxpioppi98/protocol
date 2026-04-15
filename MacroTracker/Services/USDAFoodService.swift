@@ -75,6 +75,7 @@ actor USDAFoodService {
         let protein  = nutrientValue(1003) * scaleFactor   // Protein
         let carbs    = nutrientValue(1005) * scaleFactor   // Carbohydrate, by difference
         let fat      = nutrientValue(1004) * scaleFactor   // Total lipid (fat)
+        let fiber    = nutrientValue(1079) * scaleFactor   // Fiber, total dietary
 
         // Build serving size string
         let servingSizeUnit = raw["servingSizeUnit"] as? String ?? "g"
@@ -115,6 +116,7 @@ actor USDAFoodService {
             protein: protein,
             carbs: carbs,
             fat: fat,
+            fiber: fiber,
             servingSize: servingString,
             source: .usda
         )

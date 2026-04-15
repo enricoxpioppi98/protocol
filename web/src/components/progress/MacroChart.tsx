@@ -13,11 +13,11 @@ import {
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import type { DiaryEntry, DailyGoal } from '@/lib/types/models';
-import { entryCalories, entryProtein, entryCarbs, entryFat } from '@/lib/utils/macros';
+import { entryCalories, entryProtein, entryCarbs, entryFat, entryFiber } from '@/lib/utils/macros';
 import { colors } from '@/lib/constants/theme';
 import { cn } from '@/lib/utils/cn';
 
-type MacroTab = 'calories' | 'protein' | 'carbs' | 'fat';
+type MacroTab = 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber';
 
 interface MacroChartProps {
   entries: DiaryEntry[];
@@ -31,6 +31,7 @@ const tabConfig: Record<MacroTab, { label: string; color: string; goalKey: keyof
   protein: { label: 'Protein', color: colors.accent, goalKey: 'protein', unit: 'g' },
   carbs: { label: 'Carbs', color: colors.highlight, goalKey: 'carbs', unit: 'g' },
   fat: { label: 'Fat', color: colors.fat, goalKey: 'fat', unit: 'g' },
+  fiber: { label: 'Fiber', color: colors.fiber, goalKey: 'fiber', unit: 'g' },
 };
 
 export function MacroChart({ entries, goal, days, height = 280 }: MacroChartProps) {
@@ -42,6 +43,7 @@ export function MacroChart({ entries, goal, days, height = 280 }: MacroChartProp
     protein: entryProtein,
     carbs: entryCarbs,
     fat: entryFat,
+    fiber: entryFiber,
   };
 
   // Build daily data

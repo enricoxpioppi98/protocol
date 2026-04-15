@@ -43,8 +43,13 @@ final class Recipe {
         ingredients.reduce(0) { $0 + $1.fat }
     }
 
+    var totalFiber: Double {
+        ingredients.reduce(0) { $0 + $1.fiber }
+    }
+
     var caloriesPerServing: Double { totalCalories / servings }
     var proteinPerServing: Double { totalProtein / servings }
     var carbsPerServing: Double { totalCarbs / servings }
     var fatPerServing: Double { totalFat / servings }
+    var fiberPerServing: Double { totalFiber / servings }
 }

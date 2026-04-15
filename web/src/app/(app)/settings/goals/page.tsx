@@ -23,6 +23,7 @@ export default function GoalsPage() {
   const [protein, setProtein] = useState(0);
   const [carbs, setCarbs] = useState(0);
   const [fat, setFat] = useState(0);
+  const [fiber, setFiber] = useState(0);
 
   useEffect(() => {
     if (displayGoal) {
@@ -30,12 +31,13 @@ export default function GoalsPage() {
       setProtein(displayGoal.protein);
       setCarbs(displayGoal.carbs);
       setFat(displayGoal.fat);
+      setFiber(displayGoal.fiber ?? 25);
     }
   }, [displayGoal]);
 
   function handleSave() {
     if (displayGoal) {
-      updateGoal(displayGoal.id, { calories, protein, carbs, fat });
+      updateGoal(displayGoal.id, { calories, protein, carbs, fat, fiber });
     }
   }
 
@@ -173,6 +175,13 @@ export default function GoalsPage() {
                 onChange={setFat}
                 color={colors.fat}
                 pct={fatPct}
+              />
+              <MacroInput
+                label="Fiber"
+                value={fiber}
+                onChange={setFiber}
+                color={colors.fiber}
+                pct={0}
               />
             </div>
 
