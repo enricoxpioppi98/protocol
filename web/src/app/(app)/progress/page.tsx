@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { BarChart3 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { createClient } from '@/lib/supabase/client';
 import { useGoals } from '@/lib/hooks/useGoals';
@@ -19,11 +20,12 @@ const rangeDays: Record<TimeRange, number> = { '7D': 7, '30D': 30, '90D': 90 };
 export default function ProgressPage() {
   const [range, setRange] = useState<TimeRange>('30D');
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
 
   const { getGoalForDate } = useGoals();
   const goal = getGoalForDate(new Date());
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const days = rangeDays[range];
 
   // Fetch diary entries for charts
@@ -37,6 +39,7 @@ export default function ProgressPage() {
       .is('deleted_at', null);
 
     if (data) setDiaryEntries(data as DiaryEntry[]);
+    setLoading(false);
   }, [supabase]);
 
   useEffect(() => {
@@ -136,6 +139,19 @@ export default function ProgressPage() {
           </button>
         ))}
       </div>
+
+      {/* Loading / Empty state */}
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+        </div>
+      ) : diaryEntries.length === 0 ? (
+        <div className="rounded-2xl bg-card px-6 py-12 text-center">
+          <BarChart3 size={40} className="mx-auto mb-3 text-muted/40" />
+          <p className="font-semibold">No data yet</p>
+          <p className="mt-1 text-sm text-muted">Start logging meals in the Diary to see your trends here</p>
+        </div>
+      ) : null}
 
       {/* Goal suggestion */}
       {suggestion && (

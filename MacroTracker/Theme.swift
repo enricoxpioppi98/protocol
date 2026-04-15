@@ -5,6 +5,7 @@ extension Color {
     static let accent = Color(red: 0.23, green: 0.51, blue: 0.96)     // Electric Blue
     static let highlight = Color(red: 0.96, green: 0.62, blue: 0.04)  // Soft Amber
     static let fatColor = Color(red: 0.55, green: 0.36, blue: 0.96)   // Violet
+    static let fiberColor = Color(red: 0.19, green: 0.82, blue: 0.35)  // Green
 
     // Adaptive colors for dark mode
     static let cardBackground = Color(.secondarySystemBackground)
