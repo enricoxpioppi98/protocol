@@ -1,9 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
-
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
 
 export async function POST(request: Request) {
   try {
@@ -13,33 +9,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Food name is required' }, { status: 400 });
     }
 
-    if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === 'your-anthropic-api-key-here') {
-      return NextResponse.json({ error: 'Anthropic API key not configured' }, { status: 500 });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'your-gemini-api-key-here') {
+      return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
     }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const serving = servingSize || '1 standard serving';
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 256,
-      messages: [
-        {
-          role: 'user',
-          content: `Estimate the nutritional values per serving of "${name}".
+    const result = await model.generateContent(
+      `Estimate the nutritional values per serving of "${name}".
 Serving size: ${serving}.
 
 Return ONLY a valid JSON object with no other text:
 {"calories":NUMBER,"protein":NUMBER,"carbs":NUMBER,"fat":NUMBER,"fiber":NUMBER,"serving_size":"STRING"}
 
 Where numbers are rounded to the nearest integer (except protein/carbs/fat/fiber which can have 1 decimal).
-serving_size should be like "100g" or "1 cup (240ml)" etc.`,
-        },
-      ],
-    });
+serving_size should be like "100g" or "1 cup (240ml)" etc.`
+    );
 
-    const text = message.content[0].type === 'text' ? message.content[0].text : '';
+    const text = result.response.text();
 
-    // Extract JSON from response (handle potential markdown wrapping)
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return NextResponse.json({ error: 'Could not parse AI response' }, { status: 500 });
