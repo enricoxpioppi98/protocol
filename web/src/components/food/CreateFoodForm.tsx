@@ -41,7 +41,7 @@ export function CreateFoodForm({ onBack, onCreated }: CreateFoodFormProps) {
       const res = await fetch('/api/food/estimate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({ name: name.trim(), brand: brand.trim() || undefined }),
       });
       if (res.ok) {
         const data = await res.json();

@@ -3,11 +3,13 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { name, servingSize } = await request.json();
+    const { name, brand, servingSize } = await request.json();
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ error: 'Food name is required' }, { status: 400 });
     }
+
+    const foodDescription = brand ? `"${name}" by ${brand}` : `"${name}"`;
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey || apiKey === 'your-gemini-api-key-here') {
@@ -20,7 +22,7 @@ export async function POST(request: Request) {
     const serving = servingSize || '1 standard serving';
 
     const result = await model.generateContent(
-      `Estimate the nutritional values per serving of "${name}".
+      `Estimate the nutritional values per serving of ${foodDescription}.
 Serving size: ${serving}.
 
 Return ONLY a valid JSON object with no other text:
