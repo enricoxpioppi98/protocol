@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, ChefHat, TrendingUp, Settings } from 'lucide-react';
+import { LayoutDashboard, BookOpen, ChefHat, TrendingUp, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 const tabs = [
+  { href: '/dashboard', label: 'Coach', icon: LayoutDashboard },
   { href: '/diary', label: 'Diary', icon: BookOpen },
   { href: '/recipes', label: 'Recipes', icon: ChefHat },
   { href: '/progress', label: 'Progress', icon: TrendingUp },
@@ -25,7 +26,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <nav className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-border bg-card lg:flex">
         <div className="flex h-16 items-center px-6">
-          <h1 className="text-lg font-bold text-foreground">MacroTracker</h1>
+          <h1 className="text-lg font-bold text-foreground">Protocol</h1>
         </div>
         <div className="space-y-1 px-3">
           {tabs.map((tab) => {
@@ -48,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </div>
         <div className="mt-auto px-6 py-4">
-          <p className="text-[11px] text-muted/50">MacroTracker v1.0</p>
+          <p className="text-[11px] text-muted/50">Protocol v1</p>
         </div>
       </nav>
 

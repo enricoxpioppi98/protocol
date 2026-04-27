@@ -85,7 +85,7 @@ export default function SettingsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'macrotracker-export.csv';
+    a.download = 'protocol-export.csv';
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -216,7 +216,7 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <p className="text-center text-xs text-muted">MacroTracker Web v1.0</p>
+      <p className="text-center text-xs text-muted">Protocol Web v1</p>
     </div>
   );
 }

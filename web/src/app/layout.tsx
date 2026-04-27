@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'MacroTracker',
-  description: 'Track your macros, hit your goals',
+  title: 'Protocol',
+  description: 'AI personal health coach — biometrics, nutrition, and adaptive daily plans.',
 };
 
 export const viewport: Viewport = {

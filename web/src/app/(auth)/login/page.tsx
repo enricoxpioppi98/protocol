@@ -35,7 +35,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <Flame size={36} className="mx-auto mb-3 text-accent" />
-          <h1 className="text-3xl font-bold tracking-tight text-accent">MacroTracker</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-accent">Protocol</h1>
           <p className="mt-2 text-muted">Sign in to your account</p>
         </div>
 
