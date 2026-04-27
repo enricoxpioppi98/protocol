@@ -149,9 +149,46 @@ export interface UserProfile {
    * `007_pinned_metrics.sql` for the column default.
    */
   pinned_metrics: string[];
+  /**
+   * Derived genome traits parsed from a 23andMe raw upload. Keyed by stable
+   * trait identifier (e.g. `caffeine_metabolism`). Empty object until the
+   * user uploads their raw data via the Genome tab. See migration
+   * `008_genome.sql` and `lib/genome/catalog.ts`.
+   */
+  genome_traits: GenomeTraits;
+  /**
+   * UTC timestamp of the last successful 23andMe upload. Null if the user
+   * has never uploaded. Used by the Genome page to surface "last updated".
+   */
+  genome_uploaded_at: string | null;
   created_at: string;
   updated_at: string;
 }
+
+// ============================================================
+// Genome
+// ============================================================
+
+/**
+ * A single derived genome trait. The user's genotype + the catalog entry's
+ * variant interpretation, flattened so the AI coach can read it directly
+ * without needing to re-join with the catalog.
+ */
+export interface GenomeTrait {
+  /** Plain-English value for the variant, e.g. "fast", "endurance", "ε3/ε3". */
+  value: string;
+  /** 1-2 sentence lifestyle coaching implication (no medical claims). */
+  coaching: string;
+  /** dbSNP rsid we matched on. */
+  rsid: string;
+  /** Gene symbol the SNP sits in. */
+  gene: string;
+  /** The user's genotype as alphabetically-sorted letters, e.g. "AC". */
+  genotype: string;
+}
+
+/** Map of trait identifier → derived trait. Keys come from `SNP_CATALOG`. */
+export type GenomeTraits = Record<string, GenomeTrait>;
 
 export type BiometricsSource = 'garmin' | 'manual';
 
