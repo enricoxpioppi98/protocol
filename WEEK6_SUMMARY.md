@@ -52,12 +52,34 @@ Adaptive multi-week periodization · readiness score · weekly AI review · "Don
 
 The cut list is in [`/Users/enrico/.claude/plans/i-m-taking-a-design-enchanted-codd.md`](../../.claude/plans/i-m-taking-a-design-enchanted-codd.md).
 
+## Autonomous build-out wave (same submission day)
+
+After v1 shipped end-to-end, I left a 2-hour autonomous-Claude-Code window running with explicit instructions to "make the app perfect." It delivered seven additional feature tracks via parallel worktree agents, all integrated and pushed to `main`:
+
+- **Onboarding flow** — `/onboarding` 3-step form (goals → restrictions+equipment → weekly schedule). New users hit it on signup; existing users see a banner on the dashboard until they complete it. So the AI coach has actual context to coach toward.
+- **Coach prompt depth** — `BRIEFING_SYSTEM_PROMPT` extended from 3 → **5 worked examples** (added DELOAD WEEK DAY and CALORIE CUT DAY). Tightened safety guardrails (RPE/threshold cap by sleep+HRV, fat ceiling, dietary-restriction enforcement). New `BIOMETRICS_MISSING` heuristics block. New `CHAT_MODE` callout.
+- **Chat persistence** — Migration `005_chat_persistence.sql` + `chat_messages` table. History loads on slide-over open; explicit Clear button. Server persists user+assistant rows around the SSE stream; deduplication strategy documented in code (persisted history = authoritative; optimistic pair only during stream).
+- **Visual polish** — BriefingCard with colored slot-bars + glowing "just updated" pill. BiometricsCard with two-button empty state and last-synced timestamp. MacrosCard with color-shifting % column. Dashboard hero header with staggered fade-in. App icons (`icon.tsx`, `apple-icon.tsx`). README rewrite with "At a glance" + "Demo" sections. Login/signup subtitle.
+- **Briefing history page** — `/history` route with infinite-paged timeline of past `daily_briefing` rows. Click to inline-expand the full BriefingCard read-only. Streak chip. New "History" tab in nav.
+- **swap_meal tool** — Second tool on the chat agent. Replaces an individual meal at a chosen slot (breakfast / lunch / dinner / snack); persists to `daily_briefing.meals`; tracks composition across multi-tool turns. Demo: "Swap dinner to something with no dairy."
+- **Readiness score** — Synthesized 0-100 number on the BiometricsCard, computed pure-frontend from sleep + HRV + RHR + stress with documented weights. Color-coded green/yellow/red bands. Was a stretch goal in the proposal — pulled forward to v1.
+
+Plus, on `main` directly:
+
+- LICENSE (MIT)
+- CHANGELOG.md tracking v1 + v2-v4 stubs
+- `docs/ARCHITECTURE.md` — three-process tour, data-flow walkthroughs, schema map, HELIX → Protocol pattern table
+- `web/supabase/seed-demo.sql` — populates a signed-in user with a realistic week of biometrics, foods, diary entries, and yesterday's briefing so graders can see the demo loop without manually logging a week of data
+- Playwright scaffold (`web/tests/v1-loop.spec.ts`)
+- GitHub Actions CI workflow staged in `.github-deferred/` (waiting on a token-scope refresh)
+
 ## What I'm proud of
 
-- The system prompt with three worked examples (rest day / hypertrophy day / 5K-tempo day) is the highest-leverage artifact in v1. Generic ChatGPT-y output is the dominant failure mode for AI fitness apps; the worked examples set tone + specificity + biometric-driven decision rules.
+- The system prompt with five worked examples (rest / hypertrophy / 5K-tempo / deload / cut) is the highest-leverage artifact in v1. Generic ChatGPT-y output is the dominant failure mode for AI fitness apps; the worked examples set tone + specificity + biometric-driven decision rules.
 - Cache stacking: briefing + chat share the system prompt + per-user profile prefix. Cache hits compound across both endpoints for the same user/day.
-- Realtime hookup: `regenerate_workout` mutates `daily_briefing.workout` server-side; the dashboard re-renders without any client-side refetch trigger. The only "magic" needed for the demo's "wow" moment.
+- Realtime hookup: `regenerate_workout` and `swap_meal` both mutate `daily_briefing` server-side; the dashboard re-renders without any client-side refetch trigger. The only "magic" needed for the demo's "wow" moment.
 - Manual-entry fallback for biometrics is wired from day one, not a stretch goal. If the Garmin lib breaks (which it will), the app keeps working.
+- Parallel worktree agents (Wave 1: 4 agents, Wave 2: 3 agents) — the same dev-loop the class is teaching, running on the project itself. Each agent got a self-contained brief with explicit non-overlapping file ownership, so the seven branches merged into `main` with zero hand-fixed conflicts.
 
 ## Risk register and what's left
 
