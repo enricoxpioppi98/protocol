@@ -20,12 +20,15 @@ import {
 import { colors } from '@/lib/constants/theme';
 import { cn } from '@/lib/utils/cn';
 
+type ApplyState = 'idle' | 'saving' | 'saved' | 'error';
+
 const steps = ['Profile', 'Activity', 'Goal', 'Results'];
 
 export default function TDEEPage() {
   const router = useRouter();
   const supabase = createClient();
   const [step, setStep] = useState(0);
+  const [applyState, setApplyState] = useState<ApplyState>('idle');
 
   // Profile
   const [sex, setSex] = useState<Sex>('male');
@@ -69,21 +72,42 @@ export default function TDEEPage() {
     (useMetric ? (input.heightCm ?? 0) > 0 : input.heightFeet > 0 || input.heightInches > 0);
 
   async function applyToGoals() {
+    setApplyState('saving');
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setApplyState('error');
+      return;
+    }
 
-    await supabase
+    // Upsert (user_id, day_of_week=0) so this works whether or not the
+    // default goal row exists. The handle_new_user trigger creates one at
+    // signup, but make the wizard self-healing in case it was deleted.
+    const { error } = await supabase
       .from('daily_goals')
-      .update({
-        calories: Math.round(macros.calories),
-        protein: Math.round(macros.protein),
-        carbs: Math.round(macros.carbs),
-        fat: Math.round(macros.fat),
-      })
-      .eq('user_id', user.id)
-      .eq('day_of_week', 0);
+      .upsert(
+        {
+          user_id: user.id,
+          day_of_week: 0,
+          calories: Math.round(macros.calories),
+          protein: Math.round(macros.protein),
+          carbs: Math.round(macros.carbs),
+          fat: Math.round(macros.fat),
+        },
+        { onConflict: 'user_id,day_of_week' }
+      );
 
-    router.push('/settings/goals');
+    if (error) {
+      console.warn('[TDEE] failed to apply goals', error);
+      setApplyState('error');
+      return;
+    }
+
+    setApplyState('saved');
+    // Brief confirmation, then return to goals page so the user sees the
+    // new defaults reflected in the editor below the calculators section.
+    setTimeout(() => {
+      router.push('/settings/goals');
+    }, 900);
   }
 
   return (
@@ -271,10 +295,23 @@ export default function TDEEPage() {
 
           <button
             onClick={applyToGoals}
-            className="w-full rounded-xl bg-accent py-3 font-semibold text-white transition-opacity hover:opacity-90"
+            disabled={applyState === 'saving' || applyState === 'saved'}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-80"
           >
-            Apply to Goals
+            {applyState === 'saving' && 'Saving…'}
+            {applyState === 'saved' && (
+              <>
+                <Check size={16} /> Saved — opening goals…
+              </>
+            )}
+            {(applyState === 'idle' || applyState === 'error') && 'Apply to Goals'}
           </button>
+
+          {applyState === 'error' && (
+            <p className="text-center text-xs text-danger">
+              Couldn&apos;t save — please try again.
+            </p>
+          )}
         </div>
       )}
 
