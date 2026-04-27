@@ -124,41 +124,62 @@ export default function DashboardPage() {
     }
   }
 
+  // Bryan-Johnson-style date numerals: 04 / 27 / 2026
+  const dateLine = useMemo(() => {
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const y = today.getFullYear();
+    return `${m} / ${d} / ${y}`;
+  }, [today]);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <header className="mb-2 animate-[fadeIn_0.4s_ease-out]">
-        <div
-          className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent animate-[fadeIn_0.5s_ease-out_0.05s_both]"
-        >
-          {today.toLocaleDateString('en-US', { weekday: 'long' })}
+        {/* Mono coordinate / dateline eyebrow */}
+        <div className="flex items-center gap-3 animate-[fadeIn_0.5s_ease-out_0.05s_both]">
+          <div className="eyebrow text-accent">
+            {today.toLocaleDateString('en-US', { weekday: 'long' })}
+          </div>
+          <div className="h-px flex-1 bg-border" />
+          <div className="font-mono text-[10px] tabular-nums uppercase tracking-[0.22em] text-muted/70">
+            {dateLine}
+          </div>
         </div>
-        <h1
-          className="mt-1 text-4xl font-bold leading-none tracking-tight text-foreground sm:text-5xl animate-[fadeIn_0.5s_ease-out_0.1s_both]"
-        >
-          {today.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+
+        {/* Display — serif month + numeric day, with italic emphasis */}
+        <h1 className="mt-3 font-serif text-[56px] leading-[0.95] tracking-tight text-foreground sm:text-[68px] animate-[fadeIn_0.5s_ease-out_0.1s_both]">
+          {today.toLocaleDateString('en-US', { month: 'long' })}{' '}
+          <span className="italic text-muted">
+            {today.toLocaleDateString('en-US', { day: 'numeric' })}
+          </span>
         </h1>
-        <p
-          className="mt-2 text-sm text-muted animate-[fadeIn_0.5s_ease-out_0.18s_both]"
-        >
-          Your plan for today, tuned to last night&rsquo;s recovery.
+
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted animate-[fadeIn_0.5s_ease-out_0.18s_both]">
+          Today&rsquo;s plan, tuned overnight to last night&rsquo;s recovery
+          and the past three days of training load.
         </p>
       </header>
 
       {!profileLoading && !isOnboarded && (
         <Link
           href="/onboarding"
-          className="flex items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 transition-colors hover:bg-accent/15"
+          className="glass group flex items-center gap-3 rounded-2xl px-4 py-3.5 transition-all hover:bg-glass-3"
         >
-          <Sparkles size={18} className="text-accent" />
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent">
+            <Sparkles size={15} />
+          </span>
           <div className="flex-1">
-            <div className="text-sm font-semibold text-foreground">
-              Finish onboarding so Protocol can tailor your plan
+            <div className="text-sm font-medium text-foreground">
+              Complete onboarding so Protocol can tailor your plan
             </div>
-            <div className="text-xs text-muted">
+            <div className="mt-0.5 text-xs text-muted">
               Goals, restrictions, equipment, weekly schedule — 2 minutes.
             </div>
           </div>
-          <ArrowRight size={16} className="text-accent" />
+          <ArrowRight
+            size={15}
+            className="text-accent transition-transform group-hover:translate-x-0.5"
+          />
         </Link>
       )}
 
@@ -181,13 +202,16 @@ export default function DashboardPage() {
         onGenerate={handleGenerateBriefing}
       />
 
-      {/* Floating chat button */}
+      {/* Floating chat button — glass capsule with serif "ask" */}
       <button
         onClick={() => setChatOpen(true)}
-        className="fixed bottom-24 right-6 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg transition-transform hover:scale-105 lg:bottom-6"
+        className="glass-strong group fixed bottom-24 right-4 z-30 inline-flex items-center gap-2 rounded-full pl-4 pr-5 py-3 text-foreground shadow-[0_8px_30px_-8px_rgba(0,0,0,0.45)] transition-all hover:bg-glass-3 lg:bottom-6 lg:right-6"
         aria-label="Open coach chat"
       >
-        <MessageSquare size={22} />
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white">
+          <MessageSquare size={14} />
+        </span>
+        <span className="font-serif text-sm italic">ask the coach</span>
       </button>
 
       <ChatSlideOver
@@ -236,29 +260,30 @@ function ManualBiometricsModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-md rounded-t-2xl bg-card p-5 sm:rounded-2xl"
+        className="glass-strong w-full max-w-md rounded-t-2xl p-6 sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mb-1 text-base font-semibold text-foreground">
-          Enter today&rsquo;s biometrics
+        <div className="eyebrow">Manual entry</div>
+        <h3 className="mt-1 font-serif text-2xl leading-tight text-foreground">
+          Today&rsquo;s biometrics
         </h3>
-        <p className="mb-4 text-xs text-muted">
+        <p className="mt-1 text-xs text-muted">
           Used by the AI coach to tune today&rsquo;s plan.
         </p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-2 gap-3">
           <Field label="Sleep score" value={sleepScore} onChange={setSleepScore} />
           <Field label="HRV (ms)" value={hrv} onChange={setHrv} />
           <Field label="Resting HR" value={rhr} onChange={setRhr} />
           <Field label="Stress avg" value={stress} onChange={setStress} />
         </div>
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-6 flex justify-end gap-2">
           <button
             onClick={onCancel}
-            className="rounded-xl px-4 py-2 text-sm text-muted hover:bg-card-hover"
+            className="rounded-xl px-4 py-2 text-sm text-muted transition-colors hover:bg-glass-2 hover:text-foreground"
           >
             Cancel
           </button>
@@ -277,7 +302,7 @@ function ManualBiometricsModal({
                 setBusy(false);
               }
             }}
-            className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="rounded-xl border border-accent/40 bg-accent/90 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent disabled:opacity-50"
           >
             Save
           </button>
@@ -303,14 +328,12 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-medium uppercase tracking-wider text-muted">
-        {label}
-      </span>
+      <span className="eyebrow">{label}</span>
       <input
         inputMode="numeric"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-xl bg-background px-3 py-2 text-sm text-foreground outline-none ring-1 ring-border focus:ring-accent"
+        className="mt-1 w-full rounded-xl border border-border bg-glass-1 px-3 py-2 font-mono text-sm tabular-nums text-foreground outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40"
       />
     </label>
   );

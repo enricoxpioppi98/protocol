@@ -201,44 +201,49 @@ export function ChatSlideOver({ open, onClose, onWorkoutChanged }: Props) {
 
   return (
     <>
-      {/* Scrim */}
+      {/* Scrim — soft frosted blur */}
       <div
-        className={`fixed inset-0 z-40 bg-black/40 transition-opacity duration-200 ${
+        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${
           open ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
         onClick={onClose}
       />
 
-      {/* Panel */}
+      {/* Panel — translucent glass slide-over */}
       <aside
-        className={`fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-card transition-transform duration-200 ease-out ${
+        className={`glass-strong fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border transition-transform duration-200 ease-out ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
         aria-hidden={!open}
       >
-        <header className="flex h-16 items-center justify-between border-b border-border px-5">
-          <h2 className="text-base font-semibold text-foreground">Coach</h2>
+        <header className="flex h-20 items-end justify-between border-b border-border px-5 pb-4">
+          <div>
+            <div className="eyebrow text-accent">Conversation</div>
+            <h2 className="mt-0.5 font-serif text-2xl leading-none text-foreground">
+              <span className="italic">Coach</span>
+            </h2>
+          </div>
           <div className="flex items-center gap-1">
             <button
               onClick={handleClear}
               disabled={streaming}
-              className="rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-40"
+              className="rounded-lg p-2 text-muted transition-colors hover:bg-glass-3 hover:text-foreground disabled:opacity-40"
               aria-label="Clear chat history"
               title="Clear chat history"
             >
-              <Trash2 size={18} />
+              <Trash2 size={16} />
             </button>
             <button
               onClick={onClose}
-              className="rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground"
+              className="rounded-lg p-2 text-muted transition-colors hover:bg-glass-3 hover:text-foreground"
               aria-label="Close chat"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
         </header>
 
-        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-5">
           {messages.map((m, i) => (
             <div key={m.id ?? `opt-${i}`} className="space-y-1.5">
               <MessageBubble role={m.role}>
@@ -260,13 +265,14 @@ export function ChatSlideOver({ open, onClose, onWorkoutChanged }: Props) {
         </div>
 
         {messages.length <= 1 && !streaming ? (
-          <div className="border-t border-border px-4 py-2">
+          <div className="border-t border-border px-4 py-3">
+            <div className="eyebrow mb-2">Suggestions</div>
             <div className="flex flex-wrap gap-1.5">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="rounded-full bg-card-hover px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent-light hover:text-accent"
+                  className="rounded-full border border-border bg-glass-1 px-3 py-1.5 text-xs text-foreground transition-colors hover:border-accent/40 hover:bg-accent-light hover:text-accent"
                 >
                   {s}
                 </button>
@@ -287,15 +293,15 @@ export function ChatSlideOver({ open, onClose, onWorkoutChanged }: Props) {
             onChange={(e) => setInput(e.target.value)}
             disabled={streaming}
             placeholder="Ask about today’s plan…"
-            className="flex-1 rounded-xl bg-background px-3 py-2 text-sm text-foreground outline-none ring-1 ring-border transition-shadow focus:ring-accent disabled:opacity-50"
+            className="flex-1 rounded-xl border border-border bg-glass-1 px-3.5 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-accent/60 focus:ring-1 focus:ring-accent/40 disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={streaming || !input.trim()}
-            className="rounded-xl bg-accent p-2 text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="rounded-xl border border-accent/40 bg-accent/90 p-2.5 text-white transition-colors hover:bg-accent disabled:opacity-50"
             aria-label="Send"
           >
-            <Send size={16} />
+            <Send size={15} />
           </button>
         </form>
       </aside>

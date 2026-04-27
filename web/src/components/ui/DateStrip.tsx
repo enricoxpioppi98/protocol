@@ -32,16 +32,23 @@ export function DateStrip({ selectedDate, onSelect }: DateStripProps) {
               key={day.toISOString()}
               onClick={() => onSelect(day)}
               className={cn(
-                'flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-2 text-xs transition-all',
+                'flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-2 transition-all',
                 isSelected
-                  ? 'bg-accent text-white'
+                  ? 'border border-accent/40 bg-accent/90 text-white'
                   : today
-                    ? 'bg-accent/10 text-accent'
-                    : 'text-muted hover:bg-card-hover'
+                    ? 'border border-accent/30 bg-accent/10 text-accent'
+                    : 'border border-transparent text-muted hover:border-border hover:bg-glass-2'
               )}
             >
-              <span className="font-medium">{format(day, 'EEE')}</span>
-              <span className={cn('text-lg font-bold', !isSelected && !today && 'text-foreground')}>
+              <span className="font-mono text-[9px] uppercase tracking-[0.16em]">
+                {format(day, 'EEE')}
+              </span>
+              <span
+                className={cn(
+                  'font-mono text-base font-medium tabular-nums',
+                  !isSelected && !today && 'text-foreground'
+                )}
+              >
                 {format(day, 'd')}
               </span>
             </button>

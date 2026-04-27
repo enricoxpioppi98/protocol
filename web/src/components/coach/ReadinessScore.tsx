@@ -11,23 +11,27 @@ interface Props {
 
 const BAND_CLASSES: Record<
   ReadinessBand,
-  { pill: string; label: string }
+  { pill: string; label: string; ring: string }
 > = {
   green: {
-    pill: 'bg-fiber-light text-fiber',
+    pill: 'border-fiber/30 bg-fiber-light text-fiber',
     label: 'Green',
+    ring: 'ring-fiber/30',
   },
   yellow: {
-    pill: 'bg-highlight-light text-highlight',
+    pill: 'border-highlight/30 bg-highlight-light text-highlight',
     label: 'Yellow',
+    ring: 'ring-highlight/30',
   },
   red: {
-    pill: 'bg-danger/10 text-danger',
+    pill: 'border-danger/30 bg-danger/10 text-danger',
     label: 'Red',
+    ring: 'ring-danger/30',
   },
   unknown: {
-    pill: 'bg-card-hover text-muted',
+    pill: 'border-border bg-glass-2 text-muted',
     label: 'No data',
+    ring: 'ring-border',
   },
 };
 
@@ -37,41 +41,42 @@ export function ReadinessScore({ biometrics }: Props) {
   const display = score == null ? '—' : String(score);
 
   return (
-    <div className="mb-4 rounded-xl bg-card-hover/40 p-3">
+    <div className="mb-5 rounded-xl border border-border bg-glass-1 p-4">
       <div className="flex items-center gap-3">
-        <div className="flex items-baseline gap-1">
-          <Gauge size={16} className="text-muted" />
-          <span className="text-[10px] font-medium uppercase tracking-wide text-muted">
-            Readiness
-          </span>
+        <div className="flex items-center gap-2">
+          <Gauge size={12} className="text-muted" />
+          <span className="eyebrow">Readiness</span>
         </div>
+        <span className="h-px flex-1 bg-border" />
         <div
           className={cn(
-            'ml-auto inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+            'inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.18em]',
             styles.pill
           )}
         >
-          {styles.label}
+          · {styles.label}
         </div>
       </div>
 
-      <div className="mt-1 flex items-end gap-3">
+      <div className="mt-3 flex items-end gap-3">
         <div
           className={cn(
-            'font-mono text-4xl font-semibold leading-none tabular-nums',
+            'font-mono text-[52px] font-medium leading-none tabular-nums',
             band === 'unknown' ? 'text-muted' : 'text-foreground'
           )}
         >
           {display}
           {score != null && (
-            <span className="ml-1 align-baseline text-sm font-normal text-muted">
+            <span className="ml-1 align-baseline font-mono text-sm font-normal tracking-wider text-muted/70">
               /100
             </span>
           )}
         </div>
       </div>
 
-      <p className="mt-2 text-xs leading-snug text-muted">{explanation}</p>
+      <p className="mt-3 font-serif text-[13.5px] italic leading-snug text-muted">
+        {explanation}
+      </p>
     </div>
   );
 }

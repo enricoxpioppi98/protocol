@@ -203,16 +203,23 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="text-xs font-medium uppercase tracking-wider text-muted">
-          Setup
+    <div className="space-y-7">
+      <header className="animate-[fadeIn_0.4s_ease-out]">
+        <div className="flex items-center gap-3">
+          <div className="eyebrow text-accent">Setup</div>
+          <div className="h-px flex-1 bg-border" />
+          <div className="font-mono text-[10px] tabular-nums uppercase tracking-[0.18em] text-muted/70">
+            step {step.toString().padStart(2, '0')} / {TOTAL_STEPS.toString().padStart(2, '0')}
+          </div>
         </div>
-        <h1 className="text-2xl font-bold text-foreground">Tell Protocol about you</h1>
-        <p className="mt-1 text-sm text-muted">
+        <h1 className="mt-3 font-serif text-[44px] leading-[0.95] tracking-tight text-foreground sm:text-[56px]">
+          Tell Protocol{' '}
+          <span className="italic text-muted">about you.</span>
+        </h1>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
           So Claude can tailor your daily plan instead of guessing.
         </p>
-      </div>
+      </header>
 
       <ProgressIndicator step={step} total={TOTAL_STEPS} />
 
@@ -297,7 +304,7 @@ function GoalsStep({
   onSecondaryChange: (v: string) => void;
 }) {
   return (
-    <div className="rounded-2xl bg-card p-5">
+    <div className="glass rounded-2xl p-5">
       <div className="mb-4 flex items-center gap-2">
         <Target size={18} className="text-accent" />
         <h2 className="font-semibold text-foreground">Your goals</h2>
@@ -394,7 +401,7 @@ function DemographicsStep({
   }
 
   return (
-    <div className="rounded-2xl bg-card p-5">
+    <div className="glass rounded-2xl p-5">
       <div className="mb-1 flex items-center gap-2">
         <User size={18} className="text-accent" />
         <h2 className="font-semibold text-foreground">About you</h2>
@@ -652,7 +659,7 @@ function TagSection({
   const customValues = values.filter((v) => !presetSet.has(v.toLowerCase()));
 
   return (
-    <div className="rounded-2xl bg-card p-5">
+    <div className="glass rounded-2xl p-5">
       <div className="mb-1 flex items-center gap-2">
         {icon}
         <h2 className="font-semibold text-foreground">{title}</h2>
@@ -746,7 +753,7 @@ function ScheduleStep({
   }
 
   return (
-    <div className="rounded-2xl bg-card p-5">
+    <div className="glass rounded-2xl p-5">
       <div className="mb-1 flex items-center gap-2">
         <Sparkles size={18} className="text-accent" />
         <h2 className="font-semibold text-foreground">Weekly schedule</h2>

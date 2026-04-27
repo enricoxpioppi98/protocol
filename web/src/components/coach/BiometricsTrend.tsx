@@ -39,12 +39,10 @@ export function BiometricsTrend({ rows, days = 7 }: Props) {
   if (!hasHistory) return null;
 
   return (
-    <div className="mt-3 border-t border-border/60 pt-3">
+    <div className="mt-5 border-t border-border pt-4">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
-          Last {days} days
-        </div>
-        <div className="flex gap-[2px] text-[9px] font-mono uppercase tracking-wider text-muted/70">
+        <div className="eyebrow">Last {days}d</div>
+        <div className="flex gap-[2px] font-mono text-[9px] uppercase tracking-[0.14em] text-muted/70">
           {targetDates.map((d, i) => (
             <span key={d} className="w-7 text-center">
               {i === days - 1
@@ -68,10 +66,10 @@ export function BiometricsTrend({ rows, days = 7 }: Props) {
 }
 
 const FIELD_BAND_CLASS = {
-  green: 'bg-fiber/80 text-white',
-  yellow: 'bg-highlight/70 text-white',
-  red: 'bg-danger/70 text-white',
-  unknown: 'bg-card-hover text-muted/60',
+  green: 'bg-fiber/85 text-black',
+  yellow: 'bg-highlight/80 text-black',
+  red: 'bg-danger/80 text-white',
+  unknown: 'bg-glass-3 text-muted/60',
 } as const;
 
 function Row({
@@ -87,7 +85,7 @@ function Row({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex w-14 items-center gap-1 text-[10px] uppercase tracking-wider text-muted">
+      <div className="flex w-14 items-center gap-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
         {icon}
         {label}
       </div>
@@ -99,7 +97,7 @@ function Row({
             <div
               key={i}
               className={cn(
-                'flex h-6 w-7 items-center justify-center rounded-md font-mono text-[10px] font-semibold tabular-nums transition-colors',
+                'flex h-6 w-7 items-center justify-center rounded-[4px] font-mono text-[10px] font-medium tabular-nums transition-colors',
                 FIELD_BAND_CLASS[band]
               )}
               title={c ? `${c.date}: ${value ?? '—'}` : 'no data'}

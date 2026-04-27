@@ -65,50 +65,51 @@ export default function IntegrationsPage() {
     <div className="space-y-5">
       <Link
         href="/settings"
-        className="inline-flex items-center gap-1 text-sm text-muted hover:text-foreground"
+        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted hover:text-foreground"
       >
-        <ChevronLeft size={16} />
+        <ChevronLeft size={14} />
         Settings
       </Link>
 
-      <header>
-        <h1 className="text-2xl font-bold text-foreground">Integrations</h1>
-        <p className="mt-1 text-sm text-muted">
+      <header className="animate-[fadeIn_0.4s_ease-out]">
+        <div className="eyebrow text-accent">Data sources</div>
+        <h1 className="mt-2 font-serif text-[44px] leading-[0.95] tracking-tight text-foreground sm:text-[52px]">
+          Integrations
+        </h1>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
           Connect external data sources so Protocol can read your overnight
           biometrics. Stored encrypted; you can disconnect at any time.
         </p>
       </header>
 
-      <section className="rounded-2xl bg-card p-5">
+      <section className="glass rounded-2xl p-5">
         <div className="mb-4 flex items-start gap-3">
-          <div className="rounded-xl bg-accent-light p-2 text-accent">
-            <Watch size={20} />
+          <div className="rounded-xl border border-border bg-glass-2 p-2 text-accent">
+            <Watch size={18} />
           </div>
           <div className="flex-1">
-            <h2 className="text-base font-semibold text-foreground">Garmin Connect</h2>
-            <p className="text-xs text-muted">
+            <h2 className="font-serif text-xl text-foreground">Garmin Connect</h2>
+            <p className="mt-0.5 text-xs text-muted">
               Pulls sleep score, HRV, resting HR, stress, training load.
             </p>
           </div>
           {connected ? (
-            <span className="rounded-full bg-fiber-light px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fiber">
-              connected
+            <span className="rounded-full border border-fiber/30 bg-fiber-light px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-fiber">
+              · connected
             </span>
           ) : null}
         </div>
 
         {connected ? (
           <div className="space-y-3">
-            <div className="rounded-xl bg-card-hover p-3 text-sm">
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted">
-                account
-              </div>
-              <div className="font-mono text-foreground">{savedEmail}</div>
+            <div className="rounded-xl border border-border bg-glass-1 p-3 text-sm">
+              <div className="eyebrow">Account</div>
+              <div className="mt-1 font-mono text-foreground">{savedEmail}</div>
             </div>
             <button
               onClick={disconnect}
               disabled={busy}
-              className="inline-flex items-center gap-2 rounded-xl bg-danger/10 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/20 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-danger/30 bg-danger/10 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/20 disabled:opacity-50"
             >
               <Trash2 size={14} /> Disconnect
             </button>
@@ -116,27 +117,23 @@ export default function IntegrationsPage() {
         ) : (
           <form className="space-y-3" onSubmit={save}>
             <div>
-              <label className="text-[10px] font-medium uppercase tracking-wider text-muted">
-                Email
-              </label>
+              <label className="eyebrow">Email</label>
               <input
                 type="email"
                 autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl bg-background px-3 py-2 text-sm text-foreground outline-none ring-1 ring-border focus:ring-accent"
+                className="mt-1 w-full rounded-xl border border-border bg-glass-1 px-3 py-2 font-mono text-sm text-foreground outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40"
               />
             </div>
             <div>
-              <label className="text-[10px] font-medium uppercase tracking-wider text-muted">
-                Password
-              </label>
+              <label className="eyebrow">Password</label>
               <input
                 type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-xl bg-background px-3 py-2 text-sm text-foreground outline-none ring-1 ring-border focus:ring-accent"
+                className="mt-1 w-full rounded-xl border border-border bg-glass-1 px-3 py-2 font-mono text-sm text-foreground outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40"
               />
               <p className="mt-1.5 text-[11px] leading-snug text-muted">
                 Encrypted (AES-256-GCM) before storage. Used only to fetch your
@@ -144,14 +141,14 @@ export default function IntegrationsPage() {
               </p>
             </div>
             {error ? (
-              <div className="rounded-xl bg-danger/10 px-3 py-2 text-xs text-danger">
+              <div className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
                 {error}
               </div>
             ) : null}
             <button
               type="submit"
               disabled={busy}
-              className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="rounded-xl border border-accent/40 bg-accent/90 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent disabled:opacity-50"
             >
               {busy ? 'Saving…' : 'Connect Garmin'}
             </button>
@@ -159,11 +156,11 @@ export default function IntegrationsPage() {
         )}
       </section>
 
-      <section className="rounded-2xl bg-card p-5">
-        <h2 className="text-base font-semibold text-foreground">
+      <section className="glass rounded-2xl p-5">
+        <h2 className="font-serif text-xl italic text-foreground">
           No Garmin? No problem.
         </h2>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm leading-relaxed text-muted">
           You can also enter sleep / HRV / RHR / stress manually each morning
           from the dashboard. The coach uses whatever you give it.
         </p>
