@@ -20,7 +20,6 @@ export interface AuditEntry {
 
 export function logAudit(entry: AuditEntry): void {
   // v1: stdout. v2: also insert into public.audit_ledger.
-  // eslint-disable-next-line no-console
   console.log('[audit]', JSON.stringify(entry));
 }
 
@@ -54,6 +53,8 @@ export async function brokeredFetch(
     ts: new Date().toISOString(),
   });
 
-  const { actor: _a, purpose: _p, ...init } = opts;
+  const init: RequestInit = { ...opts };
+  delete (init as Record<string, unknown>).actor;
+  delete (init as Record<string, unknown>).purpose;
   return fetch(url, init);
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Target, Key, Download, LogOut, Database, Palette, UtensilsCrossed } from 'lucide-react';
+import { Target, Key, Download, LogOut, Database, Palette, UtensilsCrossed, Watch } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -116,6 +116,19 @@ export default function SettingsPage() {
         <div className="flex-1">
           <div className="font-semibold">My Foods</div>
           <div className="text-sm text-muted">View and edit custom foods</div>
+        </div>
+        <span className="text-muted">&rsaquo;</span>
+      </Link>
+
+      {/* Integrations */}
+      <Link
+        href="/settings/integrations"
+        className="flex items-center gap-3 rounded-2xl bg-card px-4 py-4 transition-colors hover:bg-card-hover"
+      >
+        <Watch size={20} className="text-accent" />
+        <div className="flex-1">
+          <div className="font-semibold">Integrations</div>
+          <div className="text-sm text-muted">Connect Garmin Connect</div>
         </div>
         <span className="text-muted">&rsaquo;</span>
       </Link>
