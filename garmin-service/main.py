@@ -130,6 +130,29 @@ class GarminTodayResponse(BaseModel):
     stress_avg: int | None = None
     training_load_acute: int | None = None
     training_load_chronic: int | None = None
+    # Movement / activity volume
+    total_steps: int | None = None
+    floors_climbed: int | None = None
+    active_minutes: int | None = None
+    vigorous_minutes: int | None = None
+    moderate_minutes: int | None = None
+    total_kcal_burned: int | None = None
+    active_kcal_burned: int | None = None
+    # Cardiovascular
+    vo2max: float | None = None
+    max_hr: int | None = None
+    min_hr: int | None = None
+    # Sleep sub-stages
+    deep_sleep_minutes: int | None = None
+    rem_sleep_minutes: int | None = None
+    light_sleep_minutes: int | None = None
+    awake_sleep_minutes: int | None = None
+    sleep_efficiency: float | None = None
+    # Body battery (Garmin's recovery sub-score)
+    body_battery_high: int | None = None
+    body_battery_low: int | None = None
+    body_battery_charged: int | None = None
+    body_battery_drained: int | None = None
     raw: dict
 
 
@@ -192,6 +215,90 @@ def _fetch_one_day(client: Garmin, target: Date) -> GarminTodayResponse:
         acute = ts_obj["acuteTrainingLoadDTO"].get("acuteTrainingLoad")
         chronic = ts_obj["acuteTrainingLoadDTO"].get("chronicTrainingLoad")
 
+    # ---- Movement / activity volume ----------------------------------------
+    def _seconds_to_minutes(value: object) -> int | None:
+        """Round a seconds value to whole minutes; tolerate non-int inputs."""
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return value // 60
+        if isinstance(value, float):
+            return int(round(value / 60))
+        return None
+
+    def _as_int(value: object) -> int | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(round(value))
+        return None
+
+    def _as_float(value: object) -> float | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        return None
+
+    highly_active_s = stats.get("highlyActiveSeconds")
+    active_s = stats.get("activeSeconds")
+    active_total_s: int | None = None
+    if isinstance(highly_active_s, (int, float)) or isinstance(active_s, (int, float)):
+        ha = highly_active_s if isinstance(highly_active_s, (int, float)) else 0
+        a = active_s if isinstance(active_s, (int, float)) else 0
+        active_total_s = int(ha) + int(a)
+    active_minutes = (
+        int(round(active_total_s / 60)) if active_total_s is not None else None
+    )
+
+    total_steps = _as_int(stats.get("totalSteps"))
+    floors_climbed = _as_int(stats.get("floorsAscended"))
+    vigorous_minutes = _as_int(stats.get("vigorousIntensityMinutes"))
+    moderate_minutes = _as_int(stats.get("moderateIntensityMinutes"))
+    total_kcal_burned = _as_int(stats.get("totalKilocalories"))
+    active_kcal_burned = _as_int(stats.get("activeKilocalories"))
+
+    # ---- Cardiovascular ----------------------------------------------------
+    vo2max = _as_float(stats.get("vo2Max"))
+    if vo2max is None:
+        vo2max = _as_float(stats.get("cycleVo2Max"))
+    max_hr = _as_int(stats.get("maxHeartRate"))
+    min_hr = _as_int(stats.get("minHeartRate"))
+
+    # ---- Sleep sub-stages --------------------------------------------------
+    deep_sleep_minutes = _seconds_to_minutes(sleep_obj.get("deepSleepSeconds"))
+    rem_sleep_minutes = _seconds_to_minutes(sleep_obj.get("remSleepSeconds"))
+    light_sleep_minutes = _seconds_to_minutes(sleep_obj.get("lightSleepSeconds"))
+    awake_sleep_minutes = _seconds_to_minutes(sleep_obj.get("awakeSleepSeconds"))
+
+    sleep_efficiency = _as_float(sleep_obj.get("sleepEfficiency"))
+    if sleep_efficiency is None:
+        st = sleep_obj.get("sleepTimeSeconds")
+        aw = sleep_obj.get("awakeSleepSeconds")
+        if isinstance(st, (int, float)) and isinstance(aw, (int, float)):
+            denom = float(st) + float(aw)
+            if denom > 0:
+                sleep_efficiency = (float(st) / denom) * 100.0
+
+    # ---- Body battery ------------------------------------------------------
+    body_battery_high = _as_int(stats.get("bodyBatteryHighestValue"))
+    body_battery_low = _as_int(stats.get("bodyBatteryLowestValue"))
+    body_battery_charged = _as_int(stats.get("bodyBatteryChargedValue"))
+    body_battery_drained = _as_int(stats.get("bodyBatteryDrainedValue"))
+
+    logger.info(
+        "garmin metrics for %s: steps=%s, vo2max=%s, deep_sleep_min=%s, "
+        "active_min=%s, body_battery_high=%s",
+        iso,
+        total_steps,
+        vo2max,
+        deep_sleep_minutes,
+        active_minutes,
+        body_battery_high,
+    )
+
     return GarminTodayResponse(
         sleep_score=sleep_score,
         sleep_duration_minutes=sleep_duration_minutes,
@@ -200,6 +307,25 @@ def _fetch_one_day(client: Garmin, target: Date) -> GarminTodayResponse:
         stress_avg=stats.get("averageStressLevel"),
         training_load_acute=acute,
         training_load_chronic=chronic,
+        total_steps=total_steps,
+        floors_climbed=floors_climbed,
+        active_minutes=active_minutes,
+        vigorous_minutes=vigorous_minutes,
+        moderate_minutes=moderate_minutes,
+        total_kcal_burned=total_kcal_burned,
+        active_kcal_burned=active_kcal_burned,
+        vo2max=vo2max,
+        max_hr=max_hr,
+        min_hr=min_hr,
+        deep_sleep_minutes=deep_sleep_minutes,
+        rem_sleep_minutes=rem_sleep_minutes,
+        light_sleep_minutes=light_sleep_minutes,
+        awake_sleep_minutes=awake_sleep_minutes,
+        sleep_efficiency=sleep_efficiency,
+        body_battery_high=body_battery_high,
+        body_battery_low=body_battery_low,
+        body_battery_charged=body_battery_charged,
+        body_battery_drained=body_battery_drained,
         raw=raw,
     )
 

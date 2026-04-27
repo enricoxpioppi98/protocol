@@ -23,6 +23,29 @@ interface GarminDayPayload {
   stress_avg: number | null;
   training_load_acute: number | null;
   training_load_chronic: number | null;
+  // Movement / activity volume
+  total_steps: number | null;
+  floors_climbed: number | null;
+  active_minutes: number | null;
+  vigorous_minutes: number | null;
+  moderate_minutes: number | null;
+  total_kcal_burned: number | null;
+  active_kcal_burned: number | null;
+  // Cardiovascular
+  vo2max: number | null;
+  max_hr: number | null;
+  min_hr: number | null;
+  // Sleep sub-stages
+  deep_sleep_minutes: number | null;
+  rem_sleep_minutes: number | null;
+  light_sleep_minutes: number | null;
+  awake_sleep_minutes: number | null;
+  sleep_efficiency: number | null;
+  // Body battery
+  body_battery_high: number | null;
+  body_battery_low: number | null;
+  body_battery_charged: number | null;
+  body_battery_drained: number | null;
   raw: unknown;
 }
 
@@ -188,6 +211,25 @@ function toUpsert(
     stress_avg: d.stress_avg,
     training_load_acute: d.training_load_acute,
     training_load_chronic: d.training_load_chronic,
+    total_steps: d.total_steps,
+    floors_climbed: d.floors_climbed,
+    active_minutes: d.active_minutes,
+    vigorous_minutes: d.vigorous_minutes,
+    moderate_minutes: d.moderate_minutes,
+    total_kcal_burned: d.total_kcal_burned,
+    active_kcal_burned: d.active_kcal_burned,
+    vo2max: d.vo2max,
+    max_hr: d.max_hr,
+    min_hr: d.min_hr,
+    deep_sleep_minutes: d.deep_sleep_minutes,
+    rem_sleep_minutes: d.rem_sleep_minutes,
+    light_sleep_minutes: d.light_sleep_minutes,
+    awake_sleep_minutes: d.awake_sleep_minutes,
+    sleep_efficiency: d.sleep_efficiency,
+    body_battery_high: d.body_battery_high,
+    body_battery_low: d.body_battery_low,
+    body_battery_charged: d.body_battery_charged,
+    body_battery_drained: d.body_battery_drained,
     source: 'garmin' as const,
     raw: d.raw,
     fetched_at: fetchedAt,

@@ -158,6 +158,29 @@ export interface BiometricsDaily {
   stress_avg: number | null;
   training_load_acute: number | null;
   training_load_chronic: number | null;
+  // Movement / activity volume
+  total_steps: number | null;
+  floors_climbed: number | null;
+  active_minutes: number | null;
+  vigorous_minutes: number | null;
+  moderate_minutes: number | null;
+  total_kcal_burned: number | null;
+  active_kcal_burned: number | null;
+  // Cardiovascular
+  vo2max: number | null;
+  max_hr: number | null;
+  min_hr: number | null;
+  // Sleep sub-stages
+  deep_sleep_minutes: number | null;
+  rem_sleep_minutes: number | null;
+  light_sleep_minutes: number | null;
+  awake_sleep_minutes: number | null;
+  sleep_efficiency: number | null;
+  // Body battery (Garmin's recovery sub-score)
+  body_battery_high: number | null;
+  body_battery_low: number | null;
+  body_battery_charged: number | null;
+  body_battery_drained: number | null;
   source: BiometricsSource;
   raw: unknown | null;
   fetched_at: string;
