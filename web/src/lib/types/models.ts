@@ -124,3 +124,98 @@ export interface FoodProduct {
   serving_size: string;
   source: FoodSource;
 }
+
+// ============================================================
+// Protocol v1: AI coaching layer
+// ============================================================
+
+export interface UserProfile {
+  user_id: string;
+  goals: {
+    primary?: string;
+    secondary?: string;
+    [key: string]: unknown;
+  };
+  dietary_restrictions: string[];
+  equipment_available: string[];
+  weekly_schedule: {
+    [day: string]: string[] | undefined; // e.g. monday: ["lift"], tuesday: ["run", "easy"]
+  };
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type BiometricsSource = 'garmin' | 'manual';
+
+export interface BiometricsDaily {
+  user_id: string;
+  date: string;
+  sleep_score: number | null;
+  sleep_duration_minutes: number | null;
+  hrv_ms: number | null;
+  resting_hr: number | null;
+  stress_avg: number | null;
+  training_load_acute: number | null;
+  training_load_chronic: number | null;
+  source: BiometricsSource;
+  raw: unknown | null;
+  fetched_at: string;
+  updated_at: string;
+}
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+export interface BriefingMacros {
+  kcal: number;
+  p: number; // protein g
+  c: number; // carbs g
+  f: number; // fat g
+}
+
+export interface BriefingMealItem {
+  food: string;
+  grams: number;
+}
+
+export interface BriefingMeal {
+  slot: MealSlot;
+  name: string;
+  items: BriefingMealItem[];
+  macros: BriefingMacros;
+}
+
+export interface BriefingWorkoutBlock {
+  name: string;
+  sets?: number;
+  reps?: string; // "8-10" or "5x"
+  intensity?: string; // "RPE 8", "Z2", "85% 1RM"
+  notes?: string;
+}
+
+export interface BriefingWorkout {
+  name: string;
+  duration_minutes: number;
+  blocks: BriefingWorkoutBlock[];
+}
+
+export interface DailyBriefing {
+  user_id: string;
+  date: string;
+  meals: BriefingMeal[];
+  workout: BriefingWorkout;
+  recovery_note: string;
+  model: string;
+  prompt_cache_hit: boolean;
+  generated_at: string;
+  regenerated_at: string | null;
+  updated_at: string;
+}
+
+export interface GarminCredentialsRow {
+  user_id: string;
+  email: string;
+  password_encrypted: string;
+  created_at: string;
+  updated_at: string;
+}
