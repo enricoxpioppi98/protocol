@@ -219,3 +219,23 @@ export interface GarminCredentialsRow {
   created_at: string;
   updated_at: string;
 }
+
+export type ChatMessageRole = 'user' | 'assistant';
+
+export type ChatToolStatus = 'pending' | 'running' | 'success' | 'error';
+
+export interface ChatToolCall {
+  id: string;
+  name: string;
+  status: ChatToolStatus;
+}
+
+export interface ChatMessage {
+  id: string;
+  user_id: string;
+  role: ChatMessageRole;
+  content: string;
+  tools: ChatToolCall[];
+  created_at: string;
+  updated_at: string;
+}

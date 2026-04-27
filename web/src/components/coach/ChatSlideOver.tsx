@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { X, Send } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { X, Send, Trash2 } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { ToolActivityChip, type ToolStatus } from './ToolActivityChip';
+import { useChatHistory } from '@/lib/hooks/useChatHistory';
+import type { ChatMessage as PersistedChatMessage } from '@/lib/types/models';
 
-interface ChatMessage {
+interface UIMessage {
+  /** Stable id when known (persisted rows), undefined for the live optimistic
+   *  pair while the SSE stream is in flight. */
+  id?: string;
   role: 'user' | 'assistant';
   content: string;
   tools?: { id: string; name: string; status: ToolStatus }[];
@@ -25,39 +30,74 @@ const SUGGESTIONS = [
   'I’m sore — go easy.',
 ];
 
+const GREETING: UIMessage = {
+  role: 'assistant',
+  content:
+    'Hey. Ask me anything about today’s plan, or tell me what changed and I’ll rework the workout.',
+};
+
+/**
+ * Deduplication strategy for optimistic vs persisted messages:
+ *
+ * The SSE stream and the persistence layer are intentionally independent.
+ * While a turn is in flight we render an "optimistic" pair (user + assistant
+ * placeholder) held in local state. When the stream ends we drop the
+ * optimistic pair and fall back to whatever the server has — Realtime (or
+ * the explicit refetch on stream-end) will have surfaced both rows by then.
+ *
+ * Render order = persisted history first, then any still-streaming optimistic
+ * tail. Persisted rows have stable uuid ids; optimistic ones don't, so a
+ * keyed list never collides. If Realtime is slow we briefly show duplicates;
+ * the next tick reconciles. Net effect: history is authoritative once a turn
+ * is complete; the optimistic pair only exists during the stream.
+ */
 export function ChatSlideOver({ open, onClose, onWorkoutChanged }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { messages: persisted, refetch, clear } = useChatHistory();
+  const [optimistic, setOptimistic] = useState<UIMessage[]>([]);
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (open && messages.length === 0) {
-      setMessages([
-        {
-          role: 'assistant',
-          content:
-            'Hey. Ask me anything about today’s plan, or tell me what changed and I’ll rework the workout.',
-        },
-      ]);
+  // Combine persisted history + optimistic in-flight tail. The greeting is
+  // shown only when the user has zero history and nothing is streaming.
+  const messages = useMemo<UIMessage[]>(() => {
+    const fromHistory: UIMessage[] = persisted.map((m: PersistedChatMessage) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      tools: m.tools?.map((t) => ({
+        id: t.id,
+        name: t.name,
+        status: t.status as ToolStatus,
+      })),
+    }));
+    if (fromHistory.length === 0 && optimistic.length === 0) {
+      return [GREETING];
     }
-  }, [open, messages.length]);
+    return [...fromHistory, ...optimistic];
+  }, [persisted, optimistic]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages]);
+    if (!open) return;
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [messages, open]);
 
   async function send(text: string) {
     if (!text.trim() || streaming) return;
-    const userMsg: ChatMessage = { role: 'user', content: text.trim() };
-    const placeholder: ChatMessage = { role: 'assistant', content: '', tools: [] };
-    setMessages((m) => [...m, userMsg, placeholder]);
+    const userMsg: UIMessage = { role: 'user', content: text.trim() };
+    const placeholder: UIMessage = { role: 'assistant', content: '', tools: [] };
+    setOptimistic([userMsg, placeholder]);
     setInput('');
     setStreaming(true);
 
-    const apiMessages = [...messages, userMsg]
-      .filter((m) => m.role === 'user' || m.content.length > 0)
-      .map((m) => ({ role: m.role, content: m.content }));
+    // Build the API payload from already-persisted history + the new user turn.
+    const apiMessages = [
+      ...persisted.map((m) => ({ role: m.role, content: m.content })),
+      { role: userMsg.role, content: userMsg.content },
+    ].filter((m) => m.role === 'user' || m.content.length > 0);
 
     try {
       const res = await fetch('/api/chat', {
@@ -99,7 +139,7 @@ export function ChatSlideOver({ open, onClose, onWorkoutChanged }: Props) {
       }
     } catch (err) {
       console.error(err);
-      setMessages((m) => {
+      setOptimistic((m) => {
         const copy = [...m];
         const last = copy[copy.length - 1];
         if (last && last.role === 'assistant') {
@@ -110,11 +150,16 @@ export function ChatSlideOver({ open, onClose, onWorkoutChanged }: Props) {
       });
     } finally {
       setStreaming(false);
+      // Drop the optimistic pair — the persisted rows are now authoritative.
+      // Realtime will normally have already pushed them; refetch is a belt-
+      // and-suspenders fallback in case the channel is slow.
+      setOptimistic([]);
+      refetch();
     }
   }
 
   function handleEvent(event: string, data: unknown) {
-    setMessages((m) => {
+    setOptimistic((m) => {
       const copy = [...m];
       const last = copy[copy.length - 1];
       if (!last || last.role !== 'assistant') return copy;
@@ -145,6 +190,15 @@ export function ChatSlideOver({ open, onClose, onWorkoutChanged }: Props) {
     });
   }
 
+  async function handleClear() {
+    if (streaming) return;
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm('Clear all chat history? This cannot be undone.');
+      if (!ok) return;
+    }
+    await clear();
+  }
+
   return (
     <>
       {/* Scrim */}
@@ -164,18 +218,29 @@ export function ChatSlideOver({ open, onClose, onWorkoutChanged }: Props) {
       >
         <header className="flex h-16 items-center justify-between border-b border-border px-5">
           <h2 className="text-base font-semibold text-foreground">Coach</h2>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground"
-            aria-label="Close chat"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleClear}
+              disabled={streaming}
+              className="rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-40"
+              aria-label="Clear chat history"
+              title="Clear chat history"
+            >
+              <Trash2 size={18} />
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground"
+              aria-label="Close chat"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </header>
 
         <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
           {messages.map((m, i) => (
-            <div key={i} className="space-y-1.5">
+            <div key={m.id ?? `opt-${i}`} className="space-y-1.5">
               <MessageBubble role={m.role}>
                 {m.content || (
                   m.role === 'assistant' && streaming && i === messages.length - 1 ? (
