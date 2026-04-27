@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MessageSquare } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, MessageSquare, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useDiary } from '@/lib/hooks/useDiary';
 import { useGoals } from '@/lib/hooks/useGoals';
+import { useUserProfile } from '@/lib/hooks/useUserProfile';
 import { entriesTotals } from '@/lib/utils/macros';
 import { formatDate } from '@/lib/utils/dates';
 import type { BiometricsDaily, DailyBriefing } from '@/lib/types/models';
@@ -26,6 +28,7 @@ export default function DashboardPage() {
 
   const { entries } = useDiary(today);
   const { getGoalForDate } = useGoals();
+  const { isOnboarded, loading: profileLoading } = useUserProfile();
   const goal = getGoalForDate(today);
   const totals = entriesTotals(entries);
 
@@ -115,6 +118,24 @@ export default function DashboardPage() {
           </h1>
         </div>
       </div>
+
+      {!profileLoading && !isOnboarded && (
+        <Link
+          href="/onboarding"
+          className="flex items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 transition-colors hover:bg-accent/15"
+        >
+          <Sparkles size={18} className="text-accent" />
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-foreground">
+              Finish onboarding so Protocol can tailor your plan
+            </div>
+            <div className="text-xs text-muted">
+              Goals, restrictions, equipment, weekly schedule — 2 minutes.
+            </div>
+          </div>
+          <ArrowRight size={16} className="text-accent" />
+        </Link>
+      )}
 
       <BiometricsCard
         biometrics={biometrics}
