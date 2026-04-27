@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { FoodSearchPanel } from '@/components/food/FoodSearchPanel';
 import { FoodDetail } from '@/components/food/FoodDetail';
 import { CreateFoodForm } from '@/components/food/CreateFoodForm';
@@ -109,24 +109,30 @@ function FoodSearchContent() {
   return (
     <div className="space-y-4">
       {view === 'search' && (
-        <div className="flex items-center gap-3">
+        <header className="animate-[fadeIn_0.4s_ease-out]">
           <button
             onClick={() => router.push('/diary')}
-            className="rounded-lg p-1.5 text-muted transition-colors hover:bg-card-hover hover:text-foreground"
+            className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-foreground"
           >
-            <ArrowLeft size={20} />
+            <ChevronLeft size={14} />
+            Diary
           </button>
-          <h1 className="text-lg font-bold">
-            Add to {mealType}
-          </h1>
-        </div>
+          <div className="mt-2 flex items-baseline gap-3">
+            <span className="eyebrow text-accent">Add to</span>
+            <h1 className="font-serif text-2xl tracking-tight text-foreground">
+              {mealType}
+            </h1>
+          </div>
+        </header>
       )}
 
       {view === 'search' && (
-        <FoodSearchPanel
-          onSelect={handleSelect}
-          onCreateCustom={() => setView('create')}
-        />
+        <div className="glass rounded-2xl p-4">
+          <FoodSearchPanel
+            onSelect={handleSelect}
+            onCreateCustom={() => setView('create')}
+          />
+        </div>
       )}
 
       {view === 'detail' && selectedFood && (

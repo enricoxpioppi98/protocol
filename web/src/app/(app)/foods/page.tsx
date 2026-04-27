@@ -48,10 +48,21 @@ export default function FoodsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Foods</h1>
-        <span className="text-sm text-muted">{foods.length} foods</span>
-      </div>
+      <header className="mb-2 animate-[fadeIn_0.4s_ease-out]">
+        <div className="flex items-center gap-3 animate-[fadeIn_0.5s_ease-out_0.05s_both]">
+          <div className="eyebrow text-accent">Pantry</div>
+          <div className="h-px flex-1 bg-border" />
+          <div className="font-mono text-[10px] tabular-nums uppercase tracking-[0.22em] text-muted/70">
+            {foods.length.toString().padStart(3, '0')} items
+          </div>
+        </div>
+        <h1 className="mt-3 font-serif text-[44px] leading-[0.95] tracking-tight text-foreground sm:text-[52px] animate-[fadeIn_0.5s_ease-out_0.1s_both]">
+          My <span className="italic text-muted">foods</span>
+        </h1>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted animate-[fadeIn_0.5s_ease-out_0.18s_both]">
+          Custom foods you&rsquo;ve saved or imported. Tap to edit.
+        </p>
+      </header>
 
       {/* Search */}
       <div className="relative">
@@ -61,7 +72,7 @@ export default function FoodsPage() {
           placeholder="Search foods..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl bg-card py-3 pl-10 pr-4 text-sm text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"
+          className="glass w-full rounded-xl py-3 pl-10 pr-4 text-sm text-foreground placeholder:text-muted/50 focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/40"
         />
       </div>
 
@@ -71,36 +82,38 @@ export default function FoodsPage() {
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl bg-card px-6 py-10 text-center">
-          <p className="text-muted">{search ? 'No foods match your search' : 'No custom foods yet'}</p>
+        <div className="glass rounded-2xl px-6 py-10 text-center">
+          <p className="font-serif text-base italic text-muted">
+            {search ? 'No foods match your search' : 'No custom foods yet'}
+          </p>
         </div>
       ) : (
-        <div className="rounded-2xl bg-card">
-          {filtered.map((food, i) => (
+        <div className="glass overflow-hidden rounded-2xl divide-y divide-border">
+          {filtered.map((food) => (
             <div
               key={food.id}
-              className={`group flex items-center justify-between px-4 py-3 ${i < filtered.length - 1 ? 'border-b border-border' : ''}`}
+              className="group flex items-center justify-between px-4 py-3 transition-colors hover:bg-glass-3"
             >
               <button
                 onClick={() => setEditing(food)}
                 className="flex flex-1 flex-col gap-0.5 text-left"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{food.name}</span>
+                  <span className="text-sm font-medium text-foreground">{food.name}</span>
                   {food.is_custom && (
-                    <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[9px] font-medium text-accent">
+                    <span className="rounded-full border border-accent/30 bg-accent-light px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-accent">
                       Custom
                     </span>
                   )}
                 </div>
-                <div className="flex gap-2 text-[11px] text-muted">
+                <div className="mt-0.5 flex gap-2 font-mono text-[10px] tabular-nums text-muted">
                   {food.brand && <span>{food.brand}</span>}
-                  <span className="tabular-nums">{food.serving_size}{food.serving_unit}</span>
+                  <span>{food.serving_size}{food.serving_unit}</span>
                 </div>
               </button>
 
               <div className="flex items-center gap-2">
-                <div className="flex gap-1.5 text-[10px] tabular-nums">
+                <div className="flex gap-1.5 font-mono text-[10px] tabular-nums">
                   <span style={{ color: colors.highlight }}>{Math.round(food.calories)}</span>
                   <span style={{ color: colors.accent }}>{Math.round(food.protein)}P</span>
                   <span style={{ color: colors.highlight }}>{Math.round(food.carbs)}C</span>
