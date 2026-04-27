@@ -129,6 +129,9 @@ export interface FoodProduct {
 // Protocol v1: AI coaching layer
 // ============================================================
 
+export type Gender = 'male' | 'female' | 'nonbinary' | 'prefer_not_to_say';
+export type TrainingExperience = 'beginner' | 'intermediate' | 'advanced';
+
 export interface UserProfile {
   user_id: string;
   goals: {
@@ -150,10 +153,22 @@ export interface UserProfile {
    */
   pinned_metrics: string[];
   /**
-   * Derived genome traits parsed from a 23andMe raw upload. Keyed by stable
-   * trait identifier (e.g. `caffeine_metabolism`). Empty object until the
-   * user uploads their raw data via the Genome tab. See migration
-   * `008_genome.sql` and `lib/genome/catalog.ts`.
+   * Demographic context for the AI coach (migration 009). All optional —
+   * onboarding-v2 captures these but the prompt tolerates missing values.
+   * `weight_kg` is the user's baseline weight at onboarding time; live
+   * tracking lives in `weight_entries`.
+   */
+  dob: string | null; // ISO date YYYY-MM-DD
+  gender: Gender | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  training_experience: TrainingExperience | null;
+  /**
+   * Derived genome traits parsed from a 23andMe raw upload (Track K, migration
+   * 008). Keyed by stable trait identifier (e.g. `caffeine_metabolism`). Empty
+   * object until the user uploads their raw data via the Genome tab. See
+   * `lib/genome/catalog.ts` for the schema. Track L (the coaching context
+   * assembler) reads these verbatim into the Claude prompt.
    */
   genome_traits: GenomeTraits;
   /**
