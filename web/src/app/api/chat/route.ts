@@ -7,7 +7,7 @@ import { makeSSEStream, SSE_HEADERS } from '@/lib/claude/stream';
 import { assembleCoachContext, contextToPromptInput } from '@/lib/coach/context';
 import { WORKOUT_TOOL_INPUT_SCHEMA } from '@/lib/coach/types';
 import { createClient } from '@/lib/supabase/server';
-import type { BriefingWorkout } from '@/lib/types/models';
+import type { BriefingWorkout, ChatToolCall } from '@/lib/types/models';
 
 /**
  * POST /api/chat — streaming chat with the regenerate_workout tool.
@@ -55,6 +55,20 @@ export async function POST(req: Request) {
       JSON.stringify({ error: 'messages must end with a user turn' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
     );
+  }
+
+  // Persist the user's turn immediately. Failure here doesn't break chat —
+  // we just log and continue so the SSE stream still runs end-to-end.
+  const userTurnText = inbound.at(-1)?.content ?? '';
+  try {
+    await supabase.from('chat_messages').insert({
+      user_id: user.id,
+      role: 'user',
+      content: userTurnText,
+      tools: [],
+    });
+  } catch (err) {
+    console.error('[chat] persist user message failed', err);
   }
 
   const ctx = await assembleCoachContext(user.id);
@@ -107,6 +121,15 @@ export async function POST(req: Request) {
   // Run the agent loop in the background; the response returns the SSE stream.
   (async () => {
     let workingMessages = messages;
+    // Mirror what the client accumulates so we can persist the assistant turn
+    // after the stream ends. `assistantText` collects every text_delta across
+    // rounds; `assistantTools` mirrors per-tool status transitions.
+    let assistantText = '';
+    const assistantTools: ChatToolCall[] = [];
+    const setToolStatus = (id: string, status: ChatToolCall['status']) => {
+      const t = assistantTools.find((x) => x.id === id);
+      if (t) t.status = status;
+    };
     try {
       for (let round = 0; round < MAX_TOOL_ROUNDTRIPS; round++) {
         logAudit({
@@ -162,6 +185,11 @@ export async function POST(req: Request) {
                 jsonAcc: '',
                 index: evt.index,
               });
+              assistantTools.push({
+                id: evt.content_block.id,
+                name: evt.content_block.name,
+                status: 'pending',
+              });
               controller.emit('tool_use_start', {
                 id: evt.content_block.id,
                 name: evt.content_block.name,
@@ -169,6 +197,7 @@ export async function POST(req: Request) {
             }
           } else if (evt.type === 'content_block_delta') {
             if (evt.delta.type === 'text_delta') {
+              assistantText += evt.delta.text;
               controller.emit('text', { delta: evt.delta.text });
             } else if (evt.delta.type === 'input_json_delta') {
               // Find the tool by index — input_json_delta doesn't carry the id.
@@ -201,6 +230,7 @@ export async function POST(req: Request) {
         for (const block of finalMessage.content) {
           if (block.type !== 'tool_use') continue;
           if (block.name !== 'regenerate_workout') {
+            setToolStatus(block.id, 'error');
             controller.emit('tool_result', {
               id: block.id,
               ok: false,
@@ -215,6 +245,7 @@ export async function POST(req: Request) {
             continue;
           }
 
+          setToolStatus(block.id, 'running');
           controller.emit('tool_executing', { id: block.id, name: block.name });
 
           try {
@@ -241,6 +272,7 @@ export async function POST(req: Request) {
               .eq('user_id', user.id)
               .eq('date', today);
 
+            setToolStatus(block.id, 'success');
             controller.emit('tool_result', {
               id: block.id,
               ok: true,
@@ -253,6 +285,7 @@ export async function POST(req: Request) {
             });
           } catch (err) {
             console.error('[chat] tool error', err);
+            setToolStatus(block.id, 'error');
             controller.emit('tool_result', {
               id: block.id,
               ok: false,
@@ -280,6 +313,21 @@ export async function POST(req: Request) {
         message: err instanceof Error ? err.message : 'unknown error',
       });
     } finally {
+      // Fire-and-forget persistence of the assistant turn. Wrapped in try/catch
+      // because a DB write failure must not surface to the (already-closed)
+      // SSE stream.
+      try {
+        if (assistantText.length > 0 || assistantTools.length > 0) {
+          await supabase.from('chat_messages').insert({
+            user_id: user.id,
+            role: 'assistant',
+            content: assistantText,
+            tools: assistantTools,
+          });
+        }
+      } catch (persistErr) {
+        console.error('[chat] persist assistant message failed', persistErr);
+      }
       controller.close();
     }
   })();
