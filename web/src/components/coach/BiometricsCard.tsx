@@ -5,6 +5,7 @@ import { Activity, RefreshCw, Edit3 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { BiometricsDaily } from '@/lib/types/models';
 import { cn } from '@/lib/utils/cn';
+import { ReadinessScore } from './ReadinessScore';
 
 interface Props {
   biometrics: BiometricsDaily | null;
@@ -116,6 +117,7 @@ export function BiometricsCard({ biometrics, today, onSync, onEdit }: Props) {
         </div>
       ) : (
         <>
+          <ReadinessScore biometrics={biometrics} />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Sleep" value={biometrics.sleep_score} suffix="" />
             <Stat label="HRV" value={biometrics.hrv_ms} suffix="ms" />
