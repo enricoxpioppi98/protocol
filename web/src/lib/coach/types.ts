@@ -104,3 +104,40 @@ export function validateBriefingToolInput(value: unknown): BriefingToolInput {
 
 // Workout-only schema for the regenerate_workout tool result.
 export const WORKOUT_TOOL_INPUT_SCHEMA = BRIEFING_TOOL_INPUT_SCHEMA.properties.workout;
+
+// Meal-only schema for the swap_meal tool result. Mirrors a single item from
+// BRIEFING_TOOL_INPUT_SCHEMA.properties.meals.items so Claude returns a
+// well-formed BriefingMeal.
+export const MEAL_TOOL_INPUT_SCHEMA = BRIEFING_TOOL_INPUT_SCHEMA.properties.meals.items;
+
+export function validateMealToolInput(value: unknown): BriefingMeal {
+  if (!value || typeof value !== 'object') {
+    throw new Error('meal tool input is not an object');
+  }
+  const v = value as Record<string, unknown>;
+  if (
+    typeof v.slot !== 'string' ||
+    !['breakfast', 'lunch', 'dinner', 'snack'].includes(v.slot)
+  ) {
+    throw new Error('meal.slot must be one of breakfast|lunch|dinner|snack');
+  }
+  if (typeof v.name !== 'string' || v.name.length === 0) {
+    throw new Error('meal.name must be a non-empty string');
+  }
+  if (!Array.isArray(v.items)) {
+    throw new Error('meal.items must be an array');
+  }
+  if (!v.macros || typeof v.macros !== 'object') {
+    throw new Error('meal.macros missing');
+  }
+  const m = v.macros as Record<string, unknown>;
+  if (
+    typeof m.kcal !== 'number' ||
+    typeof m.p !== 'number' ||
+    typeof m.c !== 'number' ||
+    typeof m.f !== 'number'
+  ) {
+    throw new Error('meal.macros must contain numeric kcal, p, c, f');
+  }
+  return value as BriefingMeal;
+}

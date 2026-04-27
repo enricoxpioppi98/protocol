@@ -10,6 +10,7 @@ interface Props {
 
 const labelFor: Record<string, string> = {
   regenerate_workout: 'Rewriting today’s workout',
+  swap_meal: 'Swapping meal',
 };
 
 export function ToolActivityChip({ name, status }: Props) {

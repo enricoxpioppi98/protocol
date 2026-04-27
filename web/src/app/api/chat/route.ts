@@ -5,9 +5,18 @@ import { BRIEFING_SYSTEM_PROMPT } from '@/lib/claude/prompts/briefing';
 import { CHAT_SYSTEM_ADDENDUM } from '@/lib/claude/prompts/chat';
 import { makeSSEStream, SSE_HEADERS } from '@/lib/claude/stream';
 import { assembleCoachContext, contextToPromptInput } from '@/lib/coach/context';
-import { WORKOUT_TOOL_INPUT_SCHEMA } from '@/lib/coach/types';
+import {
+  MEAL_TOOL_INPUT_SCHEMA,
+  WORKOUT_TOOL_INPUT_SCHEMA,
+  validateMealToolInput,
+} from '@/lib/coach/types';
 import { createClient } from '@/lib/supabase/server';
-import type { BriefingWorkout, ChatToolCall } from '@/lib/types/models';
+import type {
+  BriefingMeal,
+  BriefingWorkout,
+  ChatToolCall,
+  MealSlot,
+} from '@/lib/types/models';
 
 /**
  * POST /api/chat — streaming chat with the regenerate_workout tool.
@@ -121,6 +130,11 @@ export async function POST(req: Request) {
   // Run the agent loop in the background; the response returns the SSE stream.
   (async () => {
     let workingMessages = messages;
+    // Track today's meals across rounds so multiple swap_meal calls in a single
+    // chat turn compose correctly (each swap sees the prior swap's result).
+    let currentMeals: BriefingMeal[] = Array.isArray(briefingRow?.meals)
+      ? (briefingRow.meals as BriefingMeal[])
+      : [];
     // Mirror what the client accumulates so we can persist the assistant turn
     // after the stream ends. `assistantText` collects every text_delta across
     // rounds; `assistantTools` mirrors per-tool status transitions.
@@ -164,6 +178,25 @@ export async function POST(req: Request) {
                   },
                 },
                 required: ['constraints'],
+              } as unknown as Anthropic.Tool.InputSchema,
+            },
+            {
+              name: 'swap_meal',
+              description:
+                'Swap a single meal at a given slot with a new meal. Use when the user wants to change one meal — different cuisine, different macros, dietary swap, etc.',
+              input_schema: {
+                type: 'object',
+                properties: {
+                  slot: {
+                    type: 'string',
+                    enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+                  },
+                  reason: {
+                    type: 'string',
+                    description: 'Why we are swapping (user constraint).',
+                  },
+                },
+                required: ['slot', 'reason'],
               } as unknown as Anthropic.Tool.InputSchema,
             },
           ],
@@ -225,11 +258,11 @@ export async function POST(req: Request) {
           break;
         }
 
-        // Run the tool(s). v1 only has regenerate_workout.
+        // Run the tool(s). v1 supports regenerate_workout and swap_meal.
         const toolResults: Anthropic.ToolResultBlockParam[] = [];
         for (const block of finalMessage.content) {
           if (block.type !== 'tool_use') continue;
-          if (block.name !== 'regenerate_workout') {
+          if (block.name !== 'regenerate_workout' && block.name !== 'swap_meal') {
             setToolStatus(block.id, 'error');
             controller.emit('tool_result', {
               id: block.id,
@@ -249,40 +282,89 @@ export async function POST(req: Request) {
           controller.emit('tool_executing', { id: block.id, name: block.name });
 
           try {
-            const input = block.input as {
-              constraints: string;
-              duration_minutes?: number;
-            };
-            const newWorkout = await regenerateWorkout({
-              userId: user.id,
-              today,
-              ctx,
-              previousWorkout: (briefingRow?.workout as BriefingWorkout) ?? null,
-              constraints: input.constraints,
-              durationMinutes: input.duration_minutes,
-            });
+            if (block.name === 'regenerate_workout') {
+              const input = block.input as {
+                constraints: string;
+                duration_minutes?: number;
+              };
+              const newWorkout = await regenerateWorkout({
+                userId: user.id,
+                today,
+                ctx,
+                previousWorkout: (briefingRow?.workout as BriefingWorkout) ?? null,
+                constraints: input.constraints,
+                durationMinutes: input.duration_minutes,
+              });
 
-            // Persist
-            await supabase
-              .from('daily_briefing')
-              .update({
-                workout: newWorkout,
-                regenerated_at: new Date().toISOString(),
-              })
-              .eq('user_id', user.id)
-              .eq('date', today);
+              // Persist
+              await supabase
+                .from('daily_briefing')
+                .update({
+                  workout: newWorkout,
+                  regenerated_at: new Date().toISOString(),
+                })
+                .eq('user_id', user.id)
+                .eq('date', today);
 
-            setToolStatus(block.id, 'success');
-            controller.emit('tool_result', {
-              id: block.id,
-              ok: true,
-              result: newWorkout,
-            });
-            toolResults.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
-              content: JSON.stringify(newWorkout),
-            });
+              setToolStatus(block.id, 'success');
+              controller.emit('tool_result', {
+                id: block.id,
+                ok: true,
+                result: newWorkout,
+              });
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: JSON.stringify(newWorkout),
+              });
+            } else {
+              // swap_meal
+              const input = block.input as {
+                slot: MealSlot;
+                reason: string;
+              };
+              const newMeal = await swapMeal({
+                userId: user.id,
+                today,
+                ctx,
+                currentMeals,
+                slot: input.slot,
+                reason: input.reason,
+              });
+
+              // Splice the new meal into the meals array. Replace if a meal at
+              // that slot exists; otherwise append (e.g. snack added on the fly).
+              const existingIdx = currentMeals.findIndex(
+                (m) => m.slot === newMeal.slot
+              );
+              const updatedMeals =
+                existingIdx >= 0
+                  ? currentMeals.map((m, i) => (i === existingIdx ? newMeal : m))
+                  : [...currentMeals, newMeal];
+              currentMeals = updatedMeals;
+
+              // Persist
+              await supabase
+                .from('daily_briefing')
+                .update({
+                  meals: updatedMeals,
+                  regenerated_at: new Date().toISOString(),
+                })
+                .eq('user_id', user.id)
+                .eq('date', today);
+
+              setToolStatus(block.id, 'success');
+              controller.emit('tool_result', {
+                id: block.id,
+                ok: true,
+                result: newMeal,
+              });
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: block.id,
+                content: JSON.stringify(newMeal),
+              });
+            }
           } catch (err) {
             console.error('[chat] tool error', err);
             setToolStatus(block.id, 'error');
@@ -400,4 +482,88 @@ async function regenerateWorkout(args: {
     throw new Error('regenerate_workout returned malformed workout');
   }
   return out.workout;
+}
+
+/**
+ * Sub-call: ask Claude for a single replacement meal at the given slot, given
+ * today's biometrics, the user's profile (especially dietary restrictions),
+ * the rest of today's meals, and the user's reason. Forces the meal schema
+ * via tool_choice on emit_meal.
+ */
+async function swapMeal(args: {
+  userId: string;
+  today: string;
+  ctx: Awaited<ReturnType<typeof assembleCoachContext>>;
+  currentMeals: BriefingMeal[];
+  slot: MealSlot;
+  reason: string;
+}): Promise<BriefingMeal> {
+  const anthropic = getAnthropic();
+
+  const previousMeal =
+    args.currentMeals.find((m) => m.slot === args.slot) ?? null;
+  const otherMeals = args.currentMeals.filter((m) => m.slot !== args.slot);
+
+  const userMessage = JSON.stringify(
+    {
+      task: 'swap_meal',
+      slot: args.slot,
+      reason: args.reason,
+      previous_meal: previousMeal,
+      other_meals_today: otherMeals,
+      biometrics: args.ctx.biometrics_today,
+      goals: args.ctx.profile?.goals ?? null,
+      dietary_restrictions: args.ctx.profile?.dietary_restrictions ?? [],
+    },
+    null,
+    0
+  );
+
+  const response = await anthropic.messages.create({
+    model: MODEL_SONNET,
+    max_tokens: 1000,
+    temperature: 0.3,
+    system: [
+      {
+        type: 'text',
+        text: BRIEFING_SYSTEM_PROMPT,
+        cache_control: { type: 'ephemeral' },
+      },
+      {
+        type: 'text',
+        text:
+          `Emit a single replacement meal at slot=${args.slot}. ` +
+          `Honor dietary_restrictions strictly. Keep macros sensible for the ` +
+          `user's goals and the rest of today's meals. Return only the meal — ` +
+          `the caller will splice it into the day.`,
+      },
+    ],
+    tools: [
+      {
+        name: 'emit_meal',
+        description: 'Emit the replacement meal JSON.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            meal: MEAL_TOOL_INPUT_SCHEMA as unknown as Record<string, unknown>,
+          },
+          required: ['meal'],
+        } as unknown as Anthropic.Tool.InputSchema,
+      },
+    ],
+    tool_choice: { type: 'tool', name: 'emit_meal' },
+    messages: [{ role: 'user', content: userMessage }],
+  });
+
+  const tool = response.content.find(
+    (b): b is Extract<Anthropic.ContentBlock, { type: 'tool_use' }> => b.type === 'tool_use'
+  );
+  if (!tool) throw new Error('swap_meal returned no tool call');
+  const out = tool.input as { meal: unknown };
+  const meal = validateMealToolInput(out.meal);
+  // Force the slot to match what was requested — Claude can drift.
+  if (meal.slot !== args.slot) {
+    meal.slot = args.slot;
+  }
+  return meal;
 }
