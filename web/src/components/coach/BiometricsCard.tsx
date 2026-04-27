@@ -1,7 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-import { Activity, RefreshCw, Edit3, History } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  Activity,
+  RefreshCw,
+  Edit3,
+  History,
+  Settings2,
+  Star,
+  StarOff,
+} from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { BiometricsDaily } from '@/lib/types/models';
 import { cn } from '@/lib/utils/cn';
@@ -17,7 +25,135 @@ interface Props {
   history?: BiometricsDaily[];
   /** Optional: sync past N days from Garmin. */
   onBackfill?: (days: number) => Promise<void>;
+  /**
+   * Pinned metric identifiers from `user_profile.pinned_metrics`. When
+   * omitted, the card falls back to the canonical 4-metric grid so callers
+   * that haven't wired up the picker yet keep today's behavior.
+   */
+  pinned?: string[];
+  /**
+   * Persist a new pin order. Wired to the PUT `/api/profile/pinned-metrics`
+   * endpoint via `useUserProfile().setPinned`.
+   */
+  onChangePinned?: (next: string[]) => Promise<void>;
 }
+
+const MAX_PINNED = 8;
+
+const DEFAULT_PINNED: readonly string[] = [
+  'sleep_score',
+  'hrv_ms',
+  'resting_hr',
+  'stress_avg',
+];
+
+interface MetricDef {
+  id: string;
+  label: string;
+  unit: string;
+  /**
+   * Permissive getter: most fields live on `BiometricsDaily` today, but
+   * Track H is extending the row with new fields (total_steps, vo2max,
+   * deep_sleep_minutes, etc.) on a separate branch. Those fields don't
+   * exist on the current TS type, so the catalog reads them through
+   * `as any` and falls back to `null`. Once Track H ships, the `as any`
+   * casts can be tightened — until then this stays runtime-safe and
+   * type-clean.
+   */
+  getter: (b: BiometricsDaily) => number | null | undefined;
+}
+
+const AVAILABLE_METRICS: MetricDef[] = [
+  { id: 'sleep_score', label: 'Sleep score', unit: '', getter: (b) => b.sleep_score },
+  {
+    id: 'sleep_duration_minutes',
+    label: 'Sleep duration',
+    unit: 'min',
+    getter: (b) => b.sleep_duration_minutes,
+  },
+  { id: 'hrv_ms', label: 'HRV', unit: 'ms', getter: (b) => b.hrv_ms },
+  { id: 'resting_hr', label: 'Resting HR', unit: 'bpm', getter: (b) => b.resting_hr },
+  { id: 'stress_avg', label: 'Stress', unit: '', getter: (b) => b.stress_avg },
+  // Track H extension fields — not on BiometricsDaily yet, hence the `as any`.
+  {
+    id: 'total_steps',
+    label: 'Steps',
+    unit: '',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).total_steps ?? null,
+  },
+  {
+    id: 'active_minutes',
+    label: 'Active minutes',
+    unit: 'min',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).active_minutes ?? null,
+  },
+  {
+    id: 'vigorous_minutes',
+    label: 'Vigorous minutes',
+    unit: 'min',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).vigorous_minutes ?? null,
+  },
+  {
+    id: 'vo2max',
+    label: 'VO2 max',
+    unit: '',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).vo2max ?? null,
+  },
+  {
+    id: 'deep_sleep_minutes',
+    label: 'Deep sleep',
+    unit: 'min',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).deep_sleep_minutes ?? null,
+  },
+  {
+    id: 'rem_sleep_minutes',
+    label: 'REM sleep',
+    unit: 'min',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).rem_sleep_minutes ?? null,
+  },
+  {
+    id: 'sleep_efficiency',
+    label: 'Sleep efficiency',
+    unit: '%',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).sleep_efficiency ?? null,
+  },
+  {
+    id: 'body_battery_high',
+    label: 'Body battery high',
+    unit: '',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).body_battery_high ?? null,
+  },
+  {
+    id: 'total_kcal_burned',
+    label: 'Calories burned',
+    unit: 'kcal',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).total_kcal_burned ?? null,
+  },
+  {
+    id: 'floors_climbed',
+    label: 'Floors',
+    unit: '',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getter: (b) => (b as any).floors_climbed ?? null,
+  },
+];
+
+const METRIC_BY_ID: Record<string, MetricDef> = AVAILABLE_METRICS.reduce(
+  (acc, m) => {
+    acc[m.id] = m;
+    return acc;
+  },
+  {} as Record<string, MetricDef>
+);
 
 function isToday(dateStr: string | undefined, today: string): boolean {
   return dateStr === today;
@@ -30,9 +166,31 @@ export function BiometricsCard({
   onEdit,
   history,
   onBackfill,
+  pinned,
+  onChangePinned,
 }: Props) {
   const [syncing, setSyncing] = useState(false);
   const [backfilling, setBackfilling] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Resolve the effective pin list. Filter against the catalog so unknown ids
+  // (e.g. legacy / typos) silently drop instead of blowing up the render.
+  const effectivePinned: string[] = useMemo(() => {
+    const source =
+      pinned && pinned.length > 0 ? pinned : (DEFAULT_PINNED as string[]);
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const id of source) {
+      if (!METRIC_BY_ID[id]) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push(id);
+    }
+    return out;
+  }, [pinned]);
+
+  const pinnedSet = useMemo(() => new Set(effectivePinned), [effectivePinned]);
+  const atCap = effectivePinned.length >= MAX_PINNED;
 
   async function handleSync() {
     if (syncing) return;
@@ -54,8 +212,20 @@ export function BiometricsCard({
     }
   }
 
+  async function togglePin(id: string) {
+    if (!onChangePinned) return;
+    if (pinnedSet.has(id)) {
+      await onChangePinned(effectivePinned.filter((p) => p !== id));
+    } else {
+      if (atCap) return; // soft cap; star is disabled in the UI too
+      await onChangePinned([...effectivePinned, id]);
+    }
+  }
+
   const stale = biometrics && !isToday(biometrics.date, today);
 
+  // "All null" check is unchanged — the canonical 4 metrics define whether
+  // Garmin has computed today's wellness data, regardless of what's pinned.
   const allNull =
     biometrics &&
     biometrics.sleep_score == null &&
@@ -73,6 +243,8 @@ export function BiometricsCard({
       lastSynced = null;
     }
   }
+
+  const canPin = Boolean(onChangePinned);
 
   return (
     <div className="rounded-2xl bg-card p-5">
@@ -94,6 +266,19 @@ export function BiometricsCard({
           )}
         </div>
         <div className="flex items-center gap-1">
+          {canPin ? (
+            <button
+              onClick={() => setPickerOpen((v) => !v)}
+              className={cn(
+                'rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground',
+                pickerOpen && 'bg-card-hover text-foreground'
+              )}
+              aria-label="Pin metrics"
+              aria-expanded={pickerOpen}
+            >
+              <Settings2 size={16} />
+            </button>
+          ) : null}
           <button
             onClick={onEdit}
             className="rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground"
@@ -167,12 +352,15 @@ export function BiometricsCard({
       ) : (
         <>
           <ReadinessScore biometrics={biometrics} />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Sleep" value={biometrics.sleep_score} suffix="" />
-            <Stat label="HRV" value={biometrics.hrv_ms} suffix="ms" />
-            <Stat label="Resting HR" value={biometrics.resting_hr} suffix="bpm" />
-            <Stat label="Stress" value={biometrics.stress_avg} suffix="" />
-          </div>
+          <MetricsGrid metrics={effectivePinned} biometrics={biometrics} />
+          {pickerOpen && canPin ? (
+            <MetricsPicker
+              biometrics={biometrics}
+              pinnedSet={pinnedSet}
+              atCap={atCap}
+              onToggle={togglePin}
+            />
+          ) : null}
           {history && history.length > 0 ? (
             <BiometricsTrend rows={history} days={7} />
           ) : null}
@@ -196,6 +384,111 @@ export function BiometricsCard({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function MetricsGrid({
+  metrics,
+  biometrics,
+}: {
+  metrics: string[];
+  biometrics: BiometricsDaily;
+}) {
+  if (metrics.length === 0) {
+    return (
+      <div className="rounded-xl bg-card-hover px-4 py-3 text-center text-xs text-muted">
+        No metrics pinned. Use the pin menu to choose which to show.
+      </div>
+    );
+  }
+  // 2 cols on mobile, 3 cols at sm, 4 at md+. Caps cleanly at the 8 max.
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+      {metrics.map((id) => {
+        const def = METRIC_BY_ID[id];
+        if (!def) return null;
+        const value = def.getter(biometrics) ?? null;
+        return (
+          <Stat
+            key={id}
+            label={def.label}
+            value={value}
+            suffix={def.unit}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function MetricsPicker({
+  biometrics,
+  pinnedSet,
+  atCap,
+  onToggle,
+}: {
+  biometrics: BiometricsDaily;
+  pinnedSet: Set<string>;
+  atCap: boolean;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <div className="mt-3 rounded-xl border border-border bg-card-hover/40 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+          Pin metrics
+        </div>
+        <div className="text-[11px] text-muted/70">
+          {pinnedSet.size}/{MAX_PINNED} pinned
+        </div>
+      </div>
+      <ul className="divide-y divide-border/50">
+        {AVAILABLE_METRICS.map((m) => {
+          const isPinned = pinnedSet.has(m.id);
+          const value = m.getter(biometrics) ?? null;
+          const disabled = !isPinned && atCap;
+          return (
+            <li
+              key={m.id}
+              className="flex items-center justify-between gap-2 py-1.5"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm text-foreground">{m.label}</div>
+                <div className="font-mono text-[11px] tabular-nums text-muted">
+                  {value ?? '—'}
+                  {value != null && m.unit ? (
+                    <span className="ml-1">{m.unit}</span>
+                  ) : null}
+                </div>
+              </div>
+              <button
+                onClick={() => onToggle(m.id)}
+                disabled={disabled}
+                title={
+                  disabled
+                    ? `Max ${MAX_PINNED} pinned`
+                    : isPinned
+                      ? 'Unpin'
+                      : 'Pin'
+                }
+                aria-label={
+                  isPinned ? `Unpin ${m.label}` : `Pin ${m.label}`
+                }
+                className={cn(
+                  'rounded-lg p-2 transition-colors',
+                  isPinned
+                    ? 'text-accent hover:bg-card-hover'
+                    : 'text-muted hover:bg-card-hover hover:text-foreground',
+                  disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent'
+                )}
+              >
+                {isPinned ? <Star size={16} fill="currentColor" /> : <StarOff size={16} />}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

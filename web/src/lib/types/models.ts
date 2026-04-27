@@ -142,6 +142,13 @@ export interface UserProfile {
     [day: string]: string[] | undefined; // e.g. monday: ["lift"], tuesday: ["run", "easy"]
   };
   notes: string;
+  /**
+   * Identifiers of biometric metrics the user has pinned to the dashboard
+   * BiometricsCard. Order is preserved (pin order = render order). See
+   * `AVAILABLE_METRICS` in `BiometricsCard.tsx` for the catalog and migration
+   * `007_pinned_metrics.sql` for the column default.
+   */
+  pinned_metrics: string[];
   created_at: string;
   updated_at: string;
 }

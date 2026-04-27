@@ -29,7 +29,7 @@ export default function DashboardPage() {
 
   const { entries } = useDiary(today);
   const { getGoalForDate } = useGoals();
-  const { isOnboarded, loading: profileLoading } = useUserProfile();
+  const { isOnboarded, loading: profileLoading, pinned, setPinned } = useUserProfile();
   const goal = getGoalForDate(today);
   const totals = entriesTotals(entries);
 
@@ -169,6 +169,8 @@ export default function DashboardPage() {
         onEdit={() => setEditingBio(true)}
         history={biometricsHistory}
         onBackfill={handleBackfillGarmin}
+        pinned={pinned}
+        onChangePinned={setPinned}
       />
 
       <MacrosCard totals={totals} goal={goal ?? null} />
