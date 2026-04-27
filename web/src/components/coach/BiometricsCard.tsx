@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Activity, RefreshCw, Edit3 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import type { BiometricsDaily } from '@/lib/types/models';
 import { cn } from '@/lib/utils/cn';
 
@@ -30,6 +31,24 @@ export function BiometricsCard({ biometrics, today, onSync, onEdit }: Props) {
   }
 
   const stale = biometrics && !isToday(biometrics.date, today);
+
+  const allNull =
+    biometrics &&
+    biometrics.sleep_score == null &&
+    biometrics.hrv_ms == null &&
+    biometrics.resting_hr == null &&
+    biometrics.stress_avg == null;
+
+  let lastSynced: string | null = null;
+  if (biometrics?.fetched_at) {
+    try {
+      lastSynced = formatDistanceToNow(new Date(biometrics.fetched_at), {
+        addSuffix: true,
+      });
+    } catch {
+      lastSynced = null;
+    }
+  }
 
   return (
     <div className="rounded-2xl bg-card p-5">
@@ -70,17 +89,45 @@ export function BiometricsCard({ biometrics, today, onSync, onEdit }: Props) {
       </div>
 
       {!biometrics ? (
-        <div className="py-6 text-center text-sm text-muted">
-          No data yet today. Click <RefreshCw size={12} className="inline" /> to pull
-          from Garmin, or <Edit3 size={12} className="inline" /> to enter manually.
+        <div className="flex flex-col items-center gap-4 py-4 text-center">
+          <p className="text-sm text-muted">No data yet today.</p>
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              <RefreshCw size={14} className={cn(syncing && 'animate-spin')} />
+              Sync from Garmin
+            </button>
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-card-hover px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-card-hover/80"
+            >
+              <Edit3 size={14} />
+              Enter manually
+            </button>
+          </div>
+        </div>
+      ) : allNull ? (
+        <div className="py-4 text-center text-sm text-muted">
+          Biometrics logged but all values are blank — sync from Garmin or edit
+          manually to fill them in.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Sleep" value={biometrics.sleep_score} suffix="" />
-          <Stat label="HRV" value={biometrics.hrv_ms} suffix="ms" />
-          <Stat label="Resting HR" value={biometrics.resting_hr} suffix="bpm" />
-          <Stat label="Stress" value={biometrics.stress_avg} suffix="" />
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label="Sleep" value={biometrics.sleep_score} suffix="" />
+            <Stat label="HRV" value={biometrics.hrv_ms} suffix="ms" />
+            <Stat label="Resting HR" value={biometrics.resting_hr} suffix="bpm" />
+            <Stat label="Stress" value={biometrics.stress_avg} suffix="" />
+          </div>
+          {lastSynced && (
+            <div className="mt-3 text-[11px] text-muted/70">
+              Last synced {lastSynced}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

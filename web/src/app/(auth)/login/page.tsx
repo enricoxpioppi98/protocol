@@ -36,7 +36,10 @@ export default function LoginPage() {
         <div className="text-center">
           <Flame size={36} className="mx-auto mb-3 text-accent" />
           <h1 className="text-3xl font-bold tracking-tight text-accent">Protocol</h1>
-          <p className="mt-2 text-muted">Sign in to your account</p>
+          <p className="mt-1 text-xs font-medium uppercase tracking-[0.18em] text-muted/80">
+            Your AI personal health coach
+          </p>
+          <p className="mt-3 text-muted">Sign in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
