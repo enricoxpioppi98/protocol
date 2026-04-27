@@ -364,23 +364,40 @@ export function BiometricsCard({
           {history && history.length > 0 ? (
             <BiometricsTrend rows={history} days={7} />
           ) : null}
-          <div className="mt-3 flex items-center justify-between gap-2">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             {lastSynced ? (
               <div className="text-[11px] text-muted/70">Last synced {lastSynced}</div>
             ) : (
               <span />
             )}
-            {onBackfill ? (
-              <button
-                onClick={handleBackfill}
-                disabled={backfilling}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
-                title="Pull the last 7 days from Garmin"
-              >
-                <History size={12} className={cn(backfilling && 'animate-spin')} />
-                {backfilling ? 'Backfilling…' : 'Pull 7 days'}
-              </button>
-            ) : null}
+            <div className="flex items-center gap-1">
+              {canPin ? (
+                <button
+                  onClick={() => setPickerOpen((v) => !v)}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
+                    pickerOpen
+                      ? 'bg-accent text-white hover:bg-accent/90'
+                      : 'border border-border text-foreground hover:bg-card-hover'
+                  )}
+                  title="Choose which metrics show on the dashboard"
+                >
+                  <Settings2 size={12} />
+                  {pickerOpen ? 'Done' : 'Customize metrics'}
+                </button>
+              ) : null}
+              {onBackfill ? (
+                <button
+                  onClick={handleBackfill}
+                  disabled={backfilling}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
+                  title="Pull the last 7 days from Garmin"
+                >
+                  <History size={12} className={cn(backfilling && 'animate-spin')} />
+                  {backfilling ? 'Backfilling…' : 'Pull 7 days'}
+                </button>
+              ) : null}
+            </div>
           </div>
         </>
       )}

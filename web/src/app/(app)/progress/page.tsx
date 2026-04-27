@@ -210,10 +210,27 @@ export default function ProgressPage() {
     [selectedMetricIds]
   );
 
-  // Y-axis strategy: multi-axis up to the picker cap. Normalized is wired
-  // up but not exposed in the UI (the cap of 6 keeps multi-axis legible).
-  const chartMode: 'multi-axis' | 'normalized' =
-    selectedMetrics.length > MAX_SELECTED_METRICS ? 'normalized' : 'multi-axis';
+  // Y-axis strategy: 'normalized' rescales every series to its own min/max
+  // (0-100 within the visible range), so a metric with magnitude 0-60 like
+  // vigorous_minutes stays visible alongside a metric with magnitude 0-15000
+  // like total_steps. 'multi-axis' is honest about absolute scale but flatlines
+  // small-magnitude metrics. We default to normalized when 3+ metrics are
+  // selected; the user can flip via the chart toolbar.
+  const [chartMode, setChartMode] = useState<'normalized' | 'multi-axis'>(
+    () => 'normalized'
+  );
+  // Auto-flip to normalized when the user adds a 3rd metric, but don't fight
+  // the user once they've explicitly picked a mode.
+  const [chartModeUserSet, setChartModeUserSet] = useState(false);
+  useEffect(() => {
+    if (chartModeUserSet) return;
+    setChartMode(selectedMetrics.length >= 3 ? 'normalized' : 'multi-axis');
+  }, [selectedMetrics.length, chartModeUserSet]);
+
+  function toggleChartMode() {
+    setChartModeUserSet(true);
+    setChartMode((m) => (m === 'normalized' ? 'multi-axis' : 'normalized'));
+  }
 
   // Goal-suggestion still uses the macro-tracker math.
   const suggestion = !suggestionDismissed
@@ -258,7 +275,43 @@ export default function ProgressPage() {
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
         </div>
       ) : (
-        <MultiMetricChart data={chartData} metrics={selectedMetrics} mode={chartMode} />
+        <div className="space-y-2">
+          {selectedMetrics.length >= 2 ? (
+            <div className="flex items-center justify-end">
+              <div className="flex gap-1 rounded-lg bg-card-hover p-0.5 text-[11px]">
+                <button
+                  onClick={() => {
+                    if (chartMode !== 'normalized') toggleChartMode();
+                  }}
+                  className={cn(
+                    'rounded-md px-2.5 py-1 font-medium transition-colors',
+                    chartMode === 'normalized'
+                      ? 'bg-accent text-white'
+                      : 'text-muted hover:text-foreground'
+                  )}
+                  title="Each metric scaled to its own min/max — best for comparing trends across very different magnitudes."
+                >
+                  Normalized
+                </button>
+                <button
+                  onClick={() => {
+                    if (chartMode !== 'multi-axis') toggleChartMode();
+                  }}
+                  className={cn(
+                    'rounded-md px-2.5 py-1 font-medium transition-colors',
+                    chartMode === 'multi-axis'
+                      ? 'bg-accent text-white'
+                      : 'text-muted hover:text-foreground'
+                  )}
+                  title="Up to 2 shared axes — honest about magnitude but small-scale metrics may flatten."
+                >
+                  Multi-axis
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <MultiMetricChart data={chartData} metrics={selectedMetrics} mode={chartMode} />
+        </div>
       )}
 
       <MetricStatStrip metrics={selectedMetrics} data={chartData} />
