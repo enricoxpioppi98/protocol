@@ -1,9 +1,21 @@
 'use client';
 
 import { useState } from 'react';
-import { Sparkles, RefreshCw, Clock, ChefHat, Dumbbell, Heart } from 'lucide-react';
+import {
+  Sparkles,
+  RefreshCw,
+  Clock,
+  ChefHat,
+  Dumbbell,
+  Heart,
+  BookOpen,
+  Check,
+  Loader2,
+} from 'lucide-react';
 import type { DailyBriefing } from '@/lib/types/models';
 import { cn } from '@/lib/utils/cn';
+
+type LogStatus = 'idle' | 'submitting' | 'success' | 'error';
 
 interface Props {
   briefing: DailyBriefing | null;
@@ -27,6 +39,7 @@ function isFresh(regeneratedAt: string | null | undefined): boolean {
 
 export function BriefingCard({ briefing, loading, onGenerate }: Props) {
   const [busy, setBusy] = useState(false);
+  const [logStatus, setLogStatus] = useState<Record<number, LogStatus>>({});
 
   async function handle(regenerate: boolean) {
     if (busy) return;
@@ -35,6 +48,46 @@ export function BriefingCard({ briefing, loading, onGenerate }: Props) {
       await onGenerate(regenerate);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleLogMeal(index: number) {
+    if (!briefing) return;
+    if (logStatus[index] === 'submitting') return;
+    setLogStatus((s) => ({ ...s, [index]: 'submitting' }));
+    try {
+      const res = await fetch('/api/diary/log-briefing-meal', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          briefing_date: briefing.date,
+          meal_index: index,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(`request failed: ${res.status}`);
+      }
+      setLogStatus((s) => ({ ...s, [index]: 'success' }));
+      setTimeout(() => {
+        setLogStatus((s) => {
+          // Only revert if still in success — don't trample a re-click.
+          if (s[index] !== 'success') return s;
+          const next = { ...s };
+          next[index] = 'idle';
+          return next;
+        });
+      }, 3000);
+    } catch (err) {
+      console.error('[BriefingCard] log meal failed', err);
+      setLogStatus((s) => ({ ...s, [index]: 'error' }));
+      setTimeout(() => {
+        setLogStatus((s) => {
+          if (s[index] !== 'error') return s;
+          const next = { ...s };
+          next[index] = 'idle';
+          return next;
+        });
+      }, 3000);
     }
   }
 
@@ -219,6 +272,13 @@ export function BriefingCard({ briefing, loading, onGenerate }: Props) {
                           .join('  ·  ')}
                       </div>
                     ) : null}
+                    <div className="mt-3 flex justify-end">
+                      <LogMealButton
+                        status={logStatus[i] ?? 'idle'}
+                        disabled={!m.items?.length}
+                        onClick={() => handleLogMeal(i)}
+                      />
+                    </div>
                   </div>
                 );
               })}
@@ -261,5 +321,54 @@ function SectionHead({
       <span className="h-px flex-1 bg-border" />
       {right}
     </div>
+  );
+}
+
+function LogMealButton({
+  status,
+  disabled,
+  onClick,
+}: {
+  status: LogStatus;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const isSubmitting = status === 'submitting';
+  const isSuccess = status === 'success';
+  const isError = status === 'error';
+
+  const label = isSubmitting
+    ? 'Logging…'
+    : isSuccess
+      ? 'Logged'
+      : isError
+        ? 'Retry'
+        : '+ Log meal';
+
+  const Icon = isSubmitting
+    ? Loader2
+    : isSuccess
+      ? Check
+      : BookOpen;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || isSubmitting}
+      aria-label={isSubmitting ? 'Logging meal to diary' : 'Log meal to diary'}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] transition-colors',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        isSuccess
+          ? 'border-accent/50 bg-accent/15 text-accent'
+          : isError
+            ? 'border-fat/50 bg-fat/10 text-fat hover:bg-fat/20'
+            : 'border-border bg-glass-2 text-muted hover:bg-glass-3 hover:text-foreground'
+      )}
+    >
+      <Icon size={11} className={cn(isSubmitting && 'animate-spin')} />
+      {label}
+    </button>
   );
 }
