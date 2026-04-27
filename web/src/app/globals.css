@@ -217,9 +217,13 @@ html {
   color: var(--color-foreground);
 }
 
-/* Body backdrop — atmospheric radial gradients pinned behind every page. */
+/* Body — note: layout.tsx sets `fixed inset-0 overflow-hidden` on the body
+   so the page never bounces; the inner wrapper div is the actual scroll
+   container. We do NOT set `position: relative` here because it would race
+   with the React-applied `.fixed` utility (specificity ties get fragile in
+   Tailwind 4). The pseudo-elements below use `position: fixed` directly,
+   so they're pinned to the viewport regardless of the body's positioning. */
 body {
-  position: relative;
   background-color: var(--color-background);
   font-feature-settings: 'ss01', 'cv11';
 }
@@ -246,10 +250,13 @@ body::after {
   mix-blend-mode: overlay;
 }
 
-/* Lift the actual app content above the backdrop. */
+/* Lift the actual app content above the backdrop. The wrapper div in
+   layout.tsx is the scroll container (`h-full overflow-y-auto`); we add
+   `isolation: isolate` to give it its own stacking context so the z-index
+   on the children doesn't fight the backdrop. We deliberately do NOT set
+   `position: relative` because that re-creates the original scroll bug. */
 body > * {
-  position: relative;
-  z-index: 1;
+  isolation: isolate;
 }
 
 /* ============================================================
