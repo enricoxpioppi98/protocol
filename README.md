@@ -78,6 +78,27 @@ cp .env.example .env.local
 npm run dev
 ```
 
+## MCP servers
+
+Two model-context-protocol servers ship with the repo, declared in `.mcp.json` at the root:
+
+- **`supabase`** — `@supabase/mcp-server-supabase` in `--read-only` mode. Lets Claude Code (or Claude Desktop) inspect the schema, run safe SELECT queries, and traverse rows during development without leaving the editor. Configured via two env vars on your machine: `SUPABASE_PROJECT_REF` (the `wczogozmkhvealsygzni`-style project ref) and `SUPABASE_ACCESS_TOKEN` (a personal access token from `https://supabase.com/dashboard/account/tokens`).
+- **`playwright`** — `@playwright/mcp` exposes a headless browser as MCP tools, used to run the v1 demo-loop smoke test in `web/tests/v1-loop.spec.ts` end-to-end (signup → onboarding → biometrics → briefing → chat → workout regen).
+
+### Wiring
+
+**Claude Code** auto-discovers `.mcp.json` from the repo root. From inside the cloned repo:
+
+```bash
+export SUPABASE_PROJECT_REF=...
+export SUPABASE_ACCESS_TOKEN=...
+claude mcp list  # confirm both servers register
+```
+
+**Claude Desktop** (or any other MCP-aware client) needs an entry in its global config. On macOS that's `~/Library/Application Support/Claude/claude_desktop_config.json` — copy the two server blocks from `.mcp.json` into the desktop config's `mcpServers` map and restart Claude.
+
+Both servers are dev-time tooling — they're not invoked by the running web app at runtime.
+
 ## License
 
 MIT. Built with Claude Code.
