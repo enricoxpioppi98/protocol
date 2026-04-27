@@ -105,16 +105,23 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-baseline justify-between">
-        <div>
-          <div className="text-xs font-medium uppercase tracking-wider text-muted">
-            {today.toLocaleDateString('en-US', { weekday: 'long' })}
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {today.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
-          </h1>
+      <header className="mb-2 animate-[fadeIn_0.4s_ease-out]">
+        <div
+          className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent animate-[fadeIn_0.5s_ease-out_0.05s_both]"
+        >
+          {today.toLocaleDateString('en-US', { weekday: 'long' })}
         </div>
-      </div>
+        <h1
+          className="mt-1 text-4xl font-bold leading-none tracking-tight text-foreground sm:text-5xl animate-[fadeIn_0.5s_ease-out_0.1s_both]"
+        >
+          {today.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+        </h1>
+        <p
+          className="mt-2 text-sm text-muted animate-[fadeIn_0.5s_ease-out_0.18s_both]"
+        >
+          Your plan for today, tuned to last night&rsquo;s recovery.
+        </p>
+      </header>
 
       <BiometricsCard
         biometrics={biometrics}

@@ -2,6 +2,7 @@
 
 import { Flame } from 'lucide-react';
 import type { DailyGoal } from '@/lib/types/models';
+import { cn } from '@/lib/utils/cn';
 
 interface Props {
   totals: { calories: number; protein: number; carbs: number; fat: number };
@@ -44,7 +45,21 @@ function Bar({
   goal: number;
   unit: string;
 }) {
-  const pct = goal > 0 ? Math.min(100, (value / goal) * 100) : 0;
+  const rawPct = goal > 0 ? (value / goal) * 100 : 0;
+  const fillPct = Math.min(100, rawPct);
+  const roundedPct = Math.round(rawPct);
+
+  // Color buckets:
+  //   < 80%   under (muted)
+  //   80–110% on target (accent)
+  //   > 110%  over (danger / highlight)
+  let pctClass = 'text-muted';
+  if (rawPct >= 110) pctClass = 'text-danger';
+  else if (rawPct >= 80) pctClass = 'text-accent';
+
+  let barClass = 'bg-accent';
+  if (rawPct >= 110) barClass = 'bg-danger';
+
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between text-xs">
@@ -55,11 +70,24 @@ function Bar({
           {unit}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-card-hover">
-        <div
-          className="h-full rounded-full bg-accent transition-[width] duration-300"
-          style={{ width: `${pct}%` }}
-        />
+      <div className="flex items-center gap-2">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-card-hover">
+          <div
+            className={cn(
+              'h-full rounded-full transition-[width,background-color] duration-500 ease-out',
+              barClass
+            )}
+            style={{ width: `${fillPct}%` }}
+          />
+        </div>
+        <span
+          className={cn(
+            'w-10 text-right font-mono text-[11px] font-medium tabular-nums tabular transition-colors duration-300',
+            pctClass
+          )}
+        >
+          {roundedPct}%
+        </span>
       </div>
     </div>
   );
