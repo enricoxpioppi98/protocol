@@ -10,10 +10,12 @@ import {
   Plus,
   Sparkles,
   Target,
+  User,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useUserProfile } from '@/lib/hooks/useUserProfile';
+import type { Gender, TrainingExperience } from '@/lib/types/models';
 
 const DIETARY_PRESETS = [
   'vegan',
@@ -51,7 +53,40 @@ const DAYS = [
 
 type DayKey = (typeof DAYS)[number]['key'];
 
-const TOTAL_STEPS = 3;
+const TOTAL_STEPS = 4;
+
+const GENDER_OPTIONS: { value: Gender; label: string }[] = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'nonbinary', label: 'Non-binary' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+];
+
+const TRAINING_EXPERIENCE_OPTIONS: {
+  value: TrainingExperience;
+  label: string;
+  hint: string;
+}[] = [
+  { value: 'beginner', label: 'Beginner', hint: '<1 year of structured training' },
+  { value: 'intermediate', label: 'Intermediate', hint: '1-5 years' },
+  { value: 'advanced', label: 'Advanced', hint: '5+ years' },
+];
+
+type WeightUnit = 'kg' | 'lb';
+type HeightUnit = 'cm' | 'in';
+
+function lbToKg(lb: number): number {
+  return lb / 2.2046226218;
+}
+function kgToLb(kg: number): number {
+  return kg * 2.2046226218;
+}
+function inToCm(inches: number): number {
+  return inches * 2.54;
+}
+function cmToIn(cm: number): number {
+  return cm / 2.54;
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -71,6 +106,18 @@ export default function OnboardingPage() {
     saturday: [],
     sunday: [],
   });
+
+  // Demographics (step 2)
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
+  const [heightUnit, setHeightUnit] = useState<HeightUnit>('cm');
+  const [heightInput, setHeightInput] = useState(''); // raw user input for current unit
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
+  const [weightInput, setWeightInput] = useState(''); // raw user input for current unit
+  const [trainingExperience, setTrainingExperience] = useState<
+    TrainingExperience | ''
+  >('');
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -91,6 +138,19 @@ export default function OnboardingPage() {
         return next;
       });
     }
+    if (typeof profile.dob === 'string') setDob(profile.dob);
+    if (typeof profile.gender === 'string') setGender(profile.gender as Gender);
+    if (typeof profile.height_cm === 'number') {
+      setHeightUnit('cm');
+      setHeightInput(String(Math.round(profile.height_cm)));
+    }
+    if (typeof profile.weight_kg === 'number') {
+      setWeightUnit('kg');
+      setWeightInput(String(Math.round(profile.weight_kg * 10) / 10));
+    }
+    if (typeof profile.training_experience === 'string') {
+      setTrainingExperience(profile.training_experience as TrainingExperience);
+    }
   }, [profile]);
 
   const canAdvanceStep1 = primary.trim().length > 0;
@@ -98,6 +158,19 @@ export default function OnboardingPage() {
   async function handleSubmit() {
     setError('');
     setSubmitting(true);
+
+    // Convert demographics to canonical units before submit.
+    const heightCm = (() => {
+      const n = parseFloat(heightInput);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      return heightUnit === 'cm' ? n : inToCm(n);
+    })();
+    const weightKg = (() => {
+      const n = parseFloat(weightInput);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      return weightUnit === 'kg' ? n : lbToKg(n);
+    })();
+
     try {
       const res = await fetch('/api/onboarding', {
         method: 'POST',
@@ -110,6 +183,11 @@ export default function OnboardingPage() {
           dietary_restrictions: dietary,
           equipment_available: equipment,
           weekly_schedule: schedule,
+          dob: dob || null,
+          gender: gender || null,
+          height_cm: heightCm,
+          weight_kg: weightKg,
+          training_experience: trainingExperience || null,
         }),
       });
       if (!res.ok) {
@@ -153,6 +231,24 @@ export default function OnboardingPage() {
             />
           )}
           {step === 2 && (
+            <DemographicsStep
+              dob={dob}
+              gender={gender}
+              heightUnit={heightUnit}
+              heightInput={heightInput}
+              weightUnit={weightUnit}
+              weightInput={weightInput}
+              trainingExperience={trainingExperience}
+              onDobChange={setDob}
+              onGenderChange={setGender}
+              onHeightUnitChange={setHeightUnit}
+              onHeightChange={setHeightInput}
+              onWeightUnitChange={setWeightUnit}
+              onWeightChange={setWeightInput}
+              onTrainingExperienceChange={setTrainingExperience}
+            />
+          )}
+          {step === 3 && (
             <RestrictionsStep
               dietary={dietary}
               equipment={equipment}
@@ -160,7 +256,7 @@ export default function OnboardingPage() {
               onEquipmentChange={setEquipment}
             />
           )}
-          {step === 3 && (
+          {step === 4 && (
             <ScheduleStep schedule={schedule} onScheduleChange={setSchedule} />
           )}
 
@@ -244,7 +340,228 @@ function GoalsStep({
 }
 
 // ============================================================
-// Step 2: Dietary restrictions + equipment
+// Step 2: Demographics (coach v2)
+// ============================================================
+
+function DemographicsStep({
+  dob,
+  gender,
+  heightUnit,
+  heightInput,
+  weightUnit,
+  weightInput,
+  trainingExperience,
+  onDobChange,
+  onGenderChange,
+  onHeightUnitChange,
+  onHeightChange,
+  onWeightUnitChange,
+  onWeightChange,
+  onTrainingExperienceChange,
+}: {
+  dob: string;
+  gender: Gender | '';
+  heightUnit: HeightUnit;
+  heightInput: string;
+  weightUnit: WeightUnit;
+  weightInput: string;
+  trainingExperience: TrainingExperience | '';
+  onDobChange: (v: string) => void;
+  onGenderChange: (v: Gender | '') => void;
+  onHeightUnitChange: (v: HeightUnit) => void;
+  onHeightChange: (v: string) => void;
+  onWeightUnitChange: (v: WeightUnit) => void;
+  onWeightChange: (v: string) => void;
+  onTrainingExperienceChange: (v: TrainingExperience | '') => void;
+}) {
+  function handleHeightUnitToggle(next: HeightUnit) {
+    if (next === heightUnit) return;
+    const n = parseFloat(heightInput);
+    if (Number.isFinite(n) && n > 0) {
+      const converted = next === 'cm' ? inToCm(n) : cmToIn(n);
+      onHeightChange(String(Math.round(converted * 10) / 10));
+    }
+    onHeightUnitChange(next);
+  }
+  function handleWeightUnitToggle(next: WeightUnit) {
+    if (next === weightUnit) return;
+    const n = parseFloat(weightInput);
+    if (Number.isFinite(n) && n > 0) {
+      const converted = next === 'kg' ? lbToKg(n) : kgToLb(n);
+      onWeightChange(String(Math.round(converted * 10) / 10));
+    }
+    onWeightUnitChange(next);
+  }
+
+  return (
+    <div className="rounded-2xl bg-card p-5">
+      <div className="mb-1 flex items-center gap-2">
+        <User size={18} className="text-accent" />
+        <h2 className="font-semibold text-foreground">About you</h2>
+      </div>
+      <p className="mb-4 text-xs text-muted">
+        Used to scale recommendations by age, sex, and training age. All optional.
+      </p>
+
+      <div className="space-y-5">
+        {/* Gender */}
+        <div>
+          <div className="mb-2 text-sm text-muted">Gender</div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {GENDER_OPTIONS.map((opt) => {
+              const active = gender === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onGenderChange(active ? '' : opt.value)}
+                  className={cn(
+                    'rounded-xl border px-3 py-2.5 text-sm transition-colors',
+                    active
+                      ? 'border-accent bg-accent/15 text-accent'
+                      : 'border-border bg-background text-muted hover:text-foreground'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* DOB */}
+        <div>
+          <label className="mb-1.5 block text-sm text-muted" htmlFor="dob">
+            Date of birth
+          </label>
+          <input
+            id="dob"
+            type="date"
+            value={dob}
+            onChange={(e) => onDobChange(e.target.value)}
+            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          />
+          <p className="mt-1.5 text-xs text-muted">
+            We compute your age — never displayed publicly.
+          </p>
+        </div>
+
+        {/* Height */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="block text-sm text-muted" htmlFor="height">
+              Height
+            </label>
+            <UnitToggle
+              options={['cm', 'in']}
+              value={heightUnit}
+              onChange={(v) => handleHeightUnitToggle(v as HeightUnit)}
+            />
+          </div>
+          <input
+            id="height"
+            type="number"
+            inputMode="decimal"
+            value={heightInput}
+            onChange={(e) => onHeightChange(e.target.value)}
+            placeholder={heightUnit === 'cm' ? 'e.g. 178' : 'e.g. 70'}
+            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          />
+        </div>
+
+        {/* Weight */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="block text-sm text-muted" htmlFor="weight">
+              Current weight
+            </label>
+            <UnitToggle
+              options={['kg', 'lb']}
+              value={weightUnit}
+              onChange={(v) => handleWeightUnitToggle(v as WeightUnit)}
+            />
+          </div>
+          <input
+            id="weight"
+            type="number"
+            inputMode="decimal"
+            value={weightInput}
+            onChange={(e) => onWeightChange(e.target.value)}
+            placeholder={weightUnit === 'kg' ? 'e.g. 78' : 'e.g. 172'}
+            className="w-full rounded-xl border border-border bg-background px-4 py-3 text-foreground placeholder:text-muted/50 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          />
+          <p className="mt-1.5 text-xs text-muted">
+            Baseline — log day-to-day weight in the weight tracker.
+          </p>
+        </div>
+
+        {/* Training experience */}
+        <div>
+          <div className="mb-2 text-sm text-muted">Training experience</div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {TRAINING_EXPERIENCE_OPTIONS.map((opt) => {
+              const active = trainingExperience === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    onTrainingExperienceChange(active ? '' : opt.value)
+                  }
+                  className={cn(
+                    'flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors',
+                    active
+                      ? 'border-accent bg-accent/15 text-accent'
+                      : 'border-border bg-background text-muted hover:text-foreground'
+                  )}
+                >
+                  <span className="font-medium">{opt.label}</span>
+                  <span className="text-xs text-muted">{opt.hint}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UnitToggle({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly [string, string];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-border bg-background p-0.5">
+      {options.map((opt) => {
+        const active = value === opt;
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => onChange(opt)}
+            className={cn(
+              'rounded-md px-2.5 py-1 text-xs transition-colors',
+              active
+                ? 'bg-accent/15 text-accent'
+                : 'text-muted hover:text-foreground'
+            )}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ============================================================
+// Step 3: Dietary restrictions + equipment
 // ============================================================
 
 function RestrictionsStep({
@@ -409,7 +726,7 @@ function TagSection({
 }
 
 // ============================================================
-// Step 3: Weekly schedule
+// Step 4: Weekly schedule
 // ============================================================
 
 function ScheduleStep({

@@ -129,6 +129,9 @@ export interface FoodProduct {
 // Protocol v1: AI coaching layer
 // ============================================================
 
+export type Gender = 'male' | 'female' | 'nonbinary' | 'prefer_not_to_say';
+export type TrainingExperience = 'beginner' | 'intermediate' | 'advanced';
+
 export interface UserProfile {
   user_id: string;
   goals: {
@@ -149,6 +152,23 @@ export interface UserProfile {
    * `007_pinned_metrics.sql` for the column default.
    */
   pinned_metrics: string[];
+  /**
+   * Demographic context for the AI coach (migration 009). All optional —
+   * onboarding-v2 captures these but the prompt tolerates missing values.
+   * `weight_kg` is the user's baseline weight at onboarding time; live
+   * tracking lives in `weight_entries`.
+   */
+  dob: string | null; // ISO date YYYY-MM-DD
+  gender: Gender | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+  training_experience: TrainingExperience | null;
+  /**
+   * Genome traits, populated by Track K's genome ingest. Freeform JSON: the
+   * coach reads keys verbatim. Could be {} (no genome data uploaded) or
+   * `{ "CYP1A2": "slow", "ACTN3": "RR", ... }` style entries.
+   */
+  genome_traits?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
