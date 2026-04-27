@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -110,76 +110,158 @@ export default function TDEEPage() {
     }, 900);
   }
 
+  const stepLabel = steps[step];
+
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/settings/goals" className="rounded-lg p-1.5 text-muted hover:bg-card-hover">
-          <ArrowLeft size={20} />
-        </Link>
-        <h1 className="text-2xl font-bold">TDEE Calculator</h1>
-      </div>
+      <Link
+        href="/settings/goals"
+        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted hover:text-foreground"
+      >
+        <ChevronLeft size={14} />
+        Goals
+      </Link>
 
-      {/* Step indicator */}
-      <div className="flex gap-2">
+      <header className="animate-[fadeIn_0.4s_ease-out]">
+        <div className="flex items-center gap-3">
+          <div className="eyebrow text-accent">Calculator</div>
+          <div className="h-px flex-1 bg-border" />
+          <div className="font-mono text-[10px] tabular-nums uppercase tracking-[0.22em] text-muted/70">
+            Step {String(step + 1).padStart(2, '0')} / {String(steps.length).padStart(2, '0')} · {stepLabel}
+          </div>
+        </div>
+        <h1 className="mt-3 font-serif text-[44px] leading-[0.95] tracking-tight text-foreground sm:text-[52px]">
+          TDEE <span className="italic text-muted">wizard</span>
+        </h1>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
+          Compute maintenance calories and a macro split from age, sex,
+          activity, and goal.
+        </p>
+      </header>
+
+      {/* Step indicator — hairline progress with labelled dots */}
+      <div className="glass flex items-center gap-2 rounded-full p-1.5">
         {steps.map((s, i) => (
           <div
             key={s}
             className={cn(
-              'flex-1 rounded-full py-1 text-center text-xs font-medium transition-colors',
-              i === step ? 'bg-accent text-white' : i < step ? 'bg-accent/30 text-accent' : 'bg-card text-muted'
+              'flex flex-1 items-center justify-center rounded-full py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] transition-colors',
+              i === step
+                ? 'bg-accent text-white'
+                : i < step
+                ? 'text-accent'
+                : 'text-muted/70'
             )}
           >
-            {s}
+            <span className="tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+            <span className="ml-1.5 hidden sm:inline">{s}</span>
           </div>
         ))}
       </div>
 
       {/* Step content */}
       {step === 0 && (
-        <div className="space-y-4 rounded-2xl bg-card p-4">
-          <h3 className="font-semibold">Your Profile</h3>
+        <div className="glass space-y-4 rounded-2xl p-5">
+          <div className="eyebrow">Your profile</div>
 
           {/* Units */}
-          <div className="flex gap-1 rounded-xl bg-background p-1">
-            <button onClick={() => setUseMetric(false)} className={cn('flex-1 rounded-lg py-2 text-sm font-medium', !useMetric ? 'bg-accent text-white' : 'text-muted')}>
+          <div className="flex gap-1 rounded-xl border border-border bg-glass-1 p-1">
+            <button
+              onClick={() => setUseMetric(false)}
+              className={cn(
+                'flex-1 rounded-lg py-2 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors',
+                !useMetric ? 'bg-accent text-white' : 'text-muted hover:text-foreground'
+              )}
+            >
               Imperial
             </button>
-            <button onClick={() => setUseMetric(true)} className={cn('flex-1 rounded-lg py-2 text-sm font-medium', useMetric ? 'bg-accent text-white' : 'text-muted')}>
+            <button
+              onClick={() => setUseMetric(true)}
+              className={cn(
+                'flex-1 rounded-lg py-2 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors',
+                useMetric ? 'bg-accent text-white' : 'text-muted hover:text-foreground'
+              )}
+            >
               Metric
             </button>
           </div>
 
           {/* Sex */}
           <div>
-            <label className="mb-1.5 block text-sm text-muted">Sex</label>
-            <div className="flex gap-1 rounded-xl bg-background p-1">
-              <button onClick={() => setSex('male')} className={cn('flex-1 rounded-lg py-2 text-sm font-medium', sex === 'male' ? 'bg-accent text-white' : 'text-muted')}>Male</button>
-              <button onClick={() => setSex('female')} className={cn('flex-1 rounded-lg py-2 text-sm font-medium', sex === 'female' ? 'bg-accent text-white' : 'text-muted')}>Female</button>
+            <label className="eyebrow">Sex</label>
+            <div className="mt-1.5 flex gap-1 rounded-xl border border-border bg-glass-1 p-1">
+              <button
+                onClick={() => setSex('male')}
+                className={cn(
+                  'flex-1 rounded-lg py-2 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors',
+                  sex === 'male' ? 'bg-accent text-white' : 'text-muted hover:text-foreground'
+                )}
+              >
+                Male
+              </button>
+              <button
+                onClick={() => setSex('female')}
+                className={cn(
+                  'flex-1 rounded-lg py-2 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors',
+                  sex === 'female' ? 'bg-accent text-white' : 'text-muted hover:text-foreground'
+                )}
+              >
+                Female
+              </button>
             </div>
           </div>
 
           {/* Age */}
           <div>
-            <label className="mb-1.5 block text-sm text-muted">Age</label>
-            <input type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="25" className="w-full rounded-xl bg-background px-4 py-3 text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent" />
+            <label className="eyebrow">Age</label>
+            <input
+              type="number"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+              placeholder="25"
+              className="mt-1.5 w-full rounded-xl border border-border bg-glass-1 px-4 py-3 font-mono text-sm tabular-nums text-foreground placeholder:text-muted/50 outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40"
+            />
           </div>
 
           {/* Weight */}
           <div>
-            <label className="mb-1.5 block text-sm text-muted">Weight ({useMetric ? 'kg' : 'lbs'})</label>
-            <input type="number" value={useMetric ? weightKg : weightText} onChange={(e) => useMetric ? setWeightKg(e.target.value) : setWeightText(e.target.value)} placeholder={useMetric ? '80' : '175'} className="w-full rounded-xl bg-background px-4 py-3 text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent" />
+            <label className="eyebrow">Weight ({useMetric ? 'kg' : 'lbs'})</label>
+            <input
+              type="number"
+              value={useMetric ? weightKg : weightText}
+              onChange={(e) => useMetric ? setWeightKg(e.target.value) : setWeightText(e.target.value)}
+              placeholder={useMetric ? '80' : '175'}
+              className="mt-1.5 w-full rounded-xl border border-border bg-glass-1 px-4 py-3 font-mono text-sm tabular-nums text-foreground placeholder:text-muted/50 outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40"
+            />
           </div>
 
           {/* Height */}
           <div>
-            <label className="mb-1.5 block text-sm text-muted">Height</label>
+            <label className="eyebrow">Height</label>
             {useMetric ? (
-              <input type="number" value={heightCm} onChange={(e) => setHeightCm(e.target.value)} placeholder="175 cm" className="w-full rounded-xl bg-background px-4 py-3 text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent" />
+              <input
+                type="number"
+                value={heightCm}
+                onChange={(e) => setHeightCm(e.target.value)}
+                placeholder="175 cm"
+                className="mt-1.5 w-full rounded-xl border border-border bg-glass-1 px-4 py-3 font-mono text-sm tabular-nums text-foreground placeholder:text-muted/50 outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40"
+              />
             ) : (
-              <div className="flex gap-2">
-                <input type="number" value={heightFeet} onChange={(e) => setHeightFeet(e.target.value)} placeholder="ft" className="flex-1 rounded-xl bg-background px-4 py-3 text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent" />
-                <input type="number" value={heightInches} onChange={(e) => setHeightInches(e.target.value)} placeholder="in" className="flex-1 rounded-xl bg-background px-4 py-3 text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent" />
+              <div className="mt-1.5 flex gap-2">
+                <input
+                  type="number"
+                  value={heightFeet}
+                  onChange={(e) => setHeightFeet(e.target.value)}
+                  placeholder="ft"
+                  className="flex-1 rounded-xl border border-border bg-glass-1 px-4 py-3 font-mono text-sm tabular-nums text-foreground placeholder:text-muted/50 outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40"
+                />
+                <input
+                  type="number"
+                  value={heightInches}
+                  onChange={(e) => setHeightInches(e.target.value)}
+                  placeholder="in"
+                  className="flex-1 rounded-xl border border-border bg-glass-1 px-4 py-3 font-mono text-sm tabular-nums text-foreground placeholder:text-muted/50 outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40"
+                />
               </div>
             )}
           </div>
@@ -187,9 +269,13 @@ export default function TDEEPage() {
       )}
 
       {step === 1 && (
-        <div className="space-y-2 rounded-2xl bg-card p-4">
-          <h3 className="font-semibold">Activity Level</h3>
-          <p className="text-sm text-muted">BMR: {Math.round(bmr)} cal/day</p>
+        <div className="glass space-y-3 rounded-2xl p-5">
+          <div className="flex items-center justify-between">
+            <div className="eyebrow">Activity level</div>
+            <div className="font-mono text-[10px] tabular-nums uppercase tracking-[0.18em] text-muted">
+              BMR · {Math.round(bmr)} kcal
+            </div>
+          </div>
           <div className="space-y-2">
             {activityLevels.map((level) => (
               <button
@@ -197,23 +283,30 @@ export default function TDEEPage() {
                 onClick={() => setActivity(level.key)}
                 className={cn(
                   'w-full rounded-xl border px-4 py-3 text-left transition-colors',
-                  activity === level.key ? 'border-accent bg-accent/10' : 'border-border hover:bg-card-hover'
+                  activity === level.key
+                    ? 'border-accent/60 bg-accent-light'
+                    : 'border-border bg-glass-1 hover:bg-glass-3'
                 )}
               >
-                <div className="font-medium">{level.label}</div>
-                <div className="text-sm text-muted">{level.subtitle}</div>
+                <div className="font-medium text-foreground">{level.label}</div>
+                <div className="text-xs text-muted">{level.subtitle}</div>
               </button>
             ))}
           </div>
-          <div className="mt-3 text-center text-lg font-bold" style={{ color: colors.accent }}>
-            TDEE: {Math.round(tdee)} cal/day
+          <div className="hairline mt-3 h-px" />
+          <div className="flex items-baseline justify-end gap-2 pt-1">
+            <span className="eyebrow text-accent">TDEE</span>
+            <span className="font-mono text-2xl font-medium tabular-nums text-foreground">
+              {Math.round(tdee)}
+            </span>
+            <span className="font-mono text-xs text-muted">kcal/day</span>
           </div>
         </div>
       )}
 
       {step === 2 && (
-        <div className="space-y-4 rounded-2xl bg-card p-4">
-          <h3 className="font-semibold">Your Goal</h3>
+        <div className="glass space-y-4 rounded-2xl p-5">
+          <div className="eyebrow">Your goal</div>
           <div className="space-y-2">
             {goalTypes.map((gt) => (
               <button
@@ -221,24 +314,26 @@ export default function TDEEPage() {
                 onClick={() => { setGoalType(gt.key); setAdjustment(gt.adjustment); }}
                 className={cn(
                   'w-full rounded-xl border px-4 py-3 text-left transition-colors',
-                  goalType === gt.key ? 'border-accent bg-accent/10' : 'border-border hover:bg-card-hover'
+                  goalType === gt.key
+                    ? 'border-accent/60 bg-accent-light'
+                    : 'border-border bg-glass-1 hover:bg-glass-3'
                 )}
               >
-                <div className="font-medium">{gt.label}</div>
+                <div className="font-medium text-foreground">{gt.label}</div>
               </button>
             ))}
           </div>
 
           <div>
-            <label className="mb-2 block text-sm text-muted">Calorie Adjustment</label>
-            <div className="flex gap-1 rounded-xl bg-background p-1">
+            <label className="eyebrow">Calorie adjustment</label>
+            <div className="mt-1.5 flex gap-1 rounded-xl border border-border bg-glass-1 p-1">
               {adjustmentOptions.map((adj) => (
                 <button
                   key={adj}
                   onClick={() => setAdjustment(adj)}
                   className={cn(
-                    'flex-1 rounded-lg py-2 text-xs font-medium transition-colors',
-                    adjustment === adj ? 'bg-accent text-white' : 'text-muted'
+                    'flex-1 rounded-lg py-2 font-mono text-[11px] tabular-nums transition-colors',
+                    adjustment === adj ? 'bg-accent text-white' : 'text-muted hover:text-foreground'
                   )}
                 >
                   {adj > 0 ? `+${adj}` : adj}
@@ -247,64 +342,83 @@ export default function TDEEPage() {
             </div>
           </div>
 
-          <div className="text-center">
-            <div className="text-sm text-muted">Target Calories</div>
-            <div className="text-2xl font-bold" style={{ color: colors.highlight }}>
+          <div className="hairline h-px" />
+          <div className="flex items-baseline justify-end gap-2">
+            <span className="eyebrow text-accent">Target</span>
+            <span className="font-mono text-2xl font-medium tabular-nums text-foreground">
               {Math.round(macros.calories)}
-            </div>
+            </span>
+            <span className="font-mono text-xs text-muted">kcal/day</span>
           </div>
         </div>
       )}
 
       {step === 3 && (
         <div className="space-y-4">
-          <div className="rounded-2xl bg-card p-5 text-center">
-            <div className="text-sm text-muted">Daily Target</div>
-            <div className="text-4xl font-bold" style={{ color: colors.highlight }}>
+          <div className="glass rounded-2xl p-6 text-center">
+            <div className="eyebrow text-accent">Daily target</div>
+            <div className="mt-2 font-mono text-5xl font-medium tabular-nums text-foreground">
               {Math.round(macros.calories)}
             </div>
-            <div className="text-sm text-muted">calories</div>
+            <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
+              kcal
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-card p-3 text-center">
-              <div className="text-lg font-bold" style={{ color: colors.accent }}>{Math.round(macros.protein)}g</div>
-              <div className="text-xs text-muted">Protein ({Math.round(macros.proteinPercent)}%)</div>
+            <div className="glass rounded-xl p-3 text-center">
+              <div className="font-mono text-lg font-medium tabular-nums" style={{ color: colors.accent }}>
+                {Math.round(macros.protein)}g
+              </div>
+              <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+                Protein {Math.round(macros.proteinPercent)}%
+              </div>
             </div>
-            <div className="rounded-xl bg-card p-3 text-center">
-              <div className="text-lg font-bold" style={{ color: colors.highlight }}>{Math.round(macros.carbs)}g</div>
-              <div className="text-xs text-muted">Carbs ({Math.round(macros.carbsPercent)}%)</div>
+            <div className="glass rounded-xl p-3 text-center">
+              <div className="font-mono text-lg font-medium tabular-nums" style={{ color: colors.highlight }}>
+                {Math.round(macros.carbs)}g
+              </div>
+              <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+                Carbs {Math.round(macros.carbsPercent)}%
+              </div>
             </div>
-            <div className="rounded-xl bg-card p-3 text-center">
-              <div className="text-lg font-bold" style={{ color: colors.fat }}>{Math.round(macros.fat)}g</div>
-              <div className="text-xs text-muted">Fat ({Math.round(macros.fatPercent)}%)</div>
+            <div className="glass rounded-xl p-3 text-center">
+              <div className="font-mono text-lg font-medium tabular-nums" style={{ color: colors.fat }}>
+                {Math.round(macros.fat)}g
+              </div>
+              <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+                Fat {Math.round(macros.fatPercent)}%
+              </div>
             </div>
           </div>
 
           {/* Split bar */}
-          <div className="flex h-3 overflow-hidden rounded-full">
+          <div className="flex h-2 overflow-hidden rounded-full border border-border">
             <div style={{ width: `${macros.proteinPercent}%`, backgroundColor: colors.accent }} />
             <div style={{ width: `${macros.carbsPercent}%`, backgroundColor: colors.highlight }} />
             <div style={{ width: `${macros.fatPercent}%`, backgroundColor: colors.fat }} />
           </div>
 
           {/* Rationale */}
-          <div className="rounded-xl bg-card p-4 text-sm text-muted">
-            {goalTypes.find((g) => g.key === goalType)?.rationale}
+          <div className="glass rounded-2xl p-4">
+            <div className="eyebrow">Rationale</div>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              {goalTypes.find((g) => g.key === goalType)?.rationale}
+            </p>
           </div>
 
           <button
             onClick={applyToGoals}
             disabled={applyState === 'saving' || applyState === 'saved'}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-80"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/90 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-accent disabled:opacity-80"
           >
             {applyState === 'saving' && 'Saving…'}
             {applyState === 'saved' && (
               <>
-                <Check size={16} /> Saved — opening goals…
+                <Check size={14} /> Saved — opening goals
               </>
             )}
-            {(applyState === 'idle' || applyState === 'error') && 'Apply to Goals'}
+            {(applyState === 'idle' || applyState === 'error') && 'Apply to goals'}
           </button>
 
           {applyState === 'error' && (
@@ -320,9 +434,9 @@ export default function TDEEPage() {
         {step > 0 && (
           <button
             onClick={() => setStep(step - 1)}
-            className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-card py-3 text-sm font-medium text-muted"
+            className="glass flex flex-1 items-center justify-center gap-1 rounded-xl py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-muted transition-colors hover:text-foreground"
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={14} />
             Back
           </button>
         )}
@@ -330,10 +444,10 @@ export default function TDEEPage() {
           <button
             onClick={() => setStep(step + 1)}
             disabled={step === 0 && !isProfileValid}
-            className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-accent py-3 text-sm font-semibold text-white disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-accent/40 bg-accent/90 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-white transition-colors hover:bg-accent disabled:opacity-50"
           >
             Next
-            <ChevronRight size={16} />
+            <ChevronRight size={14} />
           </button>
         )}
       </div>

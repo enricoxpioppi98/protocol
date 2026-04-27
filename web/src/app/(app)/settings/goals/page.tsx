@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { ArrowLeft, Calculator, Activity, Scale, Check } from 'lucide-react';
+import { ChevronLeft, Calculator, Activity, Scale, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useGoals } from '@/lib/hooks/useGoals';
 import { useUserProfile } from '@/lib/hooks/useUserProfile';
@@ -118,13 +118,24 @@ export default function GoalsPage() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/settings" className="rounded-lg p-1.5 text-muted hover:bg-card-hover">
-          <ArrowLeft size={20} />
-        </Link>
-        <h1 className="text-2xl font-bold">Daily Goals</h1>
-      </div>
+      <Link
+        href="/settings"
+        className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted hover:text-foreground"
+      >
+        <ChevronLeft size={14} />
+        Settings
+      </Link>
+
+      <header className="animate-[fadeIn_0.4s_ease-out]">
+        <div className="eyebrow text-accent">Targets</div>
+        <h1 className="mt-2 font-serif text-[44px] leading-[0.95] tracking-tight text-foreground sm:text-[52px]">
+          Daily <span className="italic text-muted">goals</span>
+        </h1>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
+          Set the calorie and macro targets the coach plans against.
+          Override any day of the week.
+        </p>
+      </header>
 
       {/* ============================================================
           Calculators — recommended path
@@ -165,7 +176,7 @@ export default function GoalsPage() {
         </div>
 
         {/* Day selector */}
-        <div className="flex gap-1 overflow-x-auto rounded-xl bg-card p-1.5">
+        <div className="glass flex gap-1 overflow-x-auto rounded-xl p-1.5">
           {dayLabels.map((label, i) => (
             <button
               key={i}
@@ -199,7 +210,7 @@ export default function GoalsPage() {
         {displayGoal && (
           <>
             {/* Calories */}
-            <div className="rounded-2xl bg-card p-4">
+            <div className="glass rounded-2xl p-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Calories</h3>
                 <Link href="/settings/tdee" className="flex items-center gap-1 text-sm text-accent">
@@ -216,7 +227,7 @@ export default function GoalsPage() {
             </div>
 
             {/* Macro inputs */}
-            <div className="rounded-2xl bg-card p-4">
+            <div className="glass rounded-2xl p-4">
               <h3 className="mb-3 font-semibold">Macros</h3>
 
               {/* Macro split bar */}
