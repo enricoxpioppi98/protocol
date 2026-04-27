@@ -38,6 +38,31 @@ export interface CoachContext {
   goal_today: DailyGoal | null;
   macros_today: MacroAggregate;
   yesterday_workout: DailyBriefing['workout'] | null;
+  /** Last 7 daily_briefing rows, ordered date desc. May be shorter for new users. */
+  briefings_last_7d: DailyBriefing[];
+  /** Compact rolling summary of the last 7 days of workouts (training continuity signal). */
+  recent_workouts_summary: RecentWorkoutsSummary;
+  /** Compact rolling summary of the last 7 days of meals (nutrition continuity signal). */
+  recent_meals_summary: RecentMealsSummary;
+}
+
+export type WorkoutKind = 'lift' | 'run' | 'rest' | 'other';
+
+export interface RecentWorkoutsSummary {
+  days_with_workouts: number;
+  last_lift_day: string | null;
+  last_run_day: string | null;
+  last_rest_day: string | null;
+  avg_duration_minutes: number;
+  /** e.g. "lift / run / rest / lift / run / rest / lift" — most recent on the right. */
+  workout_pattern: string;
+}
+
+export interface RecentMealsSummary {
+  avg_kcal_per_briefing: number;
+  avg_protein_g: number;
+  avg_fiber_g: number;
+  notes: string;
 }
 
 export interface MacroAggregate {
@@ -101,6 +126,167 @@ function pickNumeric(
     if (typeof v === 'number' && Number.isFinite(v)) out.push(v);
   }
   return out;
+}
+
+/**
+ * Classify a workout as lift / run / rest / other based on case-insensitive
+ * substring matches over the workout name AND every block name. The order
+ * below is intentional: a "rest" / "active recovery" tag wins over running or
+ * lifting cues, which can both show up as accessory blocks on a recovery day.
+ */
+export function classifyWorkout(
+  workout: BriefingWorkoutLite | null | undefined
+): WorkoutKind {
+  if (!workout) return 'rest';
+  const haystack = [
+    workout.name ?? '',
+    ...((workout.blocks ?? []).map((b) => b?.name ?? '')),
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  if (!haystack.trim()) return 'other';
+
+  if (
+    haystack.includes('rest') ||
+    haystack.includes('active recovery') ||
+    haystack.includes('recovery day')
+  ) {
+    return 'rest';
+  }
+
+  const runCues = ['run', 'interval', 'tempo', '5k', 'z2', 'easy cardio', 'jog'];
+  if (runCues.some((cue) => haystack.includes(cue))) {
+    return 'run';
+  }
+
+  const liftCues = [
+    'lift',
+    'push',
+    'pull',
+    'legs',
+    'upper',
+    'lower',
+    'hypertrophy',
+    'strength',
+    'squat',
+    'bench',
+    'deadlift',
+  ];
+  if (liftCues.some((cue) => haystack.includes(cue))) {
+    return 'lift';
+  }
+
+  return 'other';
+}
+
+interface BriefingWorkoutLite {
+  name?: string;
+  duration_minutes?: number | null;
+  blocks?: Array<{ name?: string } | null | undefined> | null;
+}
+
+function summarizeRecentWorkouts(
+  briefings: DailyBriefing[]
+): RecentWorkoutsSummary {
+  if (briefings.length === 0) {
+    return {
+      days_with_workouts: 0,
+      last_lift_day: null,
+      last_run_day: null,
+      last_rest_day: null,
+      avg_duration_minutes: 0,
+      workout_pattern: '',
+    };
+  }
+
+  let last_lift_day: string | null = null;
+  let last_run_day: string | null = null;
+  let last_rest_day: string | null = null;
+  let durationSum = 0;
+  let durationCount = 0;
+  let daysWithWorkouts = 0;
+
+  // Briefings are ordered most-recent first; reverse for the pattern so the
+  // resulting string reads oldest → newest left to right.
+  const oldestFirst = [...briefings].reverse();
+  const patternParts: string[] = [];
+
+  for (const b of oldestFirst) {
+    const w = b.workout as BriefingWorkoutLite | null | undefined;
+    const kind = classifyWorkout(w);
+    patternParts.push(kind);
+
+    if (kind !== 'rest' && w) daysWithWorkouts += 1;
+
+    if (w && typeof w.duration_minutes === 'number' && Number.isFinite(w.duration_minutes)) {
+      durationSum += w.duration_minutes;
+      durationCount += 1;
+    }
+  }
+
+  // Walk most-recent → oldest to capture the most-recent day for each kind.
+  for (const b of briefings) {
+    const w = b.workout as BriefingWorkoutLite | null | undefined;
+    const kind = classifyWorkout(w);
+    if (kind === 'lift' && !last_lift_day) last_lift_day = b.date;
+    if (kind === 'run' && !last_run_day) last_run_day = b.date;
+    if (kind === 'rest' && !last_rest_day) last_rest_day = b.date;
+  }
+
+  return {
+    days_with_workouts: daysWithWorkouts,
+    last_lift_day,
+    last_run_day,
+    last_rest_day,
+    avg_duration_minutes:
+      durationCount === 0 ? 0 : Math.round(durationSum / durationCount),
+    workout_pattern: patternParts.join(' / '),
+  };
+}
+
+function summarizeRecentMeals(
+  briefings: DailyBriefing[]
+): RecentMealsSummary {
+  if (briefings.length === 0) {
+    return {
+      avg_kcal_per_briefing: 0,
+      avg_protein_g: 0,
+      avg_fiber_g: 0,
+      notes: '',
+    };
+  }
+
+  let kcalSum = 0;
+  let proteinSum = 0;
+  // Briefing meals don't carry fiber on `BriefingMacros`; we expose a 0 average
+  // here rather than inventing a number, until/unless the meal schema gains
+  // fiber. Keeps the field present so the prompt has a stable shape.
+  const fiberSum = 0;
+  let kcalCount = 0;
+
+  for (const b of briefings) {
+    const meals = Array.isArray(b.meals) ? b.meals : [];
+    let dayKcal = 0;
+    let dayProtein = 0;
+    for (const m of meals) {
+      if (!m?.macros) continue;
+      dayKcal += m.macros.kcal ?? 0;
+      dayProtein += m.macros.p ?? 0;
+    }
+    if (meals.length > 0) {
+      kcalSum += dayKcal;
+      proteinSum += dayProtein;
+      kcalCount += 1;
+    }
+  }
+
+  return {
+    avg_kcal_per_briefing: kcalCount === 0 ? 0 : Math.round(kcalSum / kcalCount),
+    avg_protein_g: kcalCount === 0 ? 0 : Math.round(proteinSum / kcalCount),
+    avg_fiber_g: kcalCount === 0 ? 0 : Math.round(fiberSum / kcalCount),
+    notes: '',
+  };
 }
 
 function computeAgeYears(dob: string | null): number | null {
@@ -207,13 +393,28 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
 
   const macros_today = aggregateMacros((diaryRows ?? []) as unknown as DiaryEntry[]);
 
-  // Yesterday's workout — for periodization continuity
-  const { data: yesterdayBriefing } = await supabase
+  // Last 7 days of briefings — covers yesterday_workout + the new
+  // recent_history summaries in one round-trip. Floor is t-7 so we get up to
+  // 7 prior days plus today (today is harmless if present).
+  const briefingFloor = isoNDaysAgo(7);
+  const { data: briefingRows } = await supabase
     .from('daily_briefing')
-    .select('workout')
+    .select('*')
     .eq('user_id', userId)
-    .eq('date', yesterday)
-    .maybeSingle();
+    .gte('date', briefingFloor)
+    .order('date', { ascending: false })
+    .limit(8);
+
+  const briefings_last_7d = ((briefingRows ?? []) as DailyBriefing[])
+    .filter((b) => b.date < today)
+    .slice(0, 7);
+
+  const yesterday_workout =
+    (briefings_last_7d.find((b) => b.date === yesterday)
+      ?.workout as DailyBriefing['workout']) ?? null;
+
+  const recent_workouts_summary = summarizeRecentWorkouts(briefings_last_7d);
+  const recent_meals_summary = summarizeRecentMeals(briefings_last_7d);
 
   const profileTyped = (profile ?? null) as UserProfile | null;
   const age_years = computeAgeYears(profileTyped?.dob ?? null);
@@ -229,7 +430,10 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
     age_years,
     goal_today: goal_today as DailyGoal | null,
     macros_today,
-    yesterday_workout: (yesterdayBriefing?.workout as DailyBriefing['workout']) ?? null,
+    yesterday_workout,
+    briefings_last_7d,
+    recent_workouts_summary,
+    recent_meals_summary,
   };
 }
 
@@ -363,6 +567,15 @@ export function contextToPromptInput(ctx: CoachContext): string {
         fiber: round1(ctx.macros_today.fiber),
       },
       yesterday_workout: ctx.yesterday_workout ?? null,
+      recent_history: {
+        workouts: ctx.recent_workouts_summary,
+        meals: ctx.recent_meals_summary,
+        last_3_briefings: ctx.briefings_last_7d.slice(0, 3).map((b) => ({
+          date: b.date,
+          workout_name: b.workout?.name ?? null,
+          recovery_note_first_sentence: firstSentence(b.recovery_note),
+        })),
+      },
       // Track K populates this. {} when no genome data uploaded yet.
       genome_traits: profile?.genome_traits ?? {},
       blueprint_references: BLUEPRINT_REFERENCES,
@@ -402,4 +615,16 @@ export const BLUEPRINT_REFERENCES = {
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+/** First sentence of a paragraph, capped at ~140 chars to keep the user
+ *  message tight. Returns '' for null/empty input. */
+function firstSentence(text: string | null | undefined): string {
+  if (!text) return '';
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  // End at the first sentence terminator that's followed by whitespace or EOL.
+  const match = trimmed.match(/^[^.!?]*[.!?]/);
+  const out = match ? match[0] : trimmed;
+  return out.length > 140 ? out.slice(0, 137) + '...' : out;
 }
