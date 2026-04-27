@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, BookOpen, ChefHat, TrendingUp, Settings } from 'lucide-react';
+import { LayoutDashboard, BookOpen, ChefHat, History, TrendingUp, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
 const tabs = [
   { href: '/dashboard', label: 'Coach', icon: LayoutDashboard },
+  { href: '/history', label: 'History', icon: History },
   { href: '/diary', label: 'Diary', icon: BookOpen },
   { href: '/recipes', label: 'Recipes', icon: ChefHat },
   { href: '/progress', label: 'Progress', icon: TrendingUp },
