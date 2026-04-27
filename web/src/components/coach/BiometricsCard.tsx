@@ -247,20 +247,22 @@ export function BiometricsCard({
   const canPin = Boolean(onChangePinned);
 
   return (
-    <div className="rounded-2xl bg-card p-5">
+    <div className="glass relative overflow-hidden rounded-2xl p-5 sm:p-6">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"
+      />
       <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity size={18} className="text-accent" />
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            Biometrics
-          </h2>
+        <div className="flex items-center gap-3">
+          <Activity size={14} className="text-accent" />
+          <h2 className="eyebrow">Biometrics</h2>
           {biometrics?.source === 'manual' && (
-            <span className="rounded-full bg-card-hover px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
+            <span className="rounded-full bg-glass-3 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
               manual
             </span>
           )}
           {stale && (
-            <span className="rounded-full bg-highlight-light px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-highlight">
+            <span className="rounded-full bg-highlight-light px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-highlight">
               from {biometrics.date}
             </span>
           )}
@@ -270,48 +272,48 @@ export function BiometricsCard({
             <button
               onClick={() => setPickerOpen((v) => !v)}
               className={cn(
-                'rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground',
-                pickerOpen && 'bg-card-hover text-foreground'
+                'rounded-lg p-2 text-muted transition-colors hover:bg-glass-3 hover:text-foreground',
+                pickerOpen && 'bg-glass-3 text-foreground'
               )}
               aria-label="Pin metrics"
               aria-expanded={pickerOpen}
             >
-              <Settings2 size={16} />
+              <Settings2 size={14} />
             </button>
           ) : null}
           <button
             onClick={onEdit}
-            className="rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground"
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-glass-3 hover:text-foreground"
             aria-label="Edit biometrics manually"
           >
-            <Edit3 size={16} />
+            <Edit3 size={14} />
           </button>
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-glass-3 hover:text-foreground disabled:opacity-50"
             aria-label="Sync from Garmin"
           >
-            <RefreshCw size={16} className={cn(syncing && 'animate-spin')} />
+            <RefreshCw size={14} className={cn(syncing && 'animate-spin')} />
           </button>
         </div>
       </div>
 
       {!biometrics ? (
-        <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <p className="text-sm text-muted">No data yet today.</p>
+        <div className="flex flex-col items-center gap-4 py-6 text-center">
+          <p className="font-serif text-lg italic text-muted">No data yet today.</p>
           <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
             <button
               onClick={handleSync}
               disabled={syncing}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-accent/40 bg-accent/90 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent disabled:opacity-60"
             >
               <RefreshCw size={14} className={cn(syncing && 'animate-spin')} />
               Sync from Garmin
             </button>
             <button
               onClick={onEdit}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-card-hover px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-card-hover/80"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-glass-2 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-glass-3"
             >
               <Edit3 size={14} />
               Enter manually
@@ -321,9 +323,9 @@ export function BiometricsCard({
             <button
               onClick={handleBackfill}
               disabled={backfilling}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted transition-colors hover:bg-glass-2 hover:text-foreground disabled:opacity-50"
             >
-              <History size={12} className={cn(backfilling && 'animate-spin')} />
+              <History size={11} className={cn(backfilling && 'animate-spin')} />
               {backfilling ? 'Backfilling…' : 'Pull last 7 days from Garmin'}
             </button>
           ) : null}
@@ -339,7 +341,7 @@ export function BiometricsCard({
             <button
               onClick={handleBackfill}
               disabled={backfilling}
-              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/90 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent disabled:opacity-60"
             >
               <History size={14} className={cn(backfilling && 'animate-spin')} />
               {backfilling ? 'Backfilling…' : 'Pull last 7 days'}
@@ -364,9 +366,11 @@ export function BiometricsCard({
           {history && history.length > 0 ? (
             <BiometricsTrend rows={history} days={7} />
           ) : null}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
             {lastSynced ? (
-              <div className="text-[11px] text-muted/70">Last synced {lastSynced}</div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted/70">
+                Last sync · {lastSynced}
+              </div>
             ) : (
               <span />
             )}
@@ -375,26 +379,26 @@ export function BiometricsCard({
                 <button
                   onClick={() => setPickerOpen((v) => !v)}
                   className={cn(
-                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
+                    'inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] transition-colors',
                     pickerOpen
                       ? 'bg-accent text-white hover:bg-accent/90'
-                      : 'border border-border text-foreground hover:bg-card-hover'
+                      : 'border border-border text-foreground hover:bg-glass-3'
                   )}
                   title="Choose which metrics show on the dashboard"
                 >
-                  <Settings2 size={12} />
-                  {pickerOpen ? 'Done' : 'Customize metrics'}
+                  <Settings2 size={11} />
+                  {pickerOpen ? 'Done' : 'Customize'}
                 </button>
               ) : null}
               {onBackfill ? (
                 <button
                   onClick={handleBackfill}
                   disabled={backfilling}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted transition-colors hover:bg-glass-3 hover:text-foreground disabled:opacity-50"
                   title="Pull the last 7 days from Garmin"
                 >
-                  <History size={12} className={cn(backfilling && 'animate-spin')} />
-                  {backfilling ? 'Backfilling…' : 'Pull 7 days'}
+                  <History size={11} className={cn(backfilling && 'animate-spin')} />
+                  {backfilling ? 'Backfilling…' : 'Pull 7d'}
                 </button>
               ) : null}
             </div>
@@ -414,7 +418,7 @@ function MetricsGrid({
 }) {
   if (metrics.length === 0) {
     return (
-      <div className="rounded-xl bg-card-hover px-4 py-3 text-center text-xs text-muted">
+      <div className="rounded-xl border border-border bg-glass-1 px-4 py-3 text-center text-xs text-muted">
         No metrics pinned. Use the pin menu to choose which to show.
       </div>
     );
@@ -422,13 +426,14 @@ function MetricsGrid({
   // 2 cols on mobile, 3 cols at sm, 4 at md+. Caps cleanly at the 8 max.
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-      {metrics.map((id) => {
+      {metrics.map((id, i) => {
         const def = METRIC_BY_ID[id];
         if (!def) return null;
         const value = def.getter(biometrics) ?? null;
         return (
           <Stat
             key={id}
+            n={String(i + 1).padStart(2, '0')}
             label={def.label}
             value={value}
             suffix={def.unit}
@@ -451,16 +456,14 @@ function MetricsPicker({
   onToggle: (id: string) => void;
 }) {
   return (
-    <div className="mt-3 rounded-xl border border-border bg-card-hover/40 p-3">
+    <div className="mt-4 rounded-xl border border-border bg-glass-1 p-3">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
-          Pin metrics
-        </div>
-        <div className="text-[11px] text-muted/70">
-          {pinnedSet.size}/{MAX_PINNED} pinned
+        <div className="eyebrow">Pin metrics</div>
+        <div className="font-mono text-[10px] tabular-nums uppercase tracking-[0.16em] text-muted/70">
+          {pinnedSet.size}/{MAX_PINNED}
         </div>
       </div>
-      <ul className="divide-y divide-border/50">
+      <ul className="divide-y divide-border/40">
         {AVAILABLE_METRICS.map((m) => {
           const isPinned = pinnedSet.has(m.id);
           const value = m.getter(biometrics) ?? null;
@@ -472,10 +475,12 @@ function MetricsPicker({
             >
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm text-foreground">{m.label}</div>
-                <div className="font-mono text-[11px] tabular-nums text-muted">
+                <div className="font-mono text-[10px] tabular-nums text-muted">
                   {value ?? '—'}
                   {value != null && m.unit ? (
-                    <span className="ml-1">{m.unit}</span>
+                    <span className="ml-1 uppercase tracking-wider text-muted/70">
+                      {m.unit}
+                    </span>
                   ) : null}
                 </div>
               </div>
@@ -495,12 +500,12 @@ function MetricsPicker({
                 className={cn(
                   'rounded-lg p-2 transition-colors',
                   isPinned
-                    ? 'text-accent hover:bg-card-hover'
-                    : 'text-muted hover:bg-card-hover hover:text-foreground',
+                    ? 'text-accent hover:bg-glass-3'
+                    : 'text-muted hover:bg-glass-3 hover:text-foreground',
                   disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent'
                 )}
               >
-                {isPinned ? <Star size={16} fill="currentColor" /> : <StarOff size={16} />}
+                {isPinned ? <Star size={14} fill="currentColor" /> : <StarOff size={14} />}
               </button>
             </li>
           );
@@ -511,23 +516,32 @@ function MetricsPicker({
 }
 
 function Stat({
+  n,
   label,
   value,
   suffix,
 }: {
+  n: string;
   label: string;
   value: number | null | undefined;
   suffix: string;
 }) {
   return (
-    <div>
-      <div className="text-[10px] font-medium uppercase tracking-wide text-muted">
-        {label}
+    <div className="group">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="eyebrow truncate">{label}</div>
+        <span className="font-mono text-[9px] tabular-nums tracking-wider text-muted/40">
+          {n}
+        </span>
       </div>
-      <div className="mt-1 font-mono text-2xl font-semibold tabular-nums text-foreground">
-        {value ?? '—'}
+      <div className="mt-1 flex items-baseline">
+        <span className="font-mono text-[28px] font-medium leading-none tabular-nums text-foreground">
+          {value ?? '—'}
+        </span>
         {value != null && suffix ? (
-          <span className="ml-1 text-xs font-normal text-muted">{suffix}</span>
+          <span className="ml-1 font-mono text-[10px] uppercase tracking-widest text-muted/70">
+            {suffix}
+          </span>
         ) : null}
       </div>
     </div>

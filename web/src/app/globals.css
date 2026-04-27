@@ -1,72 +1,175 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Adaptive colors — change with light/dark mode
+   Protocol design system — glass / techno-classicism
+   ----------------------------------------------------------------
+   Surfaces are layered translucent panes over a fixed grain
+   backdrop. Borders read as 1px refractions, not hard rules.
+   Numerals are always tabular Geist Mono. Display type is
+   Instrument Serif. Body is Geist Sans.
    ============================================================ */
 
+/* ---------- Light theme (functional, not the showcase) ---------- */
 :root {
-  --app-bg: rgb(255, 255, 255);
-  --app-fg: rgb(23, 23, 23);
-  --app-card: rgb(242, 242, 247);
-  --app-card-hover: rgb(229, 229, 234);
-  --app-border: rgba(0, 0, 0, 0.08);
-  --app-muted: rgb(99, 99, 102);
-  --app-scrollbar: rgba(0, 0, 0, 0.15);
-  --app-scrollbar-hover: rgba(0, 0, 0, 0.25);
+  /* Base canvas */
+  --app-bg: rgb(248, 248, 246);
+  --app-fg: rgb(18, 18, 22);
+  --app-muted: rgb(108, 108, 118);
+
+  /* Layered glass — light variant (warmer, slightly off-white) */
+  --app-glass-1: rgba(255, 255, 255, 0.55);
+  --app-glass-2: rgba(255, 255, 255, 0.72);
+  --app-glass-3: rgba(255, 255, 255, 0.88);
+
+  /* Legacy aliases — kept so MacroTracker pages restyle for free */
+  --app-card: var(--app-glass-2);
+  --app-card-hover: var(--app-glass-3);
+
+  /* Refraction borders (no hard lines) */
+  --app-border: rgba(20, 20, 30, 0.08);
+  --app-border-strong: rgba(20, 20, 30, 0.14);
+
+  /* Scrollbar */
+  --app-scrollbar: rgba(0, 0, 0, 0.18);
+  --app-scrollbar-hover: rgba(0, 0, 0, 0.32);
+
+  /* Charts */
   --app-chart-grid: rgba(0, 0, 0, 0.06);
-  --app-chart-axis: rgba(0, 0, 0, 0.3);
-  --app-chart-tooltip-bg: rgb(255, 255, 255);
-  --app-chart-tooltip-border: rgba(0, 0, 0, 0.1);
+  --app-chart-axis: rgba(0, 0, 0, 0.32);
+  --app-chart-tooltip-bg: rgba(255, 255, 255, 0.85);
+  --app-chart-tooltip-border: rgba(0, 0, 0, 0.08);
+
+  /* Backdrop */
+  --app-backdrop-noise: 0.018;
+  --app-backdrop-radial: radial-gradient(
+    1200px 800px at 80% -10%,
+    rgba(96, 165, 250, 0.10),
+    transparent 60%
+  ),
+  radial-gradient(
+    900px 700px at 0% 100%,
+    rgba(140, 92, 245, 0.08),
+    transparent 65%
+  );
+
+  color-scheme: light;
 }
 
-/* System dark preference (unless user forced light) */
+/* ---------- Dark theme — the showcase ---------- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --app-bg: rgb(0, 0, 0);
-    --app-fg: rgb(237, 237, 237);
-    --app-card: rgb(28, 28, 30);
-    --app-card-hover: rgb(44, 44, 46);
+    --app-bg: rgb(8, 9, 12);
+    --app-fg: rgb(232, 233, 238);
+    --app-muted: rgb(140, 144, 158);
+
+    --app-glass-1: rgba(255, 255, 255, 0.025);
+    --app-glass-2: rgba(255, 255, 255, 0.045);
+    --app-glass-3: rgba(255, 255, 255, 0.075);
+
+    --app-card: var(--app-glass-2);
+    --app-card-hover: var(--app-glass-3);
+
     --app-border: rgba(255, 255, 255, 0.06);
-    --app-muted: rgb(142, 142, 147);
-    --app-scrollbar: rgba(255, 255, 255, 0.1);
-    --app-scrollbar-hover: rgba(255, 255, 255, 0.2);
-    --app-chart-grid: rgba(255, 255, 255, 0.05);
-    --app-chart-axis: rgba(255, 255, 255, 0.3);
-    --app-chart-tooltip-bg: rgb(28, 28, 30);
-    --app-chart-tooltip-border: rgba(255, 255, 255, 0.1);
+    --app-border-strong: rgba(255, 255, 255, 0.12);
+
+    --app-scrollbar: rgba(255, 255, 255, 0.10);
+    --app-scrollbar-hover: rgba(255, 255, 255, 0.22);
+
+    --app-chart-grid: rgba(255, 255, 255, 0.045);
+    --app-chart-axis: rgba(255, 255, 255, 0.32);
+    --app-chart-tooltip-bg: rgba(18, 19, 24, 0.85);
+    --app-chart-tooltip-border: rgba(255, 255, 255, 0.10);
+
+    --app-backdrop-noise: 0.04;
+    --app-backdrop-radial: radial-gradient(
+      1100px 700px at 88% -5%,
+      rgba(96, 165, 250, 0.10),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 600px at -10% 110%,
+      rgba(140, 92, 245, 0.08),
+      transparent 65%
+    );
+
+    color-scheme: dark;
   }
 }
 
-/* Manual dark override */
 [data-theme="dark"] {
-  --app-bg: rgb(0, 0, 0);
-  --app-fg: rgb(237, 237, 237);
-  --app-card: rgb(28, 28, 30);
-  --app-card-hover: rgb(44, 44, 46);
+  --app-bg: rgb(8, 9, 12);
+  --app-fg: rgb(232, 233, 238);
+  --app-muted: rgb(140, 144, 158);
+
+  --app-glass-1: rgba(255, 255, 255, 0.025);
+  --app-glass-2: rgba(255, 255, 255, 0.045);
+  --app-glass-3: rgba(255, 255, 255, 0.075);
+
+  --app-card: var(--app-glass-2);
+  --app-card-hover: var(--app-glass-3);
+
   --app-border: rgba(255, 255, 255, 0.06);
-  --app-muted: rgb(142, 142, 147);
-  --app-scrollbar: rgba(255, 255, 255, 0.1);
-  --app-scrollbar-hover: rgba(255, 255, 255, 0.2);
-  --app-chart-grid: rgba(255, 255, 255, 0.05);
-  --app-chart-axis: rgba(255, 255, 255, 0.3);
-  --app-chart-tooltip-bg: rgb(28, 28, 30);
-  --app-chart-tooltip-border: rgba(255, 255, 255, 0.1);
+  --app-border-strong: rgba(255, 255, 255, 0.12);
+
+  --app-scrollbar: rgba(255, 255, 255, 0.10);
+  --app-scrollbar-hover: rgba(255, 255, 255, 0.22);
+
+  --app-chart-grid: rgba(255, 255, 255, 0.045);
+  --app-chart-axis: rgba(255, 255, 255, 0.32);
+  --app-chart-tooltip-bg: rgba(18, 19, 24, 0.85);
+  --app-chart-tooltip-border: rgba(255, 255, 255, 0.10);
+
+  --app-backdrop-noise: 0.04;
+  --app-backdrop-radial: radial-gradient(
+    1100px 700px at 88% -5%,
+    rgba(96, 165, 250, 0.10),
+    transparent 60%
+  ),
+  radial-gradient(
+    900px 600px at -10% 110%,
+    rgba(140, 92, 245, 0.08),
+    transparent 65%
+  );
+
+  color-scheme: dark;
 }
 
-/* Manual light override */
 [data-theme="light"] {
-  --app-bg: rgb(255, 255, 255);
-  --app-fg: rgb(23, 23, 23);
-  --app-card: rgb(242, 242, 247);
-  --app-card-hover: rgb(229, 229, 234);
-  --app-border: rgba(0, 0, 0, 0.08);
-  --app-muted: rgb(99, 99, 102);
-  --app-scrollbar: rgba(0, 0, 0, 0.15);
-  --app-scrollbar-hover: rgba(0, 0, 0, 0.25);
+  --app-bg: rgb(248, 248, 246);
+  --app-fg: rgb(18, 18, 22);
+  --app-muted: rgb(108, 108, 118);
+
+  --app-glass-1: rgba(255, 255, 255, 0.55);
+  --app-glass-2: rgba(255, 255, 255, 0.72);
+  --app-glass-3: rgba(255, 255, 255, 0.88);
+
+  --app-card: var(--app-glass-2);
+  --app-card-hover: var(--app-glass-3);
+
+  --app-border: rgba(20, 20, 30, 0.08);
+  --app-border-strong: rgba(20, 20, 30, 0.14);
+
+  --app-scrollbar: rgba(0, 0, 0, 0.18);
+  --app-scrollbar-hover: rgba(0, 0, 0, 0.32);
+
   --app-chart-grid: rgba(0, 0, 0, 0.06);
-  --app-chart-axis: rgba(0, 0, 0, 0.3);
-  --app-chart-tooltip-bg: rgb(255, 255, 255);
-  --app-chart-tooltip-border: rgba(0, 0, 0, 0.1);
+  --app-chart-axis: rgba(0, 0, 0, 0.32);
+  --app-chart-tooltip-bg: rgba(255, 255, 255, 0.85);
+  --app-chart-tooltip-border: rgba(0, 0, 0, 0.08);
+
+  --app-backdrop-noise: 0.018;
+  --app-backdrop-radial: radial-gradient(
+    1200px 800px at 80% -10%,
+    rgba(96, 165, 250, 0.10),
+    transparent 60%
+  ),
+  radial-gradient(
+    900px 700px at 0% 100%,
+    rgba(140, 92, 245, 0.08),
+    transparent 65%
+  );
+
+  color-scheme: light;
 }
 
 /* ============================================================
@@ -74,7 +177,7 @@
    ============================================================ */
 
 @theme inline {
-  /* Adaptive colors (reference CSS variables above) */
+  /* Adaptive colors */
   --color-background: var(--app-bg);
   --color-foreground: var(--app-fg);
   --color-card: var(--app-card);
@@ -82,51 +185,177 @@
   --color-border: var(--app-border);
   --color-muted: var(--app-muted);
 
-  /* Static accent colors (same in light & dark) */
-  --color-accent: rgb(59, 130, 245);
-  --color-accent-light: rgba(59, 130, 245, 0.15);
-  --color-highlight: rgb(245, 158, 10);
-  --color-highlight-light: rgba(245, 158, 10, 0.15);
-  --color-fat: rgb(140, 92, 245);
-  --color-fat-light: rgba(140, 92, 245, 0.15);
-  --color-fiber: rgb(48, 209, 88);
-  --color-fiber-light: rgba(48, 209, 88, 0.15);
-  --color-danger: rgb(255, 69, 58);
-  --color-success: rgb(48, 209, 88);
+  /* Glass tokens (named) */
+  --color-glass-1: var(--app-glass-1);
+  --color-glass-2: var(--app-glass-2);
+  --color-glass-3: var(--app-glass-3);
 
-  /* Fonts */
+  /* Accent — restrained electric sky-blue. Same in light + dark. */
+  --color-accent: rgb(96, 165, 250);
+  --color-accent-light: rgba(96, 165, 250, 0.14);
+  --color-highlight: rgb(245, 184, 90);
+  --color-highlight-light: rgba(245, 184, 90, 0.14);
+  --color-fat: rgb(168, 138, 248);
+  --color-fat-light: rgba(168, 138, 248, 0.14);
+  --color-fiber: rgb(110, 209, 142);
+  --color-fiber-light: rgba(110, 209, 142, 0.14);
+  --color-danger: rgb(244, 102, 102);
+  --color-success: rgb(110, 209, 142);
+
+  /* Fonts — bound by next/font in layout.tsx */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-instrument-serif);
 }
+
+/* ============================================================
+   Body, backdrop, grain
+   ============================================================ */
 
 html {
   background: var(--color-background);
   color: var(--color-foreground);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+/* Body backdrop — atmospheric radial gradients pinned behind every page. */
+body {
+  position: relative;
+  background-color: var(--color-background);
+  font-feature-settings: 'ss01', 'cv11';
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: var(--app-backdrop-radial);
+  pointer-events: none;
+  z-index: 0;
 }
+
+/* Film/paper grain — tiny tiled SVG noise, low opacity. Only visible on
+   solid surfaces; reads as fine grain on photographic film. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--app-backdrop-noise);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.7 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+}
+
+/* Lift the actual app content above the backdrop. */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   Glass utilities — `glass`, `glass-strong`
+   ============================================================ */
+
+.glass {
+  background-color: var(--app-glass-2);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--app-border);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.04),
+    0 1px 0 0 rgba(255, 255, 255, 0.02);
+}
+
+.glass-strong {
+  background-color: var(--app-glass-3);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--app-border);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 1px 0 0 rgba(255, 255, 255, 0.02);
+}
+
+.glass-flush {
+  background-color: var(--app-glass-1);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+}
+
+/* Subtle separator — used wherever a hard 1px line would be too loud. */
+.hairline {
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--app-border-strong) 20%,
+    var(--app-border-strong) 80%,
+    transparent
+  );
+}
+
+/* ============================================================
+   Selection
+   ============================================================ */
+
+::selection {
+  background: rgba(96, 165, 250, 0.35);
+  color: var(--app-fg);
+}
+
+/* ============================================================
+   Scrollbar
+   ============================================================ */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--app-scrollbar);
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--app-scrollbar-hover);
+::-webkit-scrollbar-thumb:hover { background: var(--app-scrollbar-hover); }
+
+/* ============================================================
+   Animations
+   ============================================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Page fade-in transition */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes blobDrift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(2%, -3%, 0) scale(1.04); }
+}
+
+/* ============================================================
+   Typography niceties
+   ============================================================ */
+
+.font-serif {
+  font-family: var(--font-serif), 'Georgia', serif;
+  font-feature-settings: 'kern', 'liga', 'dlig', 'salt';
+  letter-spacing: -0.005em;
+}
+
+/* Caps-tracked label — used everywhere as eyebrow text. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+}
+
+/* Tabular numerals helper — Tailwind already has tabular-nums but we
+   bundle font-mono + tabular into one class for grep-ability. */
+.numerals {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }

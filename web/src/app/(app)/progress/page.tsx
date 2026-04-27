@@ -242,24 +242,40 @@ export default function ProgressPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Progress</h1>
-        <div className="flex gap-1 rounded-xl bg-card p-1">
-          {RANGES.map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={cn(
-                'min-w-[44px] rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
-                range === r ? 'bg-accent text-white' : 'text-muted hover:text-foreground'
-              )}
-            >
-              {r}
-            </button>
-          ))}
+    <div className="space-y-6">
+      <header className="animate-[fadeIn_0.4s_ease-out]">
+        <div className="flex items-center gap-3">
+          <div className="eyebrow text-accent">Telemetry</div>
+          <div className="h-px flex-1 bg-border" />
+          <div className="font-mono text-[10px] tabular-nums uppercase tracking-[0.18em] text-muted/70">
+            range · {range}
+          </div>
         </div>
-      </div>
+        <div className="mt-3 flex items-end justify-between gap-3">
+          <h1 className="font-serif text-[52px] leading-[0.95] tracking-tight text-foreground sm:text-[64px]">
+            Progress
+          </h1>
+          <div className="glass mb-1 flex gap-0.5 rounded-xl p-1">
+            {RANGES.map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className={cn(
+                  'min-w-[44px] rounded-lg px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] transition-colors',
+                  range === r
+                    ? 'bg-accent/90 text-white'
+                    : 'text-muted hover:bg-glass-3 hover:text-foreground'
+                )}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
+          Overlay biometrics, nutrition, and body composition.
+        </p>
+      </header>
 
       {suggestion && (
         <GoalSuggestionBanner suggestion={suggestion} onDismiss={handleDismissSuggestion} />
@@ -269,7 +285,7 @@ export default function ProgressPage() {
 
       {loading ? (
         <div
-          className="flex items-center justify-center rounded-2xl bg-card text-sm text-muted"
+          className="glass flex items-center justify-center rounded-2xl text-sm text-muted"
           style={{ height: 360 }}
         >
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />

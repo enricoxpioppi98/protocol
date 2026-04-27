@@ -18,21 +18,21 @@ export function ToolActivityChip({ name, status }: Props) {
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-        status === 'success' && 'bg-fiber-light text-fiber',
-        status === 'error' && 'bg-danger/10 text-danger',
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em]',
+        status === 'success' && 'border-fiber/30 bg-fiber-light text-fiber',
+        status === 'error' && 'border-danger/30 bg-danger/10 text-danger',
         (status === 'pending' || status === 'running') &&
-          'bg-card-hover text-muted'
+          'border-border bg-glass-2 text-muted'
       )}
     >
       {status === 'pending' || status === 'running' ? (
-        <Loader2 size={12} className="animate-spin" />
+        <Loader2 size={11} className="animate-spin" />
       ) : status === 'success' ? (
-        <CheckCircle2 size={12} />
+        <CheckCircle2 size={11} />
       ) : status === 'error' ? (
-        <XCircle size={12} />
+        <XCircle size={11} />
       ) : (
-        <Wrench size={12} />
+        <Wrench size={11} />
       )}
       <span>{label}</span>
     </div>

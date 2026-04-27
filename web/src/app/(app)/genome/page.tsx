@@ -150,17 +150,20 @@ export default function GenomePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-light text-accent">
-          <Dna size={22} />
+      <header className="animate-[fadeIn_0.4s_ease-out]">
+        <div className="flex items-center gap-3">
+          <div className="eyebrow text-accent">Substrate</div>
+          <div className="h-px flex-1 bg-border" />
+          <Dna size={14} className="text-muted" />
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Genome</h1>
-          <p className="text-sm text-muted">
-            Upload your 23andMe raw data to personalize coaching.
-          </p>
-        </div>
-      </div>
+        <h1 className="mt-3 font-serif text-[52px] leading-[0.95] tracking-tight text-foreground sm:text-[64px]">
+          <span className="italic text-muted">your</span> genome
+        </h1>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
+          Upload your 23andMe raw data to personalize coaching with the curated
+          15-SNP catalog.
+        </p>
+      </header>
 
       {/* Upload affordance */}
       <UploadCard
@@ -239,16 +242,16 @@ function UploadCard({
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
       className={cn(
-        'rounded-2xl border-2 border-dashed bg-card px-6 py-8 text-center transition-colors',
+        'glass rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors',
         isDragging
           ? 'border-accent bg-accent-light'
           : 'border-border hover:border-accent/40'
       )}
     >
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent-light text-accent">
-        <Upload size={22} />
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-accent/30 bg-accent/10 text-accent">
+        <Upload size={20} />
       </div>
-      <p className="font-semibold text-foreground">
+      <p className="font-serif text-xl text-foreground">
         {hasTraits ? 'Re-upload to refresh traits' : 'Upload your 23andMe raw data'}
       </p>
       <p className="mt-1 text-sm text-muted">
@@ -259,7 +262,7 @@ function UploadCard({
         disabled={uploading}
         onClick={onPick}
         className={cn(
-          'mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity',
+          'mt-5 inline-flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/90 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent',
           uploading && 'cursor-not-allowed opacity-60'
         )}
       >
@@ -301,11 +304,14 @@ function UploadCard({
 
 function PrivacyNote() {
   return (
-    <div className="flex items-start gap-3 rounded-2xl bg-card px-4 py-3 text-xs text-muted">
-      <Microscope size={16} className="mt-0.5 shrink-0 text-muted" />
+    <div className="glass flex items-start gap-3 rounded-2xl px-4 py-3 text-xs text-muted">
+      <Microscope size={14} className="mt-0.5 shrink-0 text-muted" />
       <p>
-        We parse the file in-memory and only persist a small set of derived
-        coaching traits — your raw genotypes never go to the database.
+        <span className="font-mono uppercase tracking-[0.16em] text-muted/70">
+          Privacy
+        </span>{' '}
+        — we parse the file in-memory and only persist a small set of derived
+        coaching traits. Your raw genotypes never go to the database.
       </p>
     </div>
   );
@@ -313,10 +319,10 @@ function PrivacyNote() {
 
 function EmptyState() {
   return (
-    <div className="rounded-2xl bg-card px-6 py-10 text-center">
-      <Dna size={32} className="mx-auto mb-3 text-muted/50" />
-      <p className="font-semibold text-foreground">No genome on file yet</p>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
+    <div className="glass rounded-2xl px-6 py-12 text-center">
+      <Dna size={28} className="mx-auto mb-3 text-muted/50" />
+      <p className="font-serif text-xl text-foreground">No genome on file yet</p>
+      <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted">
         Upload your 23andMe raw download to surface lifestyle-coaching traits for
         caffeine, training response, sleep timing, and more. The AI coach will
         weave them into briefings.
@@ -340,12 +346,16 @@ function TraitsSections({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       {presentCategories.map((category) => (
         <section key={category} className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">
-            {category}
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="eyebrow">{category}</h2>
+            <span className="h-px flex-1 bg-border" />
+            <span className="font-mono text-[10px] tabular-nums text-muted/60">
+              {String(grouped[category].length).padStart(2, '0')}
+            </span>
+          </div>
           <div className="space-y-3">
             {grouped[category].map(([traitKey, trait]) => (
               <TraitCard key={traitKey} traitKey={traitKey} trait={trait} />
@@ -359,22 +369,24 @@ function TraitsSections({
 
 function TraitCard({ traitKey, trait }: { traitKey: string; trait: GenomeTrait }) {
   return (
-    <div className="rounded-2xl bg-card px-4 py-4">
+    <div className="glass rounded-2xl px-4 py-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-foreground">
+          <p className="font-serif text-base text-foreground">
             {prettyTraitName(traitKey)}
           </p>
-          <p className="text-xs text-muted">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
             {trait.gene} · {trait.rsid}
           </p>
         </div>
-        <div className="shrink-0 rounded-lg bg-card-hover px-2 py-1 font-mono text-xs text-foreground">
+        <div className="shrink-0 rounded-lg border border-border bg-glass-1 px-2 py-1 font-mono text-xs tabular-nums text-foreground">
           {trait.genotype}
         </div>
       </div>
-      <p className="mt-3 text-sm font-medium text-accent">{trait.value}</p>
-      <p className="mt-1 text-sm text-muted">{trait.coaching}</p>
+      <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-accent">
+        {trait.value}
+      </p>
+      <p className="mt-2 text-sm leading-relaxed text-muted">{trait.coaching}</p>
     </div>
   );
 }

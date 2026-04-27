@@ -92,144 +92,208 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <header className="animate-[fadeIn_0.4s_ease-out]">
+        <div className="flex items-center gap-3">
+          <div className="eyebrow text-accent">Configuration</div>
+          <div className="h-px flex-1 bg-border" />
+        </div>
+        <h1 className="mt-3 font-serif text-[52px] leading-[0.95] tracking-tight text-foreground sm:text-[64px]">
+          Settings
+        </h1>
+      </header>
 
-      {/* Goals */}
-      <Link
+      {/* Section: Plan */}
+      <SectionLabel n="01" label="Your plan" />
+
+      <SettingsRow
         href="/settings/goals"
-        className="flex items-center gap-3 rounded-2xl bg-card px-4 py-4 transition-colors hover:bg-card-hover"
-      >
-        <Target size={20} className="text-accent" />
-        <div className="flex-1">
-          <div className="font-semibold">Daily Goals</div>
-          <div className="text-sm text-muted">Calorie and macro targets</div>
-        </div>
-        <span className="text-muted">&rsaquo;</span>
-      </Link>
-
-      {/* My Foods */}
-      <Link
+        icon={<Target size={16} className="text-accent" />}
+        title="Daily goals"
+        subtitle="Calorie and macro targets"
+      />
+      <SettingsRow
         href="/foods"
-        className="flex items-center gap-3 rounded-2xl bg-card px-4 py-4 transition-colors hover:bg-card-hover"
-      >
-        <UtensilsCrossed size={20} className="text-accent" />
-        <div className="flex-1">
-          <div className="font-semibold">My Foods</div>
-          <div className="text-sm text-muted">View and edit custom foods</div>
-        </div>
-        <span className="text-muted">&rsaquo;</span>
-      </Link>
-
-      {/* Integrations */}
-      <Link
+        icon={<UtensilsCrossed size={16} className="text-accent" />}
+        title="My foods"
+        subtitle="View and edit custom foods"
+      />
+      <SettingsRow
         href="/settings/integrations"
-        className="flex items-center gap-3 rounded-2xl bg-card px-4 py-4 transition-colors hover:bg-card-hover"
-      >
-        <Watch size={20} className="text-accent" />
-        <div className="flex-1">
-          <div className="font-semibold">Integrations</div>
-          <div className="text-sm text-muted">Connect Garmin Connect</div>
-        </div>
-        <span className="text-muted">&rsaquo;</span>
-      </Link>
+        icon={<Watch size={16} className="text-accent" />}
+        title="Integrations"
+        subtitle="Connect Garmin Connect"
+      />
 
-      {/* Data Stats */}
-      <div className="rounded-2xl bg-card p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Database size={18} className="text-accent" />
-          <h3 className="font-semibold">Your Data</h3>
+      {/* Section: Data */}
+      <SectionLabel n="02" label="Your data" />
+
+      <div className="glass rounded-2xl p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <Database size={14} className="text-accent" />
+          <h3 className="eyebrow">Database</h3>
+          <span className="h-px flex-1 bg-border" />
         </div>
         <div className="grid grid-cols-3 gap-3 text-center">
-          <div>
-            <div className="text-xl font-bold">{counts.entries}</div>
-            <div className="text-xs text-muted">Diary Entries</div>
-          </div>
-          <div>
-            <div className="text-xl font-bold">{counts.foods}</div>
-            <div className="text-xs text-muted">Saved Foods</div>
-          </div>
-          <div>
-            <div className="text-xl font-bold">{counts.weights}</div>
-            <div className="text-xs text-muted">Weigh-ins</div>
-          </div>
+          <DataStat n="01" value={counts.entries} label="Diary" />
+          <DataStat n="02" value={counts.foods} label="Foods" />
+          <DataStat n="03" value={counts.weights} label="Weigh-ins" />
         </div>
         <button
           onClick={handleExportCSV}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-background py-2.5 text-sm text-accent transition-colors hover:bg-card-hover"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-glass-1 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-accent transition-colors hover:bg-glass-3"
         >
-          <Download size={16} />
-          Export Diary CSV
+          <Download size={13} />
+          Export diary CSV
         </button>
       </div>
 
-      {/* API Keys */}
-      <div className="rounded-2xl bg-card p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Key size={18} className="text-accent" />
-          <h3 className="font-semibold">API Keys</h3>
+      {/* Section: Keys */}
+      <SectionLabel n="03" label="External services" />
+
+      <div className="glass rounded-2xl p-5">
+        <div className="mb-4 flex items-center gap-3">
+          <Key size={14} className="text-accent" />
+          <h3 className="eyebrow">API keys</h3>
+          <span className="h-px flex-1 bg-border" />
         </div>
         <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs text-muted">Nutritionix App ID</label>
-            <input
-              type="text"
-              value={apiKeys.nutritionix_app_id}
-              onChange={(e) => setApiKeys((k) => ({ ...k, nutritionix_app_id: e.target.value }))}
-              className="w-full rounded-xl bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"
-              placeholder="App ID"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-muted">Nutritionix App Key</label>
-            <input
-              type="password"
-              value={apiKeys.nutritionix_app_key}
-              onChange={(e) => setApiKeys((k) => ({ ...k, nutritionix_app_key: e.target.value }))}
-              className="w-full rounded-xl bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"
-              placeholder="App Key"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs text-muted">USDA API Key</label>
-            <input
-              type="text"
-              value={apiKeys.usda_api_key}
-              onChange={(e) => setApiKeys((k) => ({ ...k, usda_api_key: e.target.value }))}
-              className="w-full rounded-xl bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-1 focus:ring-accent"
-              placeholder="Leave blank for DEMO_KEY"
-            />
-          </div>
+          <KeyField
+            label="Nutritionix App ID"
+            type="text"
+            value={apiKeys.nutritionix_app_id}
+            onChange={(v) => setApiKeys((k) => ({ ...k, nutritionix_app_id: v }))}
+            placeholder="App ID"
+          />
+          <KeyField
+            label="Nutritionix App Key"
+            type="password"
+            value={apiKeys.nutritionix_app_key}
+            onChange={(v) => setApiKeys((k) => ({ ...k, nutritionix_app_key: v }))}
+            placeholder="App Key"
+          />
+          <KeyField
+            label="USDA API Key"
+            type="text"
+            value={apiKeys.usda_api_key}
+            onChange={(v) => setApiKeys((k) => ({ ...k, usda_api_key: v }))}
+            placeholder="Leave blank for DEMO_KEY"
+          />
           <button
             onClick={saveApiKeys}
             disabled={saving}
-            className="w-full rounded-xl bg-accent py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-xl border border-accent/40 bg-accent/90 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save API Keys'}
+            {saving ? 'Saving…' : 'Save API keys'}
           </button>
         </div>
       </div>
 
       {/* Appearance */}
-      <div className="flex items-center justify-between rounded-2xl bg-card px-4 py-4">
+      <SectionLabel n="04" label="Interface" />
+      <div className="glass flex items-center justify-between rounded-2xl px-5 py-4">
         <div className="flex items-center gap-3">
-          <Palette size={20} className="text-accent" />
-          <span className="font-semibold">Appearance</span>
+          <Palette size={16} className="text-accent" />
+          <span className="font-medium text-foreground">Appearance</span>
         </div>
         <ThemeToggle />
       </div>
 
       {/* Account */}
-      <div className="space-y-2">
-        <button
-          onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-2xl bg-card px-4 py-4 text-left transition-colors hover:bg-card-hover"
-        >
-          <LogOut size={20} className="text-muted" />
-          <span className="font-medium">Sign Out</span>
-        </button>
-      </div>
+      <SectionLabel n="05" label="Session" />
+      <button
+        onClick={handleSignOut}
+        className="glass flex w-full items-center gap-3 rounded-2xl px-5 py-4 text-left transition-colors hover:bg-glass-3"
+      >
+        <LogOut size={16} className="text-muted" />
+        <span className="font-medium text-foreground">Sign out</span>
+      </button>
 
-      <p className="text-center text-xs text-muted">Protocol Web v1</p>
+      <p className="pt-3 text-center font-mono text-[10px] uppercase tracking-[0.22em] text-muted/60">
+        protocol · web · v1
+      </p>
+    </div>
+  );
+}
+
+function SectionLabel({ n, label }: { n: string; label: string }) {
+  return (
+    <div className="mt-2 flex items-center gap-3 pt-1">
+      <span className="font-mono text-[10px] tabular-nums tracking-widest text-muted/50">
+        {n}
+      </span>
+      <span className="eyebrow">{label}</span>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+function SettingsRow({
+  href,
+  icon,
+  title,
+  subtitle,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="glass group flex items-center gap-3 rounded-2xl px-5 py-4 transition-colors hover:bg-glass-3"
+    >
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-glass-2">
+        {icon}
+      </span>
+      <div className="flex-1">
+        <div className="font-medium text-foreground">{title}</div>
+        <div className="text-xs text-muted">{subtitle}</div>
+      </div>
+      <span className="font-mono text-muted transition-transform group-hover:translate-x-0.5">
+        &rsaquo;
+      </span>
+    </Link>
+  );
+}
+
+function DataStat({ n, value, label }: { n: string; value: number; label: string }) {
+  return (
+    <div>
+      <div className="font-mono text-[9px] tabular-nums text-muted/40">{n}</div>
+      <div className="mt-0.5 font-mono text-2xl font-medium tabular-nums text-foreground">
+        {value}
+      </div>
+      <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function KeyField({
+  label,
+  type,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  type: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div>
+      <label className="eyebrow mb-1 block">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-border bg-glass-1 px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted/50 focus:border-accent/60 focus:outline-none focus:ring-1 focus:ring-accent/40"
+        placeholder={placeholder}
+      />
     </div>
   );
 }

@@ -114,36 +114,39 @@ export default function HistoryPage() {
   const streak = useMemo(() => computeStreak(briefings, todayStr), [briefings, todayStr]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <header className="mb-2 animate-[fadeIn_0.4s_ease-out]">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">
-          Briefing History
-        </div>
-        <div className="mt-1 flex items-end justify-between gap-3">
-          <h1 className="text-4xl font-bold leading-none tracking-tight text-foreground sm:text-5xl">
-            Past plans
-          </h1>
+        <div className="flex items-center gap-3">
+          <div className="eyebrow text-accent">Archive</div>
+          <div className="h-px flex-1 bg-border" />
           <button
             onClick={handleRefresh}
             disabled={refreshing || loading}
-            className="rounded-lg p-2 text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
+            className="rounded-lg p-2 text-muted transition-colors hover:bg-glass-3 hover:text-foreground disabled:opacity-50"
             aria-label="Refresh history"
             title="Refresh history"
           >
-            <RefreshCw size={16} className={cn(refreshing && 'animate-spin')} />
+            <RefreshCw size={14} className={cn(refreshing && 'animate-spin')} />
           </button>
         </div>
-        <p className="mt-2 text-sm text-muted">
+        <h1 className="mt-3 font-serif text-[52px] leading-[0.95] tracking-tight text-foreground sm:text-[64px]">
+          Past <span className="italic text-muted">plans</span>
+        </h1>
+        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
           Every day Protocol coached you. Tap a day to see the full briefing.
         </p>
       </header>
 
       {streak > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3">
-          <Flame size={18} className="text-accent" />
+        <div className="glass flex items-center gap-3 rounded-2xl border border-accent/30 px-4 py-3">
+          <Flame size={16} className="text-accent" />
           <div className="text-sm">
-            <span className="font-semibold text-foreground">{streak} day{streak === 1 ? '' : 's'}</span>{' '}
-            <span className="text-muted">briefed in a row</span>
+            <span className="font-mono text-base tabular-nums text-foreground">
+              {streak}
+            </span>{' '}
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+              day{streak === 1 ? '' : 's'} · briefed in a row
+            </span>
           </div>
         </div>
       )}
@@ -172,14 +175,14 @@ export default function HistoryPage() {
             <button
               onClick={handleLoadMore}
               disabled={loadingMore}
-              className="mt-2 w-full rounded-xl bg-card px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-card-hover disabled:opacity-50"
+              className="glass mt-3 w-full rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-glass-3 disabled:opacity-50"
             >
               {loadingMore ? 'Loading…' : 'Load more'}
             </button>
           )}
 
           {!hasMore && briefings.length > 0 && (
-            <p className="pt-2 text-center text-xs text-muted">
+            <p className="pt-3 text-center font-serif text-sm italic text-muted">
               That&rsquo;s the whole history.
             </p>
           )}
@@ -209,38 +212,40 @@ function HistoryRow({
   const recoveryFirst = firstSentence(briefing.recovery_note);
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-card transition-colors">
+    <div className="glass overflow-hidden rounded-2xl transition-colors">
       <button
         onClick={onToggle}
-        className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-card-hover"
+        className="flex w-full items-start gap-4 px-4 py-4 text-left transition-colors hover:bg-glass-3"
         aria-expanded={expanded}
       >
-        <div className="flex w-14 flex-shrink-0 flex-col items-center justify-center rounded-xl bg-accent-light px-2 py-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-accent">
+        <div className="flex w-14 flex-shrink-0 flex-col items-center justify-center rounded-xl border border-border bg-glass-1 px-2 py-2">
+          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-accent">
             {format(date, 'MMM')}
           </span>
-          <span className="font-mono text-xl font-bold leading-none text-accent">
+          <span className="font-serif text-2xl leading-none text-foreground">
             {format(date, 'd')}
           </span>
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-sm font-semibold text-foreground">{relative}</div>
-            <div className="text-[11px] text-muted">{absolute}</div>
+            <div className="font-serif text-base text-foreground">{relative}</div>
+            <div className="font-mono text-[10px] tabular-nums uppercase tracking-[0.14em] text-muted">
+              {absolute}
+            </div>
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-            <span className="inline-flex items-center gap-1">
-              <Dumbbell size={12} />
+            <span className="inline-flex items-center gap-1.5">
+              <Dumbbell size={11} />
               <span className="text-foreground">{workoutName}</span>
               {workoutMins > 0 && (
-                <span className="font-mono tabular-nums">· {workoutMins}m</span>
+                <span className="font-mono tabular-nums text-muted">· {workoutMins}m</span>
               )}
             </span>
-            <span className="inline-flex items-center gap-1">
-              <ChefHat size={12} />
-              <span className="font-mono tabular-nums">{mealCount}</span>
+            <span className="inline-flex items-center gap-1.5">
+              <ChefHat size={11} />
+              <span className="font-mono tabular-nums text-foreground">{mealCount}</span>
               <span>meal{mealCount === 1 ? '' : 's'}</span>
             </span>
           </div>
@@ -306,7 +311,7 @@ function Chip({
   return (
     <span
       title={title}
-      className="inline-flex items-center gap-1 rounded-full bg-card-hover px-2 py-0.5 font-mono text-[10px] tabular-nums text-foreground"
+      className="inline-flex items-center gap-1 rounded-full border border-border bg-glass-1 px-2 py-0.5 font-mono text-[10px] tabular-nums text-foreground"
     >
       {icon}
       {label}
@@ -316,15 +321,15 @@ function Chip({
 
 function EmptyState() {
   return (
-    <div className="rounded-2xl bg-card px-6 py-12 text-center">
-      <CalendarDays size={36} className="mx-auto mb-3 text-muted/40" />
-      <p className="font-semibold text-foreground">No past briefings yet</p>
+    <div className="glass rounded-2xl px-6 py-12 text-center">
+      <CalendarDays size={32} className="mx-auto mb-3 text-muted/40" />
+      <p className="font-serif text-xl text-foreground">No past briefings yet</p>
       <p className="mt-1 text-sm text-muted">
         Generate today&rsquo;s plan and it&rsquo;ll show up here tomorrow.
       </p>
       <Link
         href="/dashboard"
-        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-md shadow-accent/20 transition-all hover:opacity-90"
+        className="mt-5 inline-flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/90 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent"
       >
         <Sparkles size={14} />
         Go to today&rsquo;s coach

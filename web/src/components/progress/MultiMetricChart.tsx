@@ -41,12 +41,14 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
   if (metrics.length === 0) {
     return (
       <div
-        className="flex flex-col items-center justify-center rounded-2xl bg-card text-sm text-muted"
+        className="glass flex flex-col items-center justify-center rounded-2xl text-sm text-muted"
         style={{ height }}
       >
-        <p className="font-medium">Pick a metric to start.</p>
-        <p className="mt-1 text-[11px]">
-          Use the metric picker below to overlay biometrics, nutrition, and body comp.
+        <p className="font-serif text-xl text-foreground">
+          Pick a metric to start.
+        </p>
+        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+          biometrics · nutrition · body comp
         </p>
       </div>
     );
@@ -55,7 +57,7 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
   if (data.length === 0) {
     return (
       <div
-        className="flex items-center justify-center rounded-2xl bg-card text-sm text-muted"
+        className="glass flex items-center justify-center rounded-2xl font-serif italic text-muted"
         style={{ height }}
       >
         No data for this period yet
@@ -107,23 +109,48 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
   const leftMetrics = mode === 'multi-axis' ? metrics.slice(0, 3) : [];
   const rightMetrics = mode === 'multi-axis' ? metrics.slice(3, 6) : [];
 
+  // Mono tick style — Bryan-Johnson terminal feel
+  const tickStyle = {
+    fontSize: 10,
+    fontFamily: 'var(--font-mono)',
+    fill: 'var(--app-chart-axis)',
+  } as const;
+
   return (
-    <div className="rounded-2xl bg-card p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Trends</h3>
-        <span className="text-[11px] text-muted">
-          {mode === 'multi-axis' ? 'Multi-axis' : 'Normalized 0–100'} · {metrics.length} metric
-          {metrics.length === 1 ? '' : 's'}
-        </span>
+    <div className="glass relative overflow-hidden rounded-2xl p-5">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"
+      />
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <div>
+          <div className="eyebrow">Trend</div>
+          <h3 className="mt-0.5 font-serif text-xl leading-none tracking-tight text-foreground">
+            Multi-metric <span className="italic text-muted">overlay</span>
+          </h3>
+        </div>
+        <div className="text-right font-mono text-[10px] tabular-nums uppercase tracking-[0.14em] text-muted/70">
+          <div>{mode === 'multi-axis' ? 'Multi-axis' : 'Normalized 0–100'}</div>
+          <div className="text-foreground">
+            {String(metrics.length).padStart(2, '0')}{' '}
+            {metrics.length === 1 ? 'metric' : 'metrics'}
+          </div>
+        </div>
       </div>
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={enrichedData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--app-chart-grid)" />
+          <CartesianGrid
+            strokeDasharray="2 4"
+            stroke="var(--app-chart-grid)"
+            vertical={false}
+          />
           <XAxis
             dataKey="date"
             tickFormatter={(d) => format(parseISO(d as string), 'M/d')}
             stroke="var(--app-chart-axis)"
-            tick={{ fontSize: 10 }}
+            tick={tickStyle}
+            tickLine={false}
+            axisLine={{ stroke: 'var(--app-chart-grid)' }}
             minTickGap={24}
           />
           {mode === 'multi-axis' ? (
@@ -131,7 +158,9 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
               <YAxis
                 yAxisId="left"
                 stroke="var(--app-chart-axis)"
-                tick={{ fontSize: 10 }}
+                tick={tickStyle}
+                tickLine={false}
+                axisLine={false}
                 width={44}
               />
               {rightMetrics.length > 0 && (
@@ -139,7 +168,9 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
                   yAxisId="right"
                   orientation="right"
                   stroke="var(--app-chart-axis)"
-                  tick={{ fontSize: 10 }}
+                  tick={tickStyle}
+                  tickLine={false}
+                  axisLine={false}
                   width={44}
                 />
               )}
@@ -147,19 +178,35 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
           ) : (
             <YAxis
               stroke="var(--app-chart-axis)"
-              tick={{ fontSize: 10 }}
+              tick={tickStyle}
+              tickLine={false}
+              axisLine={false}
               width={44}
               domain={[0, 100]}
               tickFormatter={(v) => `${v}`}
             />
           )}
           <Tooltip
+            cursor={{ stroke: 'var(--app-chart-axis)', strokeDasharray: '3 3' }}
             contentStyle={{
               backgroundColor: 'var(--app-chart-tooltip-bg)',
               border: '1px solid var(--app-chart-tooltip-border)',
               borderRadius: '12px',
-              fontSize: '12px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '11px',
               color: 'var(--app-fg)',
+              backdropFilter: 'blur(20px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+              boxShadow: '0 8px 30px -12px rgba(0,0,0,0.4)',
+              padding: '10px 12px',
+            }}
+            labelStyle={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              textTransform: 'uppercase',
+              letterSpacing: '0.16em',
+              color: 'var(--app-muted)',
+              marginBottom: 4,
             }}
             labelFormatter={(d) => format(parseISO(d as string), 'MMM d, yyyy')}
             formatter={(value, name) => {
@@ -178,13 +225,24 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
             }}
           />
           <Legend
-            wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-            iconType="line"
+            wrapperStyle={{
+              fontSize: 12,
+              paddingTop: 12,
+              fontFamily: 'var(--font-instrument-serif), Georgia, serif',
+              fontStyle: 'italic',
+              letterSpacing: '0.005em',
+            }}
+            iconType="plainline"
+            iconSize={20}
             formatter={(value) => {
               const key = String(value);
               const id = key.endsWith('__norm') ? key.slice(0, -'__norm'.length) : key;
               const m = metrics.find((mm) => mm.id === id);
-              return m ? m.label : key;
+              return (
+                <span style={{ color: 'var(--app-fg)', marginRight: 4 }}>
+                  {m ? m.label : key}
+                </span>
+              );
             }}
           />
           {mode === 'multi-axis'
@@ -197,9 +255,9 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
                     dataKey={m.id}
                     name={m.id}
                     stroke={m.color}
-                    strokeWidth={2}
+                    strokeWidth={1.5}
                     dot={false}
-                    activeDot={{ r: 4 }}
+                    activeDot={{ r: 3, strokeWidth: 0 }}
                     connectNulls
                   />
                 )),
@@ -211,10 +269,10 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
                     dataKey={m.id}
                     name={m.id}
                     stroke={m.color}
-                    strokeWidth={2}
-                    strokeDasharray="4 2"
+                    strokeWidth={1.5}
+                    strokeDasharray="3 3"
                     dot={false}
-                    activeDot={{ r: 4 }}
+                    activeDot={{ r: 3, strokeWidth: 0 }}
                     connectNulls
                   />
                 )),
@@ -226,18 +284,20 @@ export function MultiMetricChart({ data, metrics, mode, height = 360 }: Props) {
                   dataKey={`${m.id}__norm`}
                   name={`${m.id}__norm`}
                   stroke={m.color}
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   dot={false}
-                  activeDot={{ r: 4 }}
+                  activeDot={{ r: 3, strokeWidth: 0 }}
                   connectNulls
                 />
               ))}
         </LineChart>
       </ResponsiveContainer>
       {mode === 'multi-axis' && rightMetrics.length > 0 && (
-        <p className="mt-2 text-[10px] text-muted">
-          Solid lines: left axis ({leftMetrics.map((m) => m.label).join(', ')}). Dashed: right axis (
-          {rightMetrics.map((m) => m.label).join(', ')}).
+        <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.14em] text-muted/70">
+          <span className="text-foreground">Solid:</span> L-axis ·{' '}
+          {leftMetrics.map((m) => m.label).join(', ')} —{' '}
+          <span className="text-foreground">dashed:</span> R-axis ·{' '}
+          {rightMetrics.map((m) => m.label).join(', ')}
         </p>
       )}
     </div>
