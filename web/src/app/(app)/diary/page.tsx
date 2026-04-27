@@ -23,7 +23,7 @@ export default function DiaryPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
-  const { entries, grouped, loading, updateEntry, deleteEntry } = useDiary(selectedDate);
+  const { entries, grouped, loading, updateEntry, deleteEntry, refetch } = useDiary(selectedDate);
   const { getGoalForDate } = useGoals();
 
   const goal = getGoalForDate(selectedDate);
@@ -112,6 +112,7 @@ export default function DiaryPage() {
               onAddFood={handleAddFood}
               onDeleteEntry={deleteEntry}
               onEditEntry={handleEditEntry}
+              onPhotoLogSuccess={refetch}
             />
           ))}
         </div>

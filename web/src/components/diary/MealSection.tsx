@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Sunrise, Sun, Moon, Cookie, Plus, Trash2 } from 'lucide-react';
+import { Sunrise, Sun, Moon, Cookie, Plus, Trash2, Camera } from 'lucide-react';
 import type { DiaryEntry, MealType } from '@/lib/types/models';
 import { entryCalories, entryProtein, entryCarbs, entryFat, entryFiber, entryName } from '@/lib/utils/macros';
 import { colors } from '@/lib/constants/theme';
+import { PhotoLogModal } from './PhotoLogModal';
 
 const mealIcons: Record<MealType, React.ElementType> = {
   Breakfast: Sunrise,
@@ -19,12 +20,18 @@ interface MealSectionProps {
   onAddFood: (mealType: MealType) => void;
   onDeleteEntry: (id: string) => void;
   onEditEntry: (entry: DiaryEntry) => void;
+  /**
+   * Called when a photo-log meal is successfully persisted. The diary page
+   * uses this to refetch entries (or fall back to router.refresh()).
+   */
+  onPhotoLogSuccess?: () => void;
 }
 
-export function MealSection({ mealType, entries, onAddFood, onDeleteEntry, onEditEntry }: MealSectionProps) {
+export function MealSection({ mealType, entries, onAddFood, onDeleteEntry, onEditEntry, onPhotoLogSuccess }: MealSectionProps) {
   const Icon = mealIcons[mealType];
   const totalCal = entries.reduce((sum, e) => sum + entryCalories(e), 0);
   const totalProtein = entries.reduce((sum, e) => sum + entryProtein(e), 0);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   return (
     <div className="rounded-2xl bg-card">
@@ -61,14 +68,34 @@ export function MealSection({ mealType, entries, onAddFood, onDeleteEntry, onEdi
         </div>
       )}
 
-      {/* Add button */}
-      <button
-        onClick={() => onAddFood(mealType)}
-        className="flex w-full items-center justify-center gap-1.5 border-t border-border py-2.5 text-sm text-accent transition-colors hover:bg-accent/5"
-      >
-        <Plus size={16} />
-        Add Food
-      </button>
+      {/* Action buttons — Add Food (search) + Snap meal (camera) */}
+      <div className="grid grid-cols-2 border-t border-border">
+        <button
+          onClick={() => onAddFood(mealType)}
+          className="flex items-center justify-center gap-1.5 py-2.5 text-sm text-accent transition-colors hover:bg-accent/5"
+        >
+          <Plus size={16} />
+          Add Food
+        </button>
+        <button
+          onClick={() => setPhotoOpen(true)}
+          className="flex items-center justify-center gap-1.5 border-l border-border py-2.5 text-sm text-accent transition-colors hover:bg-accent/5"
+        >
+          <Camera size={16} />
+          Snap meal
+        </button>
+      </div>
+
+      {photoOpen && (
+        <PhotoLogModal
+          mealType={mealType}
+          onClose={() => setPhotoOpen(false)}
+          onSuccess={() => {
+            setPhotoOpen(false);
+            onPhotoLogSuccess?.();
+          }}
+        />
+      )}
     </div>
   );
 }
