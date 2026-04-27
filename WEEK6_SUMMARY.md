@@ -2,8 +2,8 @@
 
 **Class:** MPCS 51238 — Design, Build, Ship · Spring 2026
 **Milestone:** Project v1 (due Week 6)
-**Repo:** [Protocol](https://github.com/enricopioppi/protocol) · branch `main`
-**Lineage:** forked from [MacroTracker](https://github.com/enricopioppi/macrotracker) (preserved on `polish/v2`); architectural patterns translated from [HELIX](https://github.com/enricopioppi/helix)
+**Repo:** [Protocol](https://github.com/enricoxpioppi98/protocol) · branch `main` (private during development; flips public for class submission)
+**Lineage:** forked from MacroTracker (the original commit history is preserved on the `polish/v2` branch in this repo); architectural patterns translated from HELIX (separate repo, not public)
 
 ## What v1 does
 
