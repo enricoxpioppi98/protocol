@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const supabase = useMemo(() => createClient(), []);
 
   const [biometrics, setBiometrics] = useState<BiometricsDaily | null>(null);
+  const [biometricsHistory, setBiometricsHistory] = useState<BiometricsDaily[]>([]);
   const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -33,14 +34,19 @@ export default function DashboardPage() {
   const totals = entriesTotals(entries);
 
   const fetchBiometrics = useCallback(async () => {
+    // Fetch the last 14 days at once — gives the BiometricsCard's trend strip
+    // headroom even if a future toggle bumps `days` to 14.
+    const cutoff = new Date(today);
+    cutoff.setDate(cutoff.getDate() - 13);
     const { data } = await supabase
       .from('biometrics_daily')
       .select('*')
-      .order('date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    setBiometrics((data as BiometricsDaily | null) ?? null);
-  }, [supabase]);
+      .gte('date', formatDate(cutoff))
+      .order('date', { ascending: false });
+    const rows = (data as BiometricsDaily[] | null) ?? [];
+    setBiometricsHistory(rows);
+    setBiometrics(rows[0] ?? null);
+  }, [supabase, today]);
 
   const fetchBriefing = useCallback(async () => {
     const { data } = await supabase
@@ -86,6 +92,18 @@ export default function DashboardPage() {
       const err = await res.json().catch(() => ({}));
       console.warn('garmin sync failed', err);
       // Surface a one-shot prompt to enter manually if the service isn't configured.
+      if (err?.fallback === 'manual') {
+        setEditingBio(true);
+      }
+    }
+    await fetchBiometrics();
+  }
+
+  async function handleBackfillGarmin(days: number) {
+    const res = await fetch(`/api/biometrics/sync?days=${days}`, { method: 'POST' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.warn('garmin backfill failed', err);
       if (err?.fallback === 'manual') {
         setEditingBio(true);
       }
@@ -149,6 +167,8 @@ export default function DashboardPage() {
         today={todayStr}
         onSync={handleSyncGarmin}
         onEdit={() => setEditingBio(true)}
+        history={biometricsHistory}
+        onBackfill={handleBackfillGarmin}
       />
 
       <MacrosCard totals={totals} goal={goal ?? null} />

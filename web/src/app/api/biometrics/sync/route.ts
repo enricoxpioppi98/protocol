@@ -5,19 +5,17 @@ import { getAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 /**
- * POST /api/biometrics/sync
+ * POST /api/biometrics/sync[?days=N]
  *
- * Pulls today's Garmin biometrics for the signed-in user and upserts them into
- * `biometrics_daily`. The user must have stored Garmin credentials via
- * /settings/integrations beforehand. If the Garmin service is misconfigured
- * or the call fails, we surface a clear error and the UI falls back to the
- * manual entry form.
+ * Pulls Garmin biometrics for the signed-in user and upserts them into
+ * `biometrics_daily`. By default fetches today only; pass `?days=N` (1-31) to
+ * backfill the last N days inclusive.
  */
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-interface GarminTodayResponse {
+interface GarminDayPayload {
   sleep_score: number | null;
   sleep_duration_minutes: number | null;
   hrv_ms: number | null;
@@ -28,7 +26,21 @@ interface GarminTodayResponse {
   raw: unknown;
 }
 
-export async function POST() {
+interface GarminRangeResponse {
+  days: { date: string; biometrics: GarminDayPayload }[];
+}
+
+function dateMinusDays(d: Date, n: number): Date {
+  const out = new Date(d);
+  out.setDate(out.getDate() - n);
+  return out;
+}
+
+function isoDay(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export async function POST(req: Request) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -36,6 +48,12 @@ export async function POST() {
   if (!user) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   }
+
+  const url = new URL(req.url);
+  const daysRaw = parseInt(url.searchParams.get('days') ?? '1', 10);
+  const days = Number.isFinite(daysRaw)
+    ? Math.max(1, Math.min(31, daysRaw))
+    : 1;
 
   const serviceUrl = process.env.GARMIN_SERVICE_URL;
   const serviceToken = process.env.GARMIN_SERVICE_TOKEN;
@@ -46,8 +64,6 @@ export async function POST() {
     );
   }
 
-  // Read encrypted creds via service-role client (no SELECT policy on
-  // garmin_credentials for authenticated users).
   const admin = getAdminClient();
   const { data: creds, error: credsErr } = await admin
     .from('garmin_credentials')
@@ -73,22 +89,38 @@ export async function POST() {
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const todayDate = new Date();
+  const today = isoDay(todayDate);
 
-  const garminRes = await brokeredFetch(`${serviceUrl}/garmin/today`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${serviceToken}`,
-    },
-    body: JSON.stringify({
-      email: creds.email,
-      password: plaintextPassword,
-      date: today,
-    }),
-    actor: user.id,
-    purpose: 'biometrics_sync',
-  });
+  // Single-day path keeps the simple /garmin/today endpoint.
+  // Range path fans out to /garmin/range with ONE login at the service.
+  const useRange = days > 1;
+  const garminRes = await brokeredFetch(
+    `${serviceUrl}${useRange ? '/garmin/range' : '/garmin/today'}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceToken}`,
+      },
+      body: JSON.stringify(
+        useRange
+          ? {
+              email: creds.email,
+              password: plaintextPassword,
+              start_date: isoDay(dateMinusDays(todayDate, days - 1)),
+              end_date: today,
+            }
+          : {
+              email: creds.email,
+              password: plaintextPassword,
+              date: today,
+            }
+      ),
+      actor: user.id,
+      purpose: 'biometrics_sync',
+    }
+  );
 
   if (!garminRes.ok) {
     const text = await garminRes.text().catch(() => '');
@@ -99,28 +131,23 @@ export async function POST() {
     );
   }
 
-  const data = (await garminRes.json()) as GarminTodayResponse;
+  const fetchedAt = new Date().toISOString();
+  const upserts: Array<Record<string, unknown>> = [];
 
-  const upsertPayload = {
-    user_id: user.id,
-    date: today,
-    sleep_score: data.sleep_score,
-    sleep_duration_minutes: data.sleep_duration_minutes,
-    hrv_ms: data.hrv_ms,
-    resting_hr: data.resting_hr,
-    stress_avg: data.stress_avg,
-    training_load_acute: data.training_load_acute,
-    training_load_chronic: data.training_load_chronic,
-    source: 'garmin' as const,
-    raw: data.raw,
-    fetched_at: new Date().toISOString(),
-  };
+  if (useRange) {
+    const range = (await garminRes.json()) as GarminRangeResponse;
+    for (const d of range.days) {
+      upserts.push(toUpsert(user.id, d.date, d.biometrics, fetchedAt));
+    }
+  } else {
+    const single = (await garminRes.json()) as GarminDayPayload;
+    upserts.push(toUpsert(user.id, today, single, fetchedAt));
+  }
 
-  const { data: row, error: upsertErr } = await supabase
+  const { data: rows, error: upsertErr } = await supabase
     .from('biometrics_daily')
-    .upsert(upsertPayload, { onConflict: 'user_id,date' })
-    .select('*')
-    .single();
+    .upsert(upserts, { onConflict: 'user_id,date' })
+    .select('*');
 
   if (upsertErr) {
     console.error('[biometrics/sync] upsert error', upsertErr);
@@ -135,7 +162,36 @@ export async function POST() {
     ts: new Date().toISOString(),
   });
 
-  return NextResponse.json({ biometrics: row });
+  // For backwards compatibility with the existing client, return the most
+  // recent row as `biometrics` plus the full set as `rows`.
+  const sorted = (rows ?? []).slice().sort((a, b) =>
+    String((b as Record<string, unknown>).date).localeCompare(
+      String((a as Record<string, unknown>).date)
+    )
+  );
+  return NextResponse.json({ biometrics: sorted[0] ?? null, rows: sorted });
+}
+
+function toUpsert(
+  userId: string,
+  date: string,
+  d: GarminDayPayload,
+  fetchedAt: string
+): Record<string, unknown> {
+  return {
+    user_id: userId,
+    date,
+    sleep_score: d.sleep_score,
+    sleep_duration_minutes: d.sleep_duration_minutes,
+    hrv_ms: d.hrv_ms,
+    resting_hr: d.resting_hr,
+    stress_avg: d.stress_avg,
+    training_load_acute: d.training_load_acute,
+    training_load_chronic: d.training_load_chronic,
+    source: 'garmin' as const,
+    raw: d.raw,
+    fetched_at: fetchedAt,
+  };
 }
 
 /**

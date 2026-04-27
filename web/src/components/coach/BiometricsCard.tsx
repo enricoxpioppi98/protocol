@@ -1,25 +1,38 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, RefreshCw, Edit3 } from 'lucide-react';
+import { Activity, RefreshCw, Edit3, History } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { BiometricsDaily } from '@/lib/types/models';
 import { cn } from '@/lib/utils/cn';
 import { ReadinessScore } from './ReadinessScore';
+import { BiometricsTrend } from './BiometricsTrend';
 
 interface Props {
   biometrics: BiometricsDaily | null;
   today: string;
   onSync: () => Promise<void>;
   onEdit: () => void;
+  /** All biometric rows we have for this user (today + history). Used by the trend strip. */
+  history?: BiometricsDaily[];
+  /** Optional: sync past N days from Garmin. */
+  onBackfill?: (days: number) => Promise<void>;
 }
 
 function isToday(dateStr: string | undefined, today: string): boolean {
   return dateStr === today;
 }
 
-export function BiometricsCard({ biometrics, today, onSync, onEdit }: Props) {
+export function BiometricsCard({
+  biometrics,
+  today,
+  onSync,
+  onEdit,
+  history,
+  onBackfill,
+}: Props) {
   const [syncing, setSyncing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
 
   async function handleSync() {
     if (syncing) return;
@@ -28,6 +41,16 @@ export function BiometricsCard({ biometrics, today, onSync, onEdit }: Props) {
       await onSync();
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function handleBackfill() {
+    if (backfilling || !onBackfill) return;
+    setBackfilling(true);
+    try {
+      await onBackfill(7);
+    } finally {
+      setBackfilling(false);
     }
   }
 
@@ -109,11 +132,37 @@ export function BiometricsCard({ biometrics, today, onSync, onEdit }: Props) {
               Enter manually
             </button>
           </div>
+          {onBackfill ? (
+            <button
+              onClick={handleBackfill}
+              disabled={backfilling}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
+            >
+              <History size={12} className={cn(backfilling && 'animate-spin')} />
+              {backfilling ? 'Backfilling…' : 'Pull last 7 days from Garmin'}
+            </button>
+          ) : null}
         </div>
       ) : allNull ? (
-        <div className="py-4 text-center text-sm text-muted">
-          Biometrics logged but all values are blank — sync from Garmin or edit
-          manually to fill them in.
+        <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <p className="text-sm text-muted">
+            Garmin hasn&rsquo;t computed today&rsquo;s wellness data yet — usually
+            populates a few hours after your watch syncs the morning. Pull
+            historical days to fill the trend in the meantime.
+          </p>
+          {onBackfill ? (
+            <button
+              onClick={handleBackfill}
+              disabled={backfilling}
+              className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              <History size={14} className={cn(backfilling && 'animate-spin')} />
+              {backfilling ? 'Backfilling…' : 'Pull last 7 days'}
+            </button>
+          ) : null}
+          {history && history.length > 1 ? (
+            <BiometricsTrend rows={history} days={7} />
+          ) : null}
         </div>
       ) : (
         <>
@@ -124,11 +173,27 @@ export function BiometricsCard({ biometrics, today, onSync, onEdit }: Props) {
             <Stat label="Resting HR" value={biometrics.resting_hr} suffix="bpm" />
             <Stat label="Stress" value={biometrics.stress_avg} suffix="" />
           </div>
-          {lastSynced && (
-            <div className="mt-3 text-[11px] text-muted/70">
-              Last synced {lastSynced}
-            </div>
-          )}
+          {history && history.length > 0 ? (
+            <BiometricsTrend rows={history} days={7} />
+          ) : null}
+          <div className="mt-3 flex items-center justify-between gap-2">
+            {lastSynced ? (
+              <div className="text-[11px] text-muted/70">Last synced {lastSynced}</div>
+            ) : (
+              <span />
+            )}
+            {onBackfill ? (
+              <button
+                onClick={handleBackfill}
+                disabled={backfilling}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-card-hover hover:text-foreground disabled:opacity-50"
+                title="Pull the last 7 days from Garmin"
+              >
+                <History size={12} className={cn(backfilling && 'animate-spin')} />
+                {backfilling ? 'Backfilling…' : 'Pull 7 days'}
+              </button>
+            ) : null}
+          </div>
         </>
       )}
     </div>
