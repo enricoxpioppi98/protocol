@@ -205,7 +205,7 @@ export interface GenomeTrait {
 /** Map of trait identifier → derived trait. Keys come from `SNP_CATALOG`. */
 export type GenomeTraits = Record<string, GenomeTrait>;
 
-export type BiometricsSource = 'garmin' | 'manual';
+export type BiometricsSource = 'garmin' | 'manual' | 'whoop' | 'apple_watch';
 
 export interface BiometricsDaily {
   user_id: string;
@@ -298,6 +298,22 @@ export interface GarminCredentialsRow {
   user_id: string;
   email: string;
   password_encrypted: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Whoop OAuth credentials. Server-only — the table has no SELECT policy for
+ * authenticated clients. Reads/writes go through the service-role client in
+ * `lib/supabase/admin.ts`. Tokens are AES-256-GCM ciphertext.
+ */
+export interface WhoopCredentialsRow {
+  user_id: string;
+  whoop_user_id: string | null;
+  refresh_token_encrypted: string;
+  access_token_encrypted: string | null;
+  access_token_expires_at: string | null;
+  scopes: string[];
   created_at: string;
   updated_at: string;
 }
