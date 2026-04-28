@@ -71,7 +71,29 @@ Plus, on `main` directly:
 - `docs/ARCHITECTURE.md` — three-process tour, data-flow walkthroughs, schema map, HELIX → Protocol pattern table
 - `web/supabase/seed-demo.sql` — populates a signed-in user with a realistic week of biometrics, foods, diary entries, and yesterday's briefing so graders can see the demo loop without manually logging a week of data
 - Playwright scaffold (`web/tests/v1-loop.spec.ts`)
-- GitHub Actions CI workflow staged in `.github-deferred/` (waiting on a token-scope refresh)
+
+## Second build-out wave (extended Garmin / pinning / Progress charts)
+
+- **Extended Garmin metrics** — Migration 006 adds 19 fields (steps, active/vigorous/moderate minutes, calories burned, VO2 max, max/min HR, deep/REM/light/awake sleep, sleep efficiency, body battery high/low/charged/drained, floors). The Garmin service was upgraded `garminconnect 0.2.20 → 0.3.3`, which brought `curl_cffi`-based browser TLS impersonation and a built-in tokenstore-based session cache, fixing persistent 429s on the mobile SSO endpoint.
+- **`/garmin/range` endpoint + 7-day backfill** — single login fans out to N day-fetches. Dashboard "Pull 7 days" button triggers it.
+- **Pinned metrics** — Migration 007 adds `user_profile.pinned_metrics text[]`. New `PUT /api/profile/pinned-metrics`. BiometricsCard exposes a 15-metric catalog and a "Customize metrics" picker (soft cap at 8 pinned). Default = sleep / HRV / RHR / stress.
+- **`/progress` rewritten as a customizable trend dashboard** — 28-metric catalog grouped Sleep / Heart / Movement / Energy / Nutrition / Body. Multi-axis vs normalized 0-100 toggle (auto-flips to normalized at 3+ metrics). Four presets: Recovery, Training, Cut tracking, Bryan Blueprint. localStorage persists the user's last selection.
+
+## Third build-out wave (genome + smarter coach + UI redesign)
+
+- **Genome tab** — `/genome` accepts a 23andMe raw TSV upload. New `lib/genome/parser.ts` and a curated 15-SNP catalog in `lib/genome/catalog.ts` covering caffeine (CYP1A2), exercise type (ACTN3), fat metabolism (APOE compound), satiety (FTO), lactose (MCM6), iron (HFE), alcohol (ADH1B), folate (MTHFR), circadian (PER3 + CLOCK), VO2max trainability (PPARGC1A), T2D risk (TCF7L2), vitamin D (VDR), and stress/dopamine (COMT). Migration 008 stores `genome_traits jsonb` (only derived traits — raw genotypes never persist). Test data file checked in for graders.
+- **Smarter coach (Track L)** — Migration 009 adds demographics (DOB, gender, height, weight, training experience). Onboarding gained a 4th step. `assembleCoachContext` now computes age + 3-day biometric trends (improving / stable / declining / unknown for sleep, HRV, RHR, training-load) + reads genome traits. The system prompt added BLUEPRINT REFERENCES (Bryan Johnson Blueprint daily targets), AGE_AND_GENDER, GENOME_TRAITS, and TRENDS sections, plus a 6th worked example (38yo male, declining trends, CYP1A2 slow). Recovery notes now emit a `signals_used:` line for transparency.
+- **UI redesign — techno-classicism** — Full visual reimagining via the `frontend-design` skill. Three-layer glass tokens (`--app-glass-1/2/3`), Instrument Serif display font, Geist Mono numerals, mono-uppercase eyebrow caps, hairline refraction borders, fixed mesh-gradient + film-grain backdrop, accent shifted to electric sky-blue. Auth screens get a drifting blurred-blob backdrop. Every dashboard / progress / history / genome / onboarding / settings / chat surface restyled. Inherited MacroTracker pages (recipes / foods / food-search / settings/goals / settings/tdee) restyled in a follow-up pass.
+- **7-day workout + meal history in coach context** — `assembleCoachContext` now also produces a `recent_history` payload: 7-day workout pattern (lift / run / rest classification), last lift / run / rest dates, average duration, last 3 briefings' workout names + recovery-note openers, and rolling meal averages. Lets the coach detect overtraining, undertraining, and continuity violations.
+- **Log briefing meals to diary** — `+ Log meal` per BriefingCard meal. New API route find-or-creates Foods, wraps as a Recipe, inserts a single DiaryEntry. Macros land roughly equal to what Claude prescribed.
+- **Goal calculators** — TDEE wizard now properly upserts to `daily_goals` (was no-op before). New protein-from-bodyweight quick widget on `/settings/goals` with 0.7 / 0.8 / 1.0 / 1.2 g/lb chips, weight pulled from profile or latest weigh-in, "Apply to all goal days" button.
+
+## Final wave (100/100 + wow factor)
+
+- **Camera food logging via Claude Vision** — the demo's wow factor. Snap a photo of a plate from `/diary` → `POST /api/diary/photo-log` → Claude Sonnet 4.6 with image input + forced tool-use of `emit_meal` → modal shows editable items + live macro totals → tap **Log meal** to commit. Client-side downscale to 1280px JPEG before upload. Two-phase: analyze (read-only) then commit (after user edits). Reuses the recipe-wrap helper extracted to `lib/diary/persistMeal.ts`.
+- **MCP servers** — `.mcp.json` at the repo root declares Supabase MCP (`@supabase/mcp-server-supabase --read-only`) and Playwright MCP (`@playwright/mcp`). README documents how Claude Code auto-discovers it and how Claude Desktop wires it up. Honors the proposal's MCP claim.
+- **CI active** — `.github/workflows/ci.yml` runs typecheck + production build of the web app + Python compileall on the Garmin service on every push to main. Status badge at the top of the README.
+- **Repo public** — flipped at https://github.com/enricoxpioppi98/protocol so the class brief's "GitHub repo URL: Public, with commits" requirement is met.
 
 ## What I'm proud of
 
@@ -81,9 +103,18 @@ Plus, on `main` directly:
 - Manual-entry fallback for biometrics is wired from day one, not a stretch goal. If the Garmin lib breaks (which it will), the app keeps working.
 - Parallel worktree agents (Wave 1: 4 agents, Wave 2: 3 agents) — the same dev-loop the class is teaching, running on the project itself. Each agent got a self-contained brief with explicit non-overlapping file ownership, so the seven branches merged into `main` with zero hand-fixed conflicts.
 
+## Final state
+
+- **30+ commits** on `main`, public, tagged `v1.0.0-week6`.
+- **9 migrations** in `web/supabase/migrations/` (the inherited `001-003`, then `004-009` for the AI / chat / extended-Garmin / pinning / genome / demographics layers).
+- **3 services**: Next.js web on Vercel (target), Supabase Postgres + Auth + Realtime + RLS, FastAPI on Railway (Garmin proxy with browser-TLS impersonation + tokenstore session cache).
+- **2 MCP servers** declared in `.mcp.json`.
+- **CI green** on every push.
+- **Documented**: README, ARCHITECTURE.md, CHANGELOG.md, VERIFICATION.md, this summary, and a demo seed SQL.
+
 ## Risk register and what's left
 
-- **Garmin lib reliability.** I'm pinned to `garminconnect==0.2.20`. Mitigated by the manual entry path. v2 considers an Apple Health bridge as a second path.
+- **Garmin lib reliability.** Now on `garminconnect==0.3.3` (browser TLS impersonation + tokenstore session cache). Mitigated by the manual entry path either way. v2 considers an Apple Health bridge as a second path.
 - **Prompt cache invalidation.** When the system prompt changes (which it will, as I tune the worked examples), all caches reset. Acceptable cost for a single user; v3 will think about this when there are multiple users.
 - **Encrypted Garmin password storage.** AES-256-GCM with `GARMIN_ENC_KEY`. The threat model assumes a server compromise leaks ciphertext but not the env-var key. Documented in `garmin-service/README.md`. v2 may move this to Supabase Vault.
 - **Tool-loop runaway.** Capped at 3 round-trips so a model loop can't burn tokens forever.
