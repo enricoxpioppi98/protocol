@@ -321,3 +321,111 @@ export interface ChatMessage {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================================
+// Optional health signals (migration 010)
+// ============================================================
+
+/**
+ * The context tag attached to a glucose reading. Drives downstream coaching
+ * heuristics (a 145 mg/dL post-meal value is normal; a 145 mg/dL fasting value
+ * is not). `random` is the dump bucket for unlabeled spot checks.
+ */
+export type GlucoseContext =
+  | 'fasting'
+  | 'pre_meal'
+  | 'post_meal'
+  | 'overnight'
+  | 'workout'
+  | 'random';
+
+export type GlucoseSource = 'manual' | 'levels' | 'lingo' | 'stelo';
+
+export interface GlucoseReading {
+  id: string;
+  user_id: string;
+  recorded_at: string; // ISO timestamp
+  mg_dl: number;
+  context: GlucoseContext | null;
+  source: GlucoseSource | string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Curated list of blood markers the coaching layer knows about. The DB column
+ * stores `text` so the user can record any marker, but anything outside this
+ * list is treated as freeform metadata — the coach only personalizes against
+ * these names.
+ */
+export type BloodMarkerName =
+  | 'ldl'
+  | 'hdl'
+  | 'tc'
+  | 'apoB'
+  | 'hsCRP'
+  | 'hbA1c'
+  | 'glucose_fasting'
+  | 'triglycerides'
+  | 'tsh'
+  | 't4_free'
+  | 'testosterone_total'
+  | 'testosterone_free'
+  | 'vitamin_d'
+  | 'ferritin'
+  | 'homocysteine';
+
+export type BloodMarkerFlag = 'low' | 'normal' | 'high';
+
+export type BloodPanelSource = 'manual' | 'pdf_upload';
+
+export interface BloodMarkerReading {
+  id: string;
+  panel_id: string;
+  marker: string; // BloodMarkerName | freeform
+  value: number;
+  unit: string;
+  reference_low: number | null;
+  reference_high: number | null;
+  flag: BloodMarkerFlag | null;
+}
+
+export interface BloodPanel {
+  id: string;
+  user_id: string;
+  panel_date: string; // YYYY-MM-DD
+  lab: string;
+  notes: string;
+  source: BloodPanelSource;
+  raw_pdf_url: string | null;
+  created_at: string;
+  updated_at: string;
+  readings?: BloodMarkerReading[];
+}
+
+/**
+ * Phases of the menstrual cycle as the coach personalizes them. We hold to a
+ * default 28-day cycle but learn the user's actual gap from logged starts.
+ *   1-5   menstruation
+ *   6-13  follicular
+ *   14-16 ovulation
+ *   17-28 luteal
+ * `unknown` is emitted when day-of-cycle can't be determined yet.
+ */
+export type CyclePhase =
+  | 'menstruation'
+  | 'follicular'
+  | 'ovulation'
+  | 'luteal'
+  | 'unknown';
+
+export interface CycleEntry {
+  id: string;
+  user_id: string;
+  start_date: string; // YYYY-MM-DD
+  duration_days: number; // 1..14
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
