@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/enricoxpioppi98/protocol/actions/workflows/ci.yml"><img src="https://github.com/enricoxpioppi98/protocol/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <img src="https://img.shields.io/badge/Next.js-16-000000?style=flat&logo=next.js" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=000" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?style=flat&logo=typescript&logoColor=fff" />
