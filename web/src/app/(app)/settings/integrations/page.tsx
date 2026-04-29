@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Activity, ChevronLeft, ChevronRight, Watch, Trash2, Smartphone } from 'lucide-react';
+import { Activity, ChevronLeft, ChevronRight, Watch, Trash2, Smartphone, Droplet, Beaker, Moon } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import type { Gender } from '@/lib/types/models';
 
 export default function IntegrationsPage() {
   const [connected, setConnected] = useState<boolean | null>(null);
@@ -11,6 +13,7 @@ export default function IntegrationsPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gender, setGender] = useState<Gender | null>(null);
 
   async function refresh() {
     const res = await fetch('/api/integrations/garmin');
@@ -21,7 +24,24 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     refresh();
+    // Fetch gender to gate the Cycle card. Direct URL access still works.
+    (async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('user_profile')
+        .select('gender')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setGender((data?.gender ?? null) as Gender | null);
+    })();
   }, []);
+
+  // Cycle card visible if: gender unset (allow opt-in), or gender ∈ {female, nonbinary}.
+  const showCycle = gender === null || gender === 'female' || gender === 'nonbinary';
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -211,6 +231,74 @@ export default function IntegrationsPage() {
           from the dashboard. The coach uses whatever you give it.
         </p>
       </section>
+
+      {/* Optional health signals — opt-in. Coach reads these only if enabled. */}
+      <div className="mt-2 flex items-center gap-3 pt-1">
+        <span className="font-mono text-[10px] tabular-nums tracking-widest text-muted/50">
+          02
+        </span>
+        <span className="eyebrow">Optional signals</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <SignalCard
+        href="/settings/integrations/cgm"
+        eyebrow="Glucose"
+        title="CGM"
+        subtitle="Manual mg/dL entries — fasting, post-meal, overnight."
+        icon={<Droplet size={18} />}
+      />
+      <SignalCard
+        href="/settings/integrations/blood-markers"
+        eyebrow="Bloodwork"
+        title="Blood markers"
+        subtitle="Quarterly panels — apoB, hsCRP, hbA1c, lipid. PDF auto-parse."
+        icon={<Beaker size={18} />}
+      />
+      {showCycle ? (
+        <SignalCard
+          href="/settings/integrations/cycle"
+          eyebrow="Cycle"
+          title="Menstrual phase"
+          subtitle="Period starts → computed phase. Coach adjusts intensity."
+          icon={<Moon size={18} />}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function SignalCard({
+  href,
+  eyebrow,
+  title,
+  subtitle,
+  icon,
+}: {
+  href: string;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="glass group flex items-center gap-3 rounded-2xl px-5 py-4 transition-colors hover:bg-glass-3"
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-glass-2 text-accent">
+        {icon}
+      </span>
+      <div className="flex-1">
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-accent">
+          {eyebrow}
+        </div>
+        <div className="font-serif text-base text-foreground">{title}</div>
+        <div className="text-xs text-muted">{subtitle}</div>
+      </div>
+      <span className="font-mono text-muted transition-transform group-hover:translate-x-0.5">
+        &rsaquo;
+      </span>
+    </Link>
   );
 }
