@@ -1,10 +1,17 @@
 import { createClient } from '@/lib/supabase/server';
+import { computeCyclePhase } from '@/lib/cycle/phase';
 import type {
   BiometricsDaily,
+  BloodMarkerFlag,
+  BloodMarkerReading,
+  BloodPanel,
+  CycleEntry,
+  CyclePhase,
   DailyBriefing,
   DailyGoal,
   DiaryEntry,
   Food,
+  GlucoseReading,
   Recipe,
   UserProfile,
 } from '@/lib/types/models';
@@ -44,6 +51,57 @@ export interface CoachContext {
   recent_workouts_summary: RecentWorkoutsSummary;
   /** Compact rolling summary of the last 7 days of meals (nutrition continuity signal). */
   recent_meals_summary: RecentMealsSummary;
+  /**
+   * Optional health signals (Track-Signals, migration 010). Each field is
+   * present only when the user has data for it; the prompt-input formatter
+   * drops keys that are null so the prompt cache stays stable for users with
+   * no signals enabled.
+   */
+  glucose_today: GlucoseTodaySignal | null;
+  blood_markers_recent: BloodMarkersSignal | null;
+  cycle_today: CycleTodaySignal | null;
+}
+
+export interface GlucoseTodaySignal {
+  /** Most recent fasting reading mg/dL in the last 24h, if tagged. */
+  fasting: number | null;
+  /** Average post-meal mg/dL in the last 24h, if any. */
+  post_meal_avg: number | null;
+  /** % of last-24h readings between 70 and 140 mg/dL. */
+  time_in_range_pct: number | null;
+  /** Most recent reading mg/dL (any context). */
+  latest: number | null;
+  /** Number of readings used. Helps the coach calibrate confidence. */
+  reading_count: number;
+}
+
+export interface BloodMarkerKeySnapshot {
+  value: number;
+  unit: string;
+  flag: BloodMarkerFlag | null;
+}
+
+export interface BloodMarkersSignal {
+  panel_date: string;
+  lab: string;
+  /**
+   * Subset of curated coaching markers if present on the panel. Keys absent
+   * when the user didn't record that marker.
+   */
+  key_markers: Partial<Record<KeyMarkerName, BloodMarkerKeySnapshot>>;
+}
+
+export type KeyMarkerName =
+  | 'ldl'
+  | 'hdl'
+  | 'apoB'
+  | 'hsCRP'
+  | 'hbA1c';
+
+export interface CycleTodaySignal {
+  day_of_cycle: number;
+  phase: CyclePhase;
+  days_until_next: number | null;
 }
 
 export type WorkoutKind = 'lift' | 'run' | 'rest' | 'other';
@@ -419,6 +477,48 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
   const profileTyped = (profile ?? null) as UserProfile | null;
   const age_years = computeAgeYears(profileTyped?.dob ?? null);
 
+  // ---------------- Optional signals (migration 010) -------------------------
+  // These tables are opt-in; the cheapest path is to fan out three small
+  // queries in parallel and let the summarizers downgrade to null when the
+  // user has no data. We do NOT short-circuit on profile.gender here — the
+  // /settings page hides the cycle card by default for non-female/nonbinary
+  // users, but the coach respects whatever rows actually exist.
+
+  // Glucose: last 24h.
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: glucoseRows } = await supabase
+    .from('glucose_readings')
+    .select('*')
+    .gte('recorded_at', since24h)
+    .order('recorded_at', { ascending: false })
+    .limit(500);
+
+  const glucose_today = summarizeGlucose((glucoseRows ?? []) as GlucoseReading[]);
+
+  // Most recent blood panel + readings.
+  const { data: panelRow } = await supabase
+    .from('blood_panels')
+    .select('*, readings:blood_marker_readings(*)')
+    .order('panel_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const blood_markers_recent = panelRow
+    ? summarizeBloodPanel(panelRow as BloodPanel)
+    : null;
+
+  // Cycle: last 6 logged starts → phase if user is female/nonbinary AND has data.
+  const { data: cycleRows } = await supabase
+    .from('cycle_entries')
+    .select('*')
+    .order('start_date', { ascending: false })
+    .limit(6);
+
+  const cycle_today = summarizeCycle(
+    (cycleRows ?? []) as CycleEntry[],
+    profileTyped?.gender ?? null
+  );
+
   return {
     user_id: userId,
     today,
@@ -434,8 +534,113 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
     briefings_last_7d,
     recent_workouts_summary,
     recent_meals_summary,
+    glucose_today,
+    blood_markers_recent,
+    cycle_today,
   };
 }
+
+// ============================================================
+// Optional-signal summarizers (migration 010)
+// ============================================================
+
+const TIR_LOW = 70;
+const TIR_HIGH = 140;
+
+function summarizeGlucose(rows: GlucoseReading[]): GlucoseTodaySignal | null {
+  if (rows.length === 0) return null;
+
+  // rows ordered most-recent first, newest -> oldest.
+  const latest = rows[0]?.mg_dl ?? null;
+
+  let fasting: number | null = null;
+  for (const r of rows) {
+    if (r.context === 'fasting') {
+      fasting = r.mg_dl;
+      break;
+    }
+  }
+
+  const postMeal = rows.filter((r) => r.context === 'post_meal');
+  const post_meal_avg =
+    postMeal.length === 0
+      ? null
+      : Math.round(postMeal.reduce((a, b) => a + b.mg_dl, 0) / postMeal.length);
+
+  const inRange = rows.filter(
+    (r) => r.mg_dl >= TIR_LOW && r.mg_dl <= TIR_HIGH
+  ).length;
+  const time_in_range_pct = Math.round((inRange / rows.length) * 100);
+
+  return {
+    fasting,
+    post_meal_avg,
+    time_in_range_pct,
+    latest,
+    reading_count: rows.length,
+  };
+}
+
+const KEY_MARKERS: KeyMarkerName[] = ['ldl', 'hdl', 'apoB', 'hsCRP', 'hbA1c'];
+
+/**
+ * Markers in the wild come back from Claude's parser and from manual entry
+ * with case variability — match liberally on lowercase + de-underscored
+ * forms so apoB, ApoB, apo_b, APOB all collapse to the canonical key.
+ */
+function normalizeMarkerKey(raw: string): string {
+  return raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+const KEY_MARKER_NORMS: Record<string, KeyMarkerName> = {
+  ldl: 'ldl',
+  hdl: 'hdl',
+  apob: 'apoB',
+  hscrp: 'hsCRP',
+  hba1c: 'hbA1c',
+};
+
+function summarizeBloodPanel(panel: BloodPanel): BloodMarkersSignal {
+  const out: Partial<Record<KeyMarkerName, BloodMarkerKeySnapshot>> = {};
+  const readings = panel.readings ?? [];
+  for (const r of readings as BloodMarkerReading[]) {
+    const norm = normalizeMarkerKey(r.marker);
+    const key = KEY_MARKER_NORMS[norm];
+    if (!key) continue;
+    // First occurrence wins — panels typically don't repeat a marker.
+    if (out[key]) continue;
+    out[key] = {
+      value: r.value,
+      unit: r.unit,
+      flag: r.flag,
+    };
+  }
+  return {
+    panel_date: panel.panel_date,
+    lab: panel.lab ?? '',
+    key_markers: out,
+  };
+}
+
+function summarizeCycle(
+  entries: CycleEntry[],
+  gender: UserProfile['gender'] | null
+): CycleTodaySignal | null {
+  if (entries.length === 0) return null;
+  // Cycle logic only personalizes for users who've identified as female /
+  // nonbinary. Other users with stale entries shouldn't get cycle-shaped
+  // recommendations.
+  if (gender !== 'female' && gender !== 'nonbinary') return null;
+
+  const result = computeCyclePhase(entries, new Date());
+  if (result.phase === 'unknown') return null;
+  return {
+    day_of_cycle: result.day_of_cycle,
+    phase: result.phase,
+    days_until_next: result.days_until_next,
+  };
+}
+// Suppress KEY_MARKERS-unused warning; exported for prompt-side reference.
+void KEY_MARKERS;
 
 function aggregateMacros(entries: DiaryEntry[]): MacroAggregate {
   const total = { kcal: 0, p: 0, c: 0, f: 0, fiber: 0 };
@@ -578,11 +783,77 @@ export function contextToPromptInput(ctx: CoachContext): string {
       },
       // Track K populates this. {} when no genome data uploaded yet.
       genome_traits: profile?.genome_traits ?? {},
+      // Optional signals (migration 010). Only includes keys with data so the
+      // prompt cache stays stable for users who haven't enabled any of them.
+      ...(buildOptionalSignals(ctx) ?? {}),
       blueprint_references: BLUEPRINT_REFERENCES,
     },
     null,
     0
   );
+}
+
+/**
+ * Builds the `optional_signals` block. Returns null when the user has no
+ * data on any of the three opt-in surfaces, so the prompt input doesn't
+ * grow a `optional_signals: {}` key for empty users (cache stability).
+ *
+ * Each sub-key is included only when the underlying summarizer produced a
+ * non-null payload, and inside each, null fields are stripped (the spec
+ * explicitly says "never include null fields").
+ */
+function buildOptionalSignals(
+  ctx: CoachContext
+): { optional_signals: Record<string, unknown> } | null {
+  const signals: Record<string, unknown> = {};
+
+  if (ctx.glucose_today) {
+    const g: Record<string, unknown> = {};
+    if (ctx.glucose_today.fasting !== null) g.fasting = ctx.glucose_today.fasting;
+    if (ctx.glucose_today.post_meal_avg !== null)
+      g.post_meal_avg = ctx.glucose_today.post_meal_avg;
+    if (ctx.glucose_today.time_in_range_pct !== null)
+      g.time_in_range_pct = ctx.glucose_today.time_in_range_pct;
+    if (ctx.glucose_today.latest !== null) g.latest = ctx.glucose_today.latest;
+    if (Object.keys(g).length > 0) {
+      g.reading_count = ctx.glucose_today.reading_count;
+      signals.glucose = g;
+    }
+  }
+
+  if (ctx.blood_markers_recent) {
+    const km = ctx.blood_markers_recent.key_markers;
+    const kmOut: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(km)) {
+      if (!v) continue;
+      const entry: Record<string, unknown> = { value: v.value, unit: v.unit };
+      if (v.flag) entry.flag = v.flag;
+      kmOut[k] = entry;
+    }
+    if (Object.keys(kmOut).length > 0) {
+      signals.blood = {
+        panel_date: ctx.blood_markers_recent.panel_date,
+        ...(ctx.blood_markers_recent.lab
+          ? { lab: ctx.blood_markers_recent.lab }
+          : {}),
+        key_markers: kmOut,
+      };
+    }
+  }
+
+  if (ctx.cycle_today) {
+    const c: Record<string, unknown> = {
+      phase: ctx.cycle_today.phase,
+      day_of_cycle: ctx.cycle_today.day_of_cycle,
+    };
+    if (ctx.cycle_today.days_until_next !== null) {
+      c.days_until_next = ctx.cycle_today.days_until_next;
+    }
+    signals.cycle = c;
+  }
+
+  if (Object.keys(signals).length === 0) return null;
+  return { optional_signals: signals };
 }
 
 /**
