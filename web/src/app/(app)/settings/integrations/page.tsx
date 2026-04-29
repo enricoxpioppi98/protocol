@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Watch, Trash2, Smartphone, ChevronRight } from 'lucide-react';
+import { Activity, ChevronLeft, ChevronRight, Watch, Trash2, Smartphone } from 'lucide-react';
 
 export default function IntegrationsPage() {
   const [connected, setConnected] = useState<boolean | null>(null);
@@ -156,6 +156,27 @@ export default function IntegrationsPage() {
         )}
       </section>
 
+      {/* Whoop — OAuth flow at /settings/integrations/whoop */}
+      <Link
+        href="/settings/integrations/whoop"
+        className="glass group flex items-start gap-3 rounded-2xl p-5 transition-colors hover:border-accent/40"
+      >
+        <div className="rounded-xl border border-border bg-glass-2 p-2 text-accent">
+          <Activity size={18} />
+        </div>
+        <div className="flex-1">
+          <h2 className="font-serif text-xl text-foreground">Whoop</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            OAuth. Pulls recovery, strain, sleep stages, HRV, RHR.
+          </p>
+        </div>
+        <ChevronRight
+          size={16}
+          className="mt-2 text-muted transition-transform group-hover:translate-x-0.5"
+        />
+      </Link>
+
+      {/* Apple Watch — HealthKit via iOS Shortcut webhook at /settings/integrations/apple-watch */}
       <Link
         href="/settings/integrations/apple-watch"
         className="glass group flex items-start gap-3 rounded-2xl p-5 transition-colors hover:border-accent/40"
