@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Watch, Trash2 } from 'lucide-react';
+import { ChevronLeft, Watch, Trash2, Smartphone, ChevronRight } from 'lucide-react';
 
 export default function IntegrationsPage() {
   const [connected, setConnected] = useState<boolean | null>(null);
@@ -155,6 +155,31 @@ export default function IntegrationsPage() {
           </form>
         )}
       </section>
+
+      <Link
+        href="/settings/integrations/apple-watch"
+        className="glass group flex items-start gap-3 rounded-2xl p-5 transition-colors hover:border-accent/40"
+      >
+        <div className="rounded-xl border border-border bg-glass-2 p-2 text-accent">
+          <Smartphone size={18} />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="font-serif text-xl text-foreground">Apple Watch</h2>
+            <span className="rounded-full border border-border bg-glass-2 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
+              iOS Shortcut
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-muted">
+            HealthKit via a per-account webhook. Sleep, HRV, RHR, steps, active
+            energy.
+          </p>
+        </div>
+        <ChevronRight
+          size={16}
+          className="mt-2 text-muted transition-transform group-hover:translate-x-0.5"
+        />
+      </Link>
 
       <section className="glass rounded-2xl p-5">
         <h2 className="font-serif text-xl italic text-foreground">
