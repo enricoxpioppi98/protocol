@@ -80,7 +80,12 @@ export async function POST(req: Request) {
     console.error('[chat] persist user message failed', err);
   }
 
-  const ctx = await assembleCoachContext(user.id);
+  // Pass the latest user turn as the recall query so coach memory retrieves
+  // semantically-similar past chat / briefing context, not similarity-to-the-
+  // biometric-snapshot. Briefing endpoint uses the default synthesized query.
+  const ctx = await assembleCoachContext(user.id, {
+    recallQuery: userTurnText || undefined,
+  });
   const today = ctx.today;
 
   // Today's briefing (so Claude knows what workout the user is asking to modify).

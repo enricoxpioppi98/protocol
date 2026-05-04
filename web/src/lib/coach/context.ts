@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { computeCyclePhase } from '@/lib/cycle/phase';
+import { computeAnomalies, type AnomalySignal } from './anomaly';
+import { recallRelevant, type Recollection } from './memory';
+import { relevantGenomeFlags, type GenomeFlag } from './genome-context';
 import type {
   BiometricsDaily,
   BiometricsSource,
@@ -69,6 +72,26 @@ export interface CoachContext {
    * coach falls through to BIOMETRICS_MISSING heuristics).
    */
   data_freshness: DataFreshness;
+  /**
+   * Track 10 — anomalies in today's biometrics vs the user's own 28-day
+   * baseline. Empty array when nothing exceeds the z-threshold or when there
+   * isn't enough history to call an anomaly. The coach uses these to lead
+   * the recovery note ("Your HRV is unusually low for you…").
+   */
+  anomalies: AnomalySignal[];
+  /**
+   * Track 12 — top-k semantically-similar past chat turns and briefings,
+   * retrieved via cosine similarity over OpenAI text-embedding-3-small.
+   * Empty array when no past memory crosses the similarity threshold or for
+   * brand-new users whose history hasn't been embedded yet.
+   */
+  recall: Recollection[];
+  /**
+   * Track 13 — actionable genome SNPs for the user (caffeine metabolism,
+   * lactose persistence, ACTN3 power-vs-endurance, COMT, etc.). Empty array
+   * when no genome data has been uploaded.
+   */
+  genome_flags: GenomeFlag[];
 }
 
 export interface DataFreshness {
@@ -486,7 +509,19 @@ function computeAgeYears(dob: string | null): number | null {
   return age >= 0 && age < 130 ? age : null;
 }
 
-export async function assembleCoachContext(userId: string): Promise<CoachContext> {
+export interface AssembleCoachContextOpts {
+  /**
+   * Override the recall query used to retrieve semantic memory. Defaults to a
+   * synthesized summary of today's biometric snapshot — which is right for the
+   * briefing endpoint. Chat callers should pass the latest user turn.
+   */
+  recallQuery?: string;
+}
+
+export async function assembleCoachContext(
+  userId: string,
+  opts: AssembleCoachContextOpts = {}
+): Promise<CoachContext> {
   const supabase = await createClient();
   const today = todayISO();
   const yesterday = yesterdayISO();
@@ -683,6 +718,30 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
     new Date()
   );
 
+  // Track 10/12/13: anomaly + memory + genome run in parallel after the
+  // biometrics history has loaded. None block the others; failures are
+  // caught individually so a flaky embedding API can never sink the whole
+  // briefing.
+  const recallQuery =
+    opts.recallQuery ?? buildDefaultRecallQuery(biometrics_today, trends);
+
+  const [anomalies, recall, genome_flags] = await Promise.all([
+    Promise.resolve(
+      computeAnomalies({
+        history: [...allBio].reverse(), // assembleCoachContext keeps allBio newest-first; computeAnomalies wants oldest-first
+        today,
+      })
+    ),
+    recallRelevant({ userId, query: recallQuery }).catch((err) => {
+      console.error('[coach/context] recallRelevant failed', err);
+      return [] as Recollection[];
+    }),
+    relevantGenomeFlags({ userId }).catch((err) => {
+      console.error('[coach/context] relevantGenomeFlags failed', err);
+      return [] as GenomeFlag[];
+    }),
+  ]);
+
   return {
     user_id: userId,
     today,
@@ -702,7 +761,33 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
     blood_markers_recent,
     cycle_today,
     data_freshness,
+    anomalies,
+    recall,
+    genome_flags,
   };
+}
+
+/**
+ * Synthesizes a recall query for the briefing endpoint. The shape mirrors
+ * what a coach would ask another coach: "what was going on the last time
+ * the user looked like this?". Chat callers override this with the latest
+ * user turn.
+ */
+function buildDefaultRecallQuery(
+  bio: BiometricsDaily | null,
+  trends: BiometricTrends
+): string {
+  const parts: string[] = [];
+  if (bio) {
+    if (bio.sleep_score !== null) parts.push(`sleep score ${bio.sleep_score}`);
+    if (bio.hrv_ms !== null) parts.push(`HRV ${bio.hrv_ms}ms`);
+    if (bio.resting_hr !== null) parts.push(`resting HR ${bio.resting_hr}`);
+    if (bio.training_load_acute !== null)
+      parts.push(`training load ${bio.training_load_acute}`);
+  }
+  parts.push(`HRV trend ${trends.hrv_trend}`);
+  parts.push(`sleep trend ${trends.sleep_trend}`);
+  return `Coach query — today's state: ${parts.join(', ')}`;
 }
 
 // ============================================================
@@ -961,11 +1046,53 @@ export function contextToPromptInput(ctx: CoachContext): string {
         any_stale: ctx.data_freshness.any_stale,
         recently_errored: ctx.data_freshness.recently_errored,
       },
+      // Track 10: anomaly signals over the user's own 28-day baseline.
+      // Empty array stays in the payload as `[]` so the prompt cache shape
+      // is stable; the prompt itself decides whether to lead with them.
+      anomalies: ctx.anomalies.map((a) => ({
+        metric: a.metric_label,
+        today: a.today_value,
+        baseline_median: a.baseline_median,
+        z_score: round1(a.z_score),
+        direction: a.direction,
+        severity: a.severity,
+        similar_past: a.similar_past.map((p) => ({
+          date: p.date,
+          value: p.value,
+          z_score: round1(p.z_score),
+        })),
+      })),
+      // Track 12: top-k semantically-similar past coach turns / briefings.
+      // Each entry already has age_days and similarity attached. The prompt
+      // can quote these verbatim back to the user ("on 04/12 you mentioned…").
+      past_context: ctx.recall.map((r) => ({
+        ts: r.ts,
+        age_days: r.age_days,
+        source: r.source_type,
+        similarity: round2(r.similarity),
+        excerpt: r.content.length > 360 ? r.content.slice(0, 357) + '...' : r.content,
+      })),
+      // Track 13: actionable SNP flags. These supersede the coarse
+      // genome_traits dict above for any category they cover (caffeine,
+      // lactose, ACTN3, COMT, etc.) — the prompt is told to prefer them.
+      genome_flags: ctx.genome_flags.map((g) => ({
+        category: g.category,
+        label: g.label,
+        rsid: g.rsid,
+        genotype: g.genotype,
+        interpretation: g.interpretation,
+        confidence: g.confidence,
+        actionable_in: g.actionable_in,
+      })),
       blueprint_references: BLUEPRINT_REFERENCES,
     },
     null,
     0
   );
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 /**
