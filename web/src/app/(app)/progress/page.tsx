@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Suspense, useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useGoals } from '@/lib/hooks/useGoals';
 import { GoalSuggestionBanner } from '@/components/progress/GoalSuggestionBanner';
@@ -21,6 +22,10 @@ import {
 } from '@/components/progress/metricCatalog';
 import { generateGoalSuggestion } from '@/lib/utils/goalSuggestion';
 import { cn } from '@/lib/utils/cn';
+import {
+  BASELINE_WINDOWS,
+  type BaselineWindow,
+} from '@/lib/coach/baselines';
 import type {
   BiometricsDaily,
   DiaryEntry,
@@ -62,14 +67,76 @@ function defaultPreset(): PersistedState {
   return { metricIds: recovery.metricIds, range: '30D' };
 }
 
+// ---- Baseline window URL <-> state --------------------------------------
+// Track 9 ships a 7/30/90/365 self-baseline overlay. The selected window is
+// persisted in the URL (`?window=30`) so it survives reloads, deep-links,
+// and back-button navigation. localStorage already covers metric/range
+// persistence; we deliberately don't double-persist the window there.
+const DEFAULT_BASELINE_WINDOW: BaselineWindow = 30;
+
+function parseWindowParam(raw: string | null): BaselineWindow {
+  if (!raw) return DEFAULT_BASELINE_WINDOW;
+  const n = Number(raw);
+  return (BASELINE_WINDOWS as number[]).includes(n)
+    ? (n as BaselineWindow)
+    : DEFAULT_BASELINE_WINDOW;
+}
+
 // ---- Page --------------------------------------------------------------
 export default function ProgressPage() {
+  // useSearchParams is a Client hook that opts the subtree into client-only
+  // rendering during prerender — Next 16 requires a Suspense boundary so the
+  // build doesn't bail (per `node_modules/next/dist/docs/.../use-search-params.md`).
+  return (
+    <Suspense fallback={<ProgressFallback />}>
+      <ProgressPageInner />
+    </Suspense>
+  );
+}
+
+function ProgressFallback() {
+  return (
+    <div
+      className="glass flex items-center justify-center rounded-2xl text-sm text-muted"
+      style={{ height: 360 }}
+    >
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+    </div>
+  );
+}
+
+function ProgressPageInner() {
   // Hydrate from localStorage on mount; until then we render the Recovery
   // preset so the chart never flashes empty for first-time users.
   const [hydrated, setHydrated] = useState(false);
   const [range, setRange] = useState<TimeRange>('30D');
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>(
     defaultPreset().metricIds
+  );
+
+  // ---- Baseline window (URL-driven) ----------------------------------
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const baselineWindow: BaselineWindow = useMemo(
+    () => parseWindowParam(searchParams.get('window')),
+    [searchParams],
+  );
+  const setBaselineWindow = useCallback(
+    (w: BaselineWindow) => {
+      const next = new URLSearchParams(searchParams.toString());
+      if (w === DEFAULT_BASELINE_WINDOW) {
+        // Keep URLs clean — no `?window=30` in the default state.
+        next.delete('window');
+      } else {
+        next.set('window', String(w));
+      }
+      const qs = next.toString();
+      // `replace` (not push) so the back button doesn't pile up history
+      // entries every time the user nudges the window.
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams],
   );
 
   useEffect(() => {
@@ -278,6 +345,36 @@ export default function ProgressPage() {
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
           Overlay biometrics, nutrition, and body composition.
         </p>
+
+        {/* Track 9: rolling self-baseline window selector. The window the user
+            picks is the trailing window every metric chip is computed against
+            (excluding today). Lives in `?window=` so deep-links and reloads
+            preserve the choice. */}
+        <div className="mt-4 flex items-center gap-2 rounded-2xl bg-card px-4 py-2.5">
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+            Baseline
+          </span>
+          <span className="text-[11px] italic text-muted">
+            you vs your trailing
+          </span>
+          <div className="ml-auto flex gap-0.5 rounded-xl bg-glass-2 p-1">
+            {BASELINE_WINDOWS.map((w) => (
+              <button
+                key={w}
+                onClick={() => setBaselineWindow(w)}
+                className={cn(
+                  'min-w-[40px] rounded-lg px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.16em] transition-colors',
+                  baselineWindow === w
+                    ? 'bg-accent/90 text-white'
+                    : 'text-muted hover:bg-glass-3 hover:text-foreground',
+                )}
+                title={`Baseline = trailing ${w} days, excluding today`}
+              >
+                {w === 365 ? '1Y' : `${w}D`}
+              </button>
+            ))}
+          </div>
+        </div>
       </header>
 
       {suggestion && (
@@ -337,6 +434,7 @@ export default function ProgressPage() {
         metrics={selectedMetrics}
         data={chartData}
         biometrics={biometrics}
+        baselineWindow={baselineWindow}
       />
 
       <MetricPicker selected={selectedMetricIds} onChange={setSelectedMetricIds} />
