@@ -69,6 +69,12 @@ The Week 6 wave used parallel worktree agents to ship seven feature tracks in tw
 | 2 | 6 | `feat/source-attribution` | `SourceChip` + per-source CSS tokens + briefing/dashboard/progress chips |
 | 2 | 7 | `feat/coach-sync-awareness` | `data_freshness` in coach context + DATA FRESHNESS prompt example |
 | 2 | 8 | `feat/auto-backfill` | Detect-and-fill 7-day gaps on dashboard mount |
+| 3 | 9 | `feat/trend-baselines` | 7d/30d/90d/365d windowed self-baselines on `/progress` with σ-banded delta chips |
+| 3 | 10 | `feat/anomaly-detection` | `lib/coach/anomaly.ts` — pure 28d z-score detector with similar-past lookups |
+| 3 | 11 | `feat/mcp-server` | Standalone TypeScript MCP server (4 read tools) for Claude Desktop |
+| 3 | 12 | `feat/coach-memory` | pgvector migration 015 + OpenAI text-embedding-3-small + nightly reindex cron + `recallRelevant()` |
+| 3 | 13 | `feat/genome-overlay` | `lib/coach/genome-context.ts` — 8 categories of actionable SNPs (CYP1A2, MCM6, ACTN3, PPARGC1A, COMT, PER3, HFE, ADH1B, APOE) |
+| 3 | 14 | sequential | Wire 10/12/13 into `assembleCoachContext` + 3 new prompt sections + 1 worked example |
 
 Tracks 1, 2, 3 ran in wave 1 (independent at the file level). Track 4 (sync dashboard) sat between waves — it depends on Track 1's `/api/sync/run` and Track 3's `audit_ledger` schema. Wave 2 (Tracks 5–8) shipped the user-facing surface area on top of the wave-1 plumbing: visible health score, source provenance chips, a sync-aware coach prompt, and silent gap-filling. **Eight tracks total across two waves.**
 
@@ -104,10 +110,21 @@ Multi-source no-overwrite proof and merged-view sanity require live Supabase + c
 
 ## Final state
 
-- **6 data sources**, **1 orchestrator**, **1 cron**, **2 new migrations** (013, 014), **1 audit ledger**, **1 sync dashboard**.
-- **Visible artifacts:** Data Health score on `/dashboard`, source-attribution chips across briefing / biometrics / progress, sync-aware coach briefings, auto-backfill banner on dashboard mount.
-- **CI green**, typecheck + build + Garmin-service compileall pass post-merge across all 8 tracks.
-- **Parallel-worktree dev loop** validated for the second consecutive milestone — eight tracks across two waves, three add/add conflicts, all resolved at merge time without re-running agents.
+- **6 data sources**, **1 orchestrator**, **2 crons** (sync + memory reindex), **3 new migrations** (013, 014, 015), **1 audit ledger**, **1 sync dashboard**, **1 MCP server**.
+- **Visible artifacts:** Data Health score on `/dashboard`, source-attribution chips across briefing / biometrics / progress, sync-aware coach briefings, auto-backfill banner on dashboard mount, rolling self-baselines on `/progress`, anomaly-led recovery notes, semantic-memory recall in coach replies, genome-aware coaching.
+- **CI green**, typecheck + build pass post-merge across all 14 tracks.
+- **Parallel-worktree dev loop** validated for the third consecutive wave — fourteen tracks across three waves, four add/add conflicts, all resolved at merge time without re-running agents. (Wave 3 also surfaced a "merges landed in the wrong checkout" bug because shell `cwd` had drifted — caught by typecheck and corrected via stash + fast-forward.)
+
+### Wave 3 — wow factor
+
+Built BEYOND the v2 spec, into v3 territory. The point: prove the data-management plumbing was worth shipping by lighting it up everywhere a user can see.
+
+- **Rolling self-baselines on `/progress`** — every metric now shows "30d median: X · ±σ Y · today: Z (−1.5σ)" with a band-colored σ pill. The page argues for itself: this app shows you how you deviate from yourself, not from the population.
+- **Anomaly-led briefings** — `lib/coach/anomaly.ts` runs every metric in today's row against the user's own trailing 28-day baseline. When anything exceeds 1.5σ, the briefing leads the recovery note with personal-baseline language and references the most recent similar past day by name ("last time HRV dropped this hard was 04/12").
+- **Long-term coach memory** — pgvector migration + OpenAI `text-embedding-3-small` indexer + cosine-similarity retrieval. The chat route now passes the user's latest turn as the recall query; the briefing route uses a synthesized "today's state" query. The coach can now say *"on 04/12 you mentioned hip pain — keeping squats off the menu, swapping to box step-ups"* and have it actually be true.
+- **Genome × coaching overlay** — 8 actionable categories surfaced from the existing genome upload: caffeine metabolism (CYP1A2), lactose persistence (MCM6/LCT), power-vs-endurance (ACTN3), endurance/mitochondria (PPARGC1A), warrior-vs-worrier (COMT), chronotype (PER3), iron storage (HFE), alcohol metabolism (ADH1B). The briefing prompt cites them by rsid + genotype in `signals_used` for high-confidence flags.
+- **Protocol MCP server** — a standalone TypeScript package the user installs into Claude Desktop. Tools: `get_data_health`, `get_biometrics_range`, `get_today_briefing`, `get_recent_audit`. Read-only, service-role-bounded by `PROTOCOL_USER_ID` env.
+- **Track 14 wire-up** — Tracks 10, 12, 13 each shipped a self-contained helper that didn't touch `lib/coach/context.ts`. A single follow-up commit threaded all three through `assembleCoachContext` and added three sections (ANOMALIES, PAST_CONTEXT, GENOME_FLAGS) plus one worked example to `BRIEFING_SYSTEM_PROMPT`. Three-way conflict on `context.ts` avoided by design.
 
 ## Plan for v3 (Week 8)
 

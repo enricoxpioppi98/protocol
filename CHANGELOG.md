@@ -64,17 +64,25 @@ Cohort feedback at v1 review: with six data sources now wired (Garmin, Whoop, Ap
 - **Sync-aware coach** — `assembleCoachContext` in `web/src/lib/coach/context.ts` now emits a `data_freshness` block (per-source `last_synced_at`, hours-since, `health_state` of `fresh|stale|missing`). `BRIEFING_SYSTEM_PROMPT` gained a `DATA FRESHNESS` worked example so the coach can call out stale sources instead of pretending it has data it doesn't.
 - **Auto-backfill on dashboard mount** — `<AutoBackfillTrigger />` (client island) POSTs to `POST /api/sync/auto-backfill`; `web/src/lib/sync/backfill.ts` detects per-source gaps over the last 7 days, calls `runSync` for sources with gaps, and emits one `sync.auto_backfill` audit row that doubles as a 30-min cooldown gate. UI surfaces "Filled 2 days of Whoop data" then auto-fades; silent on cooldown / no_sources.
 
+### Added — wave 3: wow factor (built beyond the v2 spec, into v3 territory)
+- **Rolling self-baselines on `/progress`** — `lib/coach/baselines.ts` (pure) + 7d/30d/90d/365d window selector + σ-banded delta chips on every metric ("30d median 51 · ±σ 6 · today 42 (−1.5σ)"). Reads from the merged view; uses URL `?window=30` to persist selection.
+- **Anomaly-led briefings** — `lib/coach/anomaly.ts` exports `computeAnomalies()` over a trailing 28d window with z-thresholding, similar-past lookups, and a `summarizeForPrompt()` helper. Pure function, no DB; inline test cases pin the math. Wired into `assembleCoachContext` so the briefing leads the recovery note with personal-baseline language when |z|>1.5.
+- **Long-term coach memory** — Migration `015_coach_memory.sql` (pgvector + ivfflat cosine index + RLS read-own / service-role-only writes). `lib/coach/memory.ts` exposes `embed()`, `indexMemory()`, `recallRelevant()` against OpenAI `text-embedding-3-small` (1536-dim). Direct fetch — no `openai` SDK install required. New cron route `GET/POST /api/coach/memory/reindex` (Bearer `CRON_SECRET`); daily at 09:00 UTC via a second `vercel.json` entry. Chat route passes user's latest turn as recall query; briefing route uses a synthesized state query.
+- **Genome × coaching overlay** — `lib/coach/genome-context.ts` — `relevantGenomeFlags()` returns up to 8 actionable categories from the existing genome upload: CYP1A2 (caffeine), MCM6/LCT (lactose), ACTN3 (power vs endurance), PPARGC1A (mitochondrial), COMT (warrior/worrier), PER3 (chronotype), HFE (iron storage), ADH1B (alcohol). Defense-in-depth allow-list filters out health-disease SNPs even if the catalog is later edited. One catalog addition (HFE rs1799945 H63D); APOE compound diplotype.
+- **Protocol MCP server** — New top-level `mcp-server/` package (sibling of `garmin-service/`). Stdio transport via the official `@modelcontextprotocol/sdk`. Tools: `get_data_health`, `get_biometrics_range`, `get_today_briefing`, `get_recent_audit`. Service-role authorization scoped by `PROTOCOL_USER_ID` env var. README documents the security model loudly.
+- **Track 14 wire-up** — `assembleCoachContext` now accepts `opts.recallQuery`; `CoachContext` gains `anomalies`, `recall`, `genome_flags`. `BRIEFING_SYSTEM_PROMPT` gained three new sections (ANOMALIES, PAST_CONTEXT, GENOME_FLAGS) and one worked example demonstrating the anomaly-led + recall + genome-aware case.
+
 ### Parallelization (the v2 directive)
-- **Eight worktree-isolated tracks across two waves.** Wave 1: orchestrator, multi-source PK, audit ledger, dashboard UI. Wave 2: data health score, source chips, coach awareness, auto-backfill. Three stale-base / overlap bugs caught and resolved at merge time without re-running agents (Track 3's stale base, Track 1↔Track 2 onConflict overlap, Track 5↔Track 6↔Track 8 dashboard.tsx three-way overlap). Same parallel-agent dev loop the class is teaching, applied to the project itself — at twice the scale of v1.
+- **Fourteen worktree-isolated tracks across three waves.** Wave 1: orchestrator, multi-source PK, audit ledger, dashboard UI. Wave 2: data health score, source chips, coach awareness, auto-backfill. Wave 3: trend baselines, anomaly module, MCP server, RAG memory, genome overlay, sequential wire-up. Four stale-base / overlap bugs caught and resolved at merge time without re-running agents. Wave 3 also caught a "merges landed in the wrong checkout" bug (shell cwd had drifted) — typecheck surfaced it, stash + FF fixed it. Same parallel-agent dev loop the class is teaching, applied to the project itself — at three+ times the scale of v1.
 
 ### Risks accepted
 - Vercel Hobby plan allows two daily crons; one is plenty for v2.
 - Cron at 08:00 UTC = midnight PT — fine for nightly Garmin/Whoop pull.
 - No retention policy on `audit_ledger` yet; v3 adds a 30-day TTL cron.
 
-## v3 — Week 8 (planned)
+## v3 — Week 8 (planned, partially shipped early in v2 wave 3)
 
-Readiness score (HRV + sleep + load synthesis). Weekly AI review. Multi-week workout periodization. Citations / provenance UI on briefing output.
+Already shipped in v2 wave 3: rolling self-baselines on /progress, anomaly-led briefings, coach long-term memory (RAG), genome × coaching overlay, MCP server. Remaining for v3: readiness score (HRV + sleep + load synthesis), weekly AI review, multi-week workout periodization, citations / provenance UI on briefing output, real CGM API integration (Levels), `audit_ledger` 30-day retention cron.
 
 ## v4 — Week 9 / project fair (planned)
 
