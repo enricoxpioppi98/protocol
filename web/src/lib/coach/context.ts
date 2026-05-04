@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { computeCyclePhase } from '@/lib/cycle/phase';
 import type {
   BiometricsDaily,
+  BiometricsSource,
   BloodMarkerFlag,
   BloodMarkerReading,
   BloodPanel,
@@ -60,6 +61,31 @@ export interface CoachContext {
   glucose_today: GlucoseTodaySignal | null;
   blood_markers_recent: BloodMarkersSignal | null;
   cycle_today: CycleTodaySignal | null;
+  /**
+   * Sync freshness summary (Track 7). Lets the coach disclose stale data and
+   * default to conservative recommendations rather than confidently building
+   * on a 4-day-old HRV reading. Always present; populated even when all
+   * biometrics are missing (in which case `primary_source` is null and the
+   * coach falls through to BIOMETRICS_MISSING heuristics).
+   */
+  data_freshness: DataFreshness;
+}
+
+export interface DataFreshness {
+  /**
+   * Priority winner for today's biometrics_today row, if any data exists for
+   * today. Null when there is no row for today across any source — i.e. a
+   * cold-start day where the user hasn't synced.
+   */
+  primary_source: BiometricsSource | null;
+  /** Hours since the most recent non-null hrv_ms reading across any source. */
+  hrv_age_hours: number | null;
+  /** Hours since the most recent non-null sleep_score reading across any source. */
+  sleep_score_age_hours: number | null;
+  /** True if any tracked metric (hrv, sleep_score) is more than 36h old. */
+  any_stale: boolean;
+  /** Sources with >=3 error rows in the audit_ledger over the last 24h. */
+  recently_errored: BiometricsSource[];
 }
 
 export interface GlucoseTodaySignal {
@@ -130,6 +156,106 @@ export interface MacroAggregate {
   f: number;
   fiber: number;
   by_meal: Record<string, { kcal: number; p: number; c: number; f: number }>;
+}
+
+/** Trim of `biometrics_daily` used only by the freshness summary. */
+interface BiometricsPerSourceLite {
+  date: string;
+  source: BiometricsSource;
+  fetched_at: string;
+  hrv_ms: number | null;
+  sleep_score: number | null;
+}
+
+/** Trim of `audit_ledger` used only by the freshness summary. */
+interface AuditLedgerLite {
+  action: string;
+  status: string;
+  ts: string;
+}
+
+const STALE_THRESHOLD_HOURS = 36;
+const ERROR_BURST_COUNT = 3;
+
+/**
+ * Compute the data_freshness summary from the per-source biometric rows and
+ * sync errors in the last 24h.
+ *
+ * - `primary_source`: the source winning today's merged row (if any).
+ * - `hrv_age_hours` / `sleep_score_age_hours`: hours since the most recent
+ *   non-null reading across any source. Falls back to the `fetched_at` of
+ *   that row, since that's the closest proxy to "when did this land".
+ * - `any_stale`: true if either tracked metric is older than 36h. Today's
+ *   row is always fresh-by-definition since fetched_at is "now-ish".
+ * - `recently_errored`: per-source sync action that failed >=3 times in the
+ *   last 24h (e.g. `sync.whoop` x4 → `['whoop']`).
+ */
+function computeDataFreshness(
+  perSourceRows: BiometricsPerSourceLite[],
+  errorRows: AuditLedgerLite[],
+  todayRow: BiometricsDaily | null,
+  todayISODate: string,
+  now: Date
+): DataFreshness {
+  const nowMs = now.getTime();
+
+  // primary_source: only set if today's merged row actually represents today.
+  // (biometrics_today falls back to yesterday when today is missing — we do
+  // NOT call that "primary today".)
+  const primary_source: BiometricsSource | null =
+    todayRow && todayRow.date === todayISODate
+      ? (todayRow.source as BiometricsSource)
+      : null;
+
+  function ageHoursForMetric(
+    field: 'hrv_ms' | 'sleep_score'
+  ): number | null {
+    let bestMs: number | null = null;
+    for (const row of perSourceRows) {
+      const v = row[field];
+      if (v === null || v === undefined) continue;
+      const t = Date.parse(row.fetched_at);
+      if (!Number.isFinite(t)) continue;
+      if (bestMs === null || t > bestMs) bestMs = t;
+    }
+    if (bestMs === null) return null;
+    return Math.max(0, Math.round(((nowMs - bestMs) / 36e5) * 10) / 10);
+  }
+
+  const hrv_age_hours = ageHoursForMetric('hrv_ms');
+  const sleep_score_age_hours = ageHoursForMetric('sleep_score');
+
+  // any_stale: missing data also counts as stale (the coach should disclose).
+  const stale = (h: number | null) =>
+    h === null || h > STALE_THRESHOLD_HOURS;
+  const any_stale = stale(hrv_age_hours) || stale(sleep_score_age_hours);
+
+  // recently_errored: count error rows per source action, flag any >= 3.
+  const errorCounts = new Map<string, number>();
+  for (const row of errorRows) {
+    // action like "sync.garmin" → source = "garmin". Skip oddball actions.
+    if (!row.action.startsWith('sync.')) continue;
+    const source = row.action.slice('sync.'.length);
+    if (!source) continue;
+    errorCounts.set(source, (errorCounts.get(source) ?? 0) + 1);
+  }
+  const recently_errored: BiometricsSource[] = [];
+  const validSources: BiometricsSource[] = ['garmin', 'whoop', 'apple_watch', 'manual'];
+  for (const [src, count] of errorCounts) {
+    if (count < ERROR_BURST_COUNT) continue;
+    if ((validSources as string[]).includes(src)) {
+      recently_errored.push(src as BiometricsSource);
+    }
+  }
+  recently_errored.sort();
+
+  return {
+    primary_source,
+    hrv_age_hours,
+    sleep_score_age_hours,
+    any_stale,
+    recently_errored,
+  };
 }
 
 function todayISO(): string {
@@ -380,15 +506,40 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
   // priority-winning value per metric for that day, so multi-source users
   // (Garmin + Whoop + Apple Watch) get the right HRV/sleep without us doing
   // the merge in TypeScript. Writes still go to the underlying table.
+  //
+  // Track 7: in parallel with the merged read, we also pull (a) the same
+  // 7-day window from the per-source `biometrics_daily` table — needed to
+  // compute per-metric age + per-source last-synced — and (b) the last 24h
+  // of `audit_ledger` sync errors so we know which sources are flapping.
+  // Three queries in parallel = same wall-clock cost as the previous single
+  // biometric query.
   const baselineFloor = isoNDaysAgo(7);
-  const { data: bioRows } = await supabase
-    .from('biometrics_daily_merged')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('date', baselineFloor)
-    .order('date', { ascending: false });
+  const since24hISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const [bioMergedRes, bioPerSourceRes, syncErrorsRes] = await Promise.all([
+    supabase
+      .from('biometrics_daily_merged')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', baselineFloor)
+      .order('date', { ascending: false }),
+    supabase
+      .from('biometrics_daily')
+      .select('date, source, fetched_at, hrv_ms, sleep_score')
+      .eq('user_id', userId)
+      .gte('date', baselineFloor)
+      .order('date', { ascending: false }),
+    supabase
+      .from('audit_ledger')
+      .select('action, status, ts')
+      .eq('user_id', userId)
+      .eq('status', 'error')
+      .like('action', 'sync.%')
+      .gte('ts', since24hISO),
+  ]);
 
-  const allBio = (bioRows ?? []) as BiometricsDaily[];
+  const allBio = (bioMergedRes.data ?? []) as BiometricsDaily[];
+  const perSourceRows = (bioPerSourceRes.data ?? []) as BiometricsPerSourceLite[];
+  const errorRows = (syncErrorsRes.data ?? []) as AuditLedgerLite[];
 
   const biometrics_today =
     allBio.find((r) => r.date === today) ??
@@ -524,6 +675,14 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
     profileTyped?.gender ?? null
   );
 
+  const data_freshness = computeDataFreshness(
+    perSourceRows,
+    errorRows,
+    biometrics_today,
+    today,
+    new Date()
+  );
+
   return {
     user_id: userId,
     today,
@@ -542,6 +701,7 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
     glucose_today,
     blood_markers_recent,
     cycle_today,
+    data_freshness,
   };
 }
 
@@ -791,6 +951,16 @@ export function contextToPromptInput(ctx: CoachContext): string {
       // Optional signals (migration 010). Only includes keys with data so the
       // prompt cache stays stable for users who haven't enabled any of them.
       ...(buildOptionalSignals(ctx) ?? {}),
+      // Track 7: per-metric data freshness + recently-errored sync sources.
+      // The coach uses this to disclose stale data and default to conservative
+      // recommendations rather than confidently building on a 4-day-old HRV.
+      data_freshness: {
+        primary_source: ctx.data_freshness.primary_source,
+        hrv_age_hours: ctx.data_freshness.hrv_age_hours,
+        sleep_score_age_hours: ctx.data_freshness.sleep_score_age_hours,
+        any_stale: ctx.data_freshness.any_stale,
+        recently_errored: ctx.data_freshness.recently_errored,
+      },
       blueprint_references: BLUEPRINT_REFERENCES,
     },
     null,
