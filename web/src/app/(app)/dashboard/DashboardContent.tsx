@@ -14,6 +14,7 @@ import { BiometricsCard } from '@/components/coach/BiometricsCard';
 import { MacrosCard } from '@/components/coach/MacrosCard';
 import { BriefingCard } from '@/components/coach/BriefingCard';
 import { ChatSlideOver } from '@/components/coach/ChatSlideOver';
+import { AutoBackfillTrigger } from '@/components/sync/AutoBackfillTrigger';
 
 /**
  * Dashboard's interactive body. Extracted from `page.tsx` (which is now an
@@ -176,6 +177,8 @@ export function DashboardContent({ headerSlot }: Props) {
           and the past three days of training load.
         </p>
       </header>
+
+      <AutoBackfillTrigger />
 
       {!profileLoading && !isOnboarded && (
         <Link
