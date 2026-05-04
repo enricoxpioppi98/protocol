@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { brokeredFetch, logAudit } from '@/lib/audit/broker';
-import { decryptSecret } from '@/lib/crypto/aes';
-import { getAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit/broker';
+import { GarminSyncError, syncGarmin } from '@/lib/sync/sources/garmin';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -10,58 +9,20 @@ import { createClient } from '@/lib/supabase/server';
  * Pulls Garmin biometrics for the signed-in user and upserts them into
  * `biometrics_daily`. By default fetches today only; pass `?days=N` (1-31) to
  * backfill the last N days inclusive.
+ *
+ * Thin wrapper around `syncGarmin`. The orchestrator (`/api/sync/run`,
+ * `/api/sync/cron`) wraps the same fetcher with cooldown + audit policy.
+ * This route exists for the dashboard "Pull N days" button — that's an
+ * explicit user action, so cooldown doesn't apply. Response shape is
+ * preserved for backward compat: `{ biometrics: row|null, rows: row[] }`.
+ *
+ * Errors are returned with the original HTTP statuses (404, 502, 503, etc.)
+ * rather than the orchestrator's collapsed `{status:'error'}` shape, because
+ * the dashboard reads `error`/`fallback` to decide which UI to show.
  */
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-interface GarminDayPayload {
-  sleep_score: number | null;
-  sleep_duration_minutes: number | null;
-  hrv_ms: number | null;
-  resting_hr: number | null;
-  stress_avg: number | null;
-  training_load_acute: number | null;
-  training_load_chronic: number | null;
-  // Movement / activity volume
-  total_steps: number | null;
-  floors_climbed: number | null;
-  active_minutes: number | null;
-  vigorous_minutes: number | null;
-  moderate_minutes: number | null;
-  total_kcal_burned: number | null;
-  active_kcal_burned: number | null;
-  // Cardiovascular
-  vo2max: number | null;
-  max_hr: number | null;
-  min_hr: number | null;
-  // Sleep sub-stages
-  deep_sleep_minutes: number | null;
-  rem_sleep_minutes: number | null;
-  light_sleep_minutes: number | null;
-  awake_sleep_minutes: number | null;
-  sleep_efficiency: number | null;
-  // Body battery
-  body_battery_high: number | null;
-  body_battery_low: number | null;
-  body_battery_charged: number | null;
-  body_battery_drained: number | null;
-  raw: unknown;
-}
-
-interface GarminRangeResponse {
-  days: { date: string; biometrics: GarminDayPayload }[];
-}
-
-function dateMinusDays(d: Date, n: number): Date {
-  const out = new Date(d);
-  out.setDate(out.getDate() - n);
-  return out;
-}
-
-function isoDay(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
 
 export async function POST(req: Request) {
   const supabase = await createClient();
@@ -78,162 +39,52 @@ export async function POST(req: Request) {
     ? Math.max(1, Math.min(31, daysRaw))
     : 1;
 
-  const serviceUrl = process.env.GARMIN_SERVICE_URL;
-  const serviceToken = process.env.GARMIN_SERVICE_TOKEN;
-  if (!serviceUrl || !serviceToken) {
-    return NextResponse.json(
-      { error: 'garmin service not configured', fallback: 'manual' },
-      { status: 503 }
-    );
-  }
-
-  const admin = getAdminClient();
-  const { data: creds, error: credsErr } = await admin
-    .from('garmin_credentials')
-    .select('email, password_encrypted')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (credsErr || !creds) {
-    return NextResponse.json(
-      { error: 'no garmin credentials on file', fallback: 'manual' },
-      { status: 404 }
-    );
-  }
-
-  let plaintextPassword: string;
   try {
-    plaintextPassword = decryptSecret(creds.password_encrypted as string);
-  } catch (err) {
-    console.error('[biometrics/sync] decrypt failed', err);
-    return NextResponse.json(
-      { error: 'credential decrypt failed', fallback: 'manual' },
-      { status: 500 }
-    );
-  }
+    const result = await syncGarmin({
+      userId: user.id,
+      days,
+      writeClient: supabase,
+    });
 
-  const todayDate = new Date();
-  const today = isoDay(todayDate);
-
-  // Single-day path keeps the simple /garmin/today endpoint.
-  // Range path fans out to /garmin/range with ONE login at the service.
-  const useRange = days > 1;
-  const garminRes = await brokeredFetch(
-    `${serviceUrl}${useRange ? '/garmin/range' : '/garmin/today'}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${serviceToken}`,
-      },
-      body: JSON.stringify(
-        useRange
-          ? {
-              email: creds.email,
-              password: plaintextPassword,
-              start_date: isoDay(dateMinusDays(todayDate, days - 1)),
-              end_date: today,
-            }
-          : {
-              email: creds.email,
-              password: plaintextPassword,
-              date: today,
-            }
-      ),
+    logAudit({
       actor: user.id,
+      action: 'biometrics.sync.success',
+      target: 'biometrics_daily',
       purpose: 'biometrics_sync',
+      ts: new Date().toISOString(),
+    });
+
+    return NextResponse.json({
+      biometrics: result.rows[0] ?? null,
+      rows: result.rows,
+    });
+  } catch (err) {
+    if (err instanceof GarminSyncError) {
+      const fallback =
+        err.kind === 'not_configured' || err.kind === 'no_credentials'
+          ? 'manual'
+          : undefined;
+      return NextResponse.json(
+        {
+          error:
+            err.kind === 'no_credentials'
+              ? 'no garmin credentials on file'
+              : err.kind === 'not_configured'
+                ? 'garmin service not configured'
+                : err.kind === 'upstream_failed'
+                  ? 'garmin upstream failed'
+                  : err.kind === 'decrypt_failed'
+                    ? 'credential decrypt failed'
+                    : 'failed to persist biometrics',
+          ...(err.upstreamStatus !== undefined ? { status: err.upstreamStatus } : {}),
+          ...(fallback ? { fallback } : {}),
+        },
+        { status: err.status }
+      );
     }
-  );
-
-  if (!garminRes.ok) {
-    const text = await garminRes.text().catch(() => '');
-    console.error('[biometrics/sync] garmin upstream', garminRes.status, text);
-    return NextResponse.json(
-      { error: 'garmin upstream failed', status: garminRes.status, fallback: 'manual' },
-      { status: 502 }
-    );
+    console.error('[biometrics/sync] unexpected', err);
+    return NextResponse.json({ error: 'sync failed' }, { status: 500 });
   }
-
-  const fetchedAt = new Date().toISOString();
-  const upserts: Array<Record<string, unknown>> = [];
-
-  if (useRange) {
-    const range = (await garminRes.json()) as GarminRangeResponse;
-    for (const d of range.days) {
-      upserts.push(toUpsert(user.id, d.date, d.biometrics, fetchedAt));
-    }
-  } else {
-    const single = (await garminRes.json()) as GarminDayPayload;
-    upserts.push(toUpsert(user.id, today, single, fetchedAt));
-  }
-
-  const { data: rows, error: upsertErr } = await supabase
-    .from('biometrics_daily')
-    .upsert(upserts, { onConflict: 'user_id,date' })
-    .select('*');
-
-  if (upsertErr) {
-    console.error('[biometrics/sync] upsert error', upsertErr);
-    return NextResponse.json({ error: 'failed to persist biometrics' }, { status: 500 });
-  }
-
-  logAudit({
-    actor: user.id,
-    action: 'biometrics.sync.success',
-    target: 'biometrics_daily',
-    purpose: 'biometrics_sync',
-    ts: new Date().toISOString(),
-  });
-
-  // For backwards compatibility with the existing client, return the most
-  // recent row as `biometrics` plus the full set as `rows`.
-  const sorted = (rows ?? []).slice().sort((a, b) =>
-    String((b as Record<string, unknown>).date).localeCompare(
-      String((a as Record<string, unknown>).date)
-    )
-  );
-  return NextResponse.json({ biometrics: sorted[0] ?? null, rows: sorted });
-}
-
-function toUpsert(
-  userId: string,
-  date: string,
-  d: GarminDayPayload,
-  fetchedAt: string
-): Record<string, unknown> {
-  return {
-    user_id: userId,
-    date,
-    sleep_score: d.sleep_score,
-    sleep_duration_minutes: d.sleep_duration_minutes,
-    hrv_ms: d.hrv_ms,
-    resting_hr: d.resting_hr,
-    stress_avg: d.stress_avg,
-    training_load_acute: d.training_load_acute,
-    training_load_chronic: d.training_load_chronic,
-    total_steps: d.total_steps,
-    floors_climbed: d.floors_climbed,
-    active_minutes: d.active_minutes,
-    vigorous_minutes: d.vigorous_minutes,
-    moderate_minutes: d.moderate_minutes,
-    total_kcal_burned: d.total_kcal_burned,
-    active_kcal_burned: d.active_kcal_burned,
-    vo2max: d.vo2max,
-    max_hr: d.max_hr,
-    min_hr: d.min_hr,
-    deep_sleep_minutes: d.deep_sleep_minutes,
-    rem_sleep_minutes: d.rem_sleep_minutes,
-    light_sleep_minutes: d.light_sleep_minutes,
-    awake_sleep_minutes: d.awake_sleep_minutes,
-    sleep_efficiency: d.sleep_efficiency,
-    body_battery_high: d.body_battery_high,
-    body_battery_low: d.body_battery_low,
-    body_battery_charged: d.body_battery_charged,
-    body_battery_drained: d.body_battery_drained,
-    source: 'garmin' as const,
-    raw: d.raw,
-    fetched_at: fetchedAt,
-  };
 }
 
 /**
