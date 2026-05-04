@@ -14,6 +14,7 @@ import { BiometricsCard } from '@/components/coach/BiometricsCard';
 import { MacrosCard } from '@/components/coach/MacrosCard';
 import { BriefingCard } from '@/components/coach/BriefingCard';
 import { ChatSlideOver } from '@/components/coach/ChatSlideOver';
+import { AutoBackfillTrigger } from '@/components/sync/AutoBackfillTrigger';
 
 export default function DashboardPage() {
   const today = useMemo(() => new Date(), []);
@@ -162,6 +163,8 @@ export default function DashboardPage() {
           and the past three days of training load.
         </p>
       </header>
+
+      <AutoBackfillTrigger />
 
       {!profileLoading && !isOnboarded && (
         <Link
