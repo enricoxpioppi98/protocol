@@ -192,6 +192,32 @@ export const SNP_CATALOG: SNPEntry[] = [
     source: 'Feder et al., Nat Genet 1996 (PMID: 8696333)',
   },
   {
+    rsid: 'rs1799945',
+    gene: 'HFE',
+    trait: 'iron_absorption_h63d',
+    description: 'H63D variant — second HFE site influencing iron absorption.',
+    category: 'Nutrition',
+    variants: {
+      // C = wild type (His63), G = H63D risk allele (forward strand convention).
+      CC: {
+        value: 'typical iron absorption',
+        coaching:
+          'No H63D iron-loading flag. Standard dietary iron guidance applies.',
+      },
+      CG: {
+        value: 'mildly elevated absorption',
+        coaching:
+          'H63D carrier. Iron absorption may run slightly above average; check ferritin and transferrin saturation periodically before adding iron-rich supplements or fortified products.',
+      },
+      GG: {
+        value: 'elevated iron absorption',
+        coaching:
+          'Homozygous H63D — penetrance is lower than C282Y but iron loading is still possible. Avoid iron supplements by default and request a ferritin panel before adopting heavy red-meat or iron-fortified routines.',
+      },
+    },
+    source: 'Feder et al., Nat Genet 1996 (PMID: 8696333); dbSNP rs1799945',
+  },
+  {
     rsid: 'rs1801133',
     gene: 'MTHFR',
     trait: 'folate_metabolism',
