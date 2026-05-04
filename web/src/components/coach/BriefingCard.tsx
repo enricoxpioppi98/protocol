@@ -12,8 +12,9 @@ import {
   Check,
   Loader2,
 } from 'lucide-react';
-import type { DailyBriefing } from '@/lib/types/models';
+import type { BiometricsDaily, BiometricsSource, DailyBriefing } from '@/lib/types/models';
 import { cn } from '@/lib/utils/cn';
+import { SourceChip, freshnessSecondsFrom } from '@/components/ui/SourceChip';
 
 type LogStatus = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -21,6 +22,17 @@ interface Props {
   briefing: DailyBriefing | null;
   loading: boolean;
   onGenerate: (regenerate: boolean) => Promise<void>;
+  /**
+   * Today's merged biometrics row. Used only to render a "Signals from:"
+   * source chip under the recovery note (Track 6). Optional — when omitted,
+   * the chip line is hidden and the card behaves exactly as v1.
+   *
+   * We accept the full row (instead of just `source` + `fetched_at`) so the
+   * card can later promote per-metric attribution without a prop signature
+   * change. For v2 we just read primary `source` — same approach as
+   * BiometricsCard, deliberately consistent.
+   */
+  biometrics?: BiometricsDaily | null;
 }
 
 const SLOT_DOT: Record<string, string> = {
@@ -37,7 +49,7 @@ function isFresh(regeneratedAt: string | null | undefined): boolean {
   return Date.now() - t < 60_000; // < 1 min ago = "fresh"
 }
 
-export function BriefingCard({ briefing, loading, onGenerate }: Props) {
+export function BriefingCard({ briefing, loading, onGenerate, biometrics }: Props) {
   const [busy, setBusy] = useState(false);
   const [logStatus, setLogStatus] = useState<Record<number, LogStatus>>({});
 
@@ -296,6 +308,7 @@ export function BriefingCard({ briefing, loading, onGenerate }: Props) {
                 <p className="mt-2 font-serif text-base leading-relaxed text-foreground">
                   &ldquo;{briefing.recovery_note}&rdquo;
                 </p>
+                <BriefingSignalSources biometrics={biometrics ?? null} />
               </section>
             </>
           ) : null}
@@ -320,6 +333,62 @@ function SectionHead({
       <span className="eyebrow">{label}</span>
       <span className="h-px flex-1 bg-border" />
       {right}
+    </div>
+  );
+}
+
+/**
+ * "Signals from:" source attribution under the recovery note (Track 6).
+ *
+ * The recovery_note string emitted by the briefing prompt may include a
+ * `signals_used: …` token, but it does NOT carry per-source attribution
+ * (it cites *which signals* mattered, not *which device produced them*).
+ * Parsing it for sources would be fragile. So per Track 6's design note we
+ * surface a single chip: the priority-winner source for today's merged
+ * biometrics — same source as the BiometricsCard chip, kept consistent so
+ * the user reads a coherent story across the dashboard.
+ *
+ * Renders nothing when no biometrics row is available — graceful empty
+ * state, never throws.
+ */
+function BriefingSignalSources({
+  biometrics,
+}: {
+  biometrics: BiometricsDaily | null;
+}) {
+  if (!biometrics?.source) return null;
+  const primary = biometrics.source as BiometricsSource;
+  const rawList = (biometrics as unknown as { sources_present?: string | null })
+    .sources_present;
+  const allSources: BiometricsSource[] = (rawList
+    ? rawList
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [primary]) as BiometricsSource[];
+
+  // Dedupe but preserve order; primary source first, others after.
+  const ordered: BiometricsSource[] = [
+    primary,
+    ...allSources.filter((s) => s !== primary),
+  ];
+  const freshness = freshnessSecondsFrom(biometrics.fetched_at);
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+        Signals from
+      </span>
+      {ordered.map((src, i) => (
+        <SourceChip
+          key={src}
+          source={src}
+          // Only the primary chip carries the freshness tooltip — the others
+          // may have stale fetched_at values we'd misattribute. Track 6
+          // explicitly accepts this lossy simplification.
+          freshnessSeconds={i === 0 ? freshness : undefined}
+        />
+      ))}
     </div>
   );
 }

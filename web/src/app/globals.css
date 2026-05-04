@@ -206,6 +206,18 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-instrument-serif);
+
+  /* ============================================================
+     Per-source brand colors — Track 6 (source attribution).
+     Used by SourceChip to tint borders/text per-source so the
+     user can tell at a glance which integration produced a value.
+     Values stay constant across light/dark; the glass background
+     does the contrast work.
+     ============================================================ */
+  --source-garmin: #38bdf8;        /* sky-blue */
+  --source-whoop: #34d399;         /* emerald */
+  --source-apple-watch: #a3a3a3;   /* neutral */
+  --source-manual: #c4b5fd;        /* violet */
 }
 
 /* ============================================================

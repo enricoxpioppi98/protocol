@@ -333,7 +333,11 @@ export default function ProgressPage() {
         </div>
       )}
 
-      <MetricStatStrip metrics={selectedMetrics} data={chartData} />
+      <MetricStatStrip
+        metrics={selectedMetrics}
+        data={chartData}
+        biometrics={biometrics}
+      />
 
       <MetricPicker selected={selectedMetricIds} onChange={setSelectedMetricIds} />
     </div>

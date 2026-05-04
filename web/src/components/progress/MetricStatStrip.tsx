@@ -1,11 +1,24 @@
 'use client';
 
+import type { BiometricsDaily, BiometricsSource } from '@/lib/types/models';
+import { SourceChip, freshnessSecondsFrom } from '@/components/ui/SourceChip';
 import type { MetricDef } from './metricCatalog';
 import type { MultiMetricChartDatum } from './MultiMetricChart';
 
 interface Props {
   metrics: MetricDef[];
   data: MultiMetricChartDatum[];
+  /**
+   * Optional biometrics rows from `biometrics_daily_merged`. Used purely to
+   * render a small SourceChip next to biometrics-sourced metrics, advertising
+   * which integration produced today's value (Track 6, source attribution).
+   *
+   * We pass the full array (not a single row) so a future revision can
+   * promote per-metric attribution without a prop signature change. v2 uses
+   * only the most recent row's primary `source` field — same simplification
+   * the BiometricsCard makes, deliberately consistent.
+   */
+  biometrics?: BiometricsDaily[];
 }
 
 interface Summary {
@@ -63,13 +76,31 @@ function fmt(v: number, unit: string): string {
   return v.toFixed(1);
 }
 
-export function MetricStatStrip({ metrics, data }: Props) {
+export function MetricStatStrip({ metrics, data, biometrics }: Props) {
   if (metrics.length === 0) return null;
+
+  // Latest biometrics row — used to read the priority-winner `source` for
+  // any biometrics-sourced metric in the strip. The merged view is sorted
+  // ascending by date in progress/page.tsx, so the latest row is the tail.
+  // Defensive: pick the row with the largest date string (lex sort works on
+  // ISO YYYY-MM-DD) so we don't depend on caller ordering.
+  const latestBio: BiometricsDaily | null =
+    biometrics && biometrics.length > 0
+      ? biometrics.reduce(
+          (acc, row) => (acc == null || row.date > acc.date ? row : acc),
+          null as BiometricsDaily | null
+        )
+      : null;
+  const latestSource = latestBio?.source as BiometricsSource | undefined;
+  const latestFreshness = freshnessSecondsFrom(latestBio?.fetched_at);
 
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {metrics.map((m) => {
         const s = summarize(m, data);
+        // Only biometrics-sourced metrics carry a chip — diary/weight come
+        // from the user's logging, not from a wearable integration.
+        const showChip = m.source === 'biometrics' && latestSource;
         return (
           <div key={m.id} className="rounded-2xl bg-card px-4 py-3">
             <div className="flex items-center justify-between">
@@ -79,6 +110,12 @@ export function MetricStatStrip({ metrics, data }: Props) {
                   style={{ backgroundColor: m.color }}
                 />
                 <span className="text-xs font-medium text-foreground">{m.label}</span>
+                {showChip ? (
+                  <SourceChip
+                    source={latestSource}
+                    freshnessSeconds={latestFreshness}
+                  />
+                ) : null}
               </div>
               <span className="text-[10px] text-muted">
                 {s.count} {s.count === 1 ? 'day' : 'days'}

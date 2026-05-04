@@ -203,6 +203,7 @@ export default function DashboardPage() {
         briefing={briefing}
         loading={briefingLoading}
         onGenerate={handleGenerateBriefing}
+        biometrics={biometrics}
       />
 
       {/* Floating chat button — glass capsule with serif "ask" */}

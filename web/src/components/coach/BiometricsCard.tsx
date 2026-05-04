@@ -11,10 +11,11 @@ import {
   StarOff,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import type { BiometricsDaily } from '@/lib/types/models';
+import type { BiometricsDaily, BiometricsSource } from '@/lib/types/models';
 import { cn } from '@/lib/utils/cn';
 import { ReadinessScore } from './ReadinessScore';
 import { BiometricsTrend } from './BiometricsTrend';
+import { SourceChip, freshnessSecondsFrom } from '@/components/ui/SourceChip';
 
 interface Props {
   biometrics: BiometricsDaily | null;
@@ -256,11 +257,9 @@ export function BiometricsCard({
         <div className="flex items-center gap-3">
           <Activity size={14} className="text-accent" />
           <h2 className="eyebrow">Biometrics</h2>
-          {biometrics?.source === 'manual' && (
-            <span className="rounded-full bg-glass-3 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
-              manual
-            </span>
-          )}
+          {biometrics?.source ? (
+            <SourceAttribution biometrics={biometrics} />
+          ) : null}
           {stale && (
             <span className="rounded-full bg-highlight-light px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em] text-highlight">
               from {biometrics.date}
@@ -512,6 +511,52 @@ function MetricsPicker({
         })}
       </ul>
     </div>
+  );
+}
+
+/**
+ * Render the priority-winner source for today's row, plus a "+N" hint when
+ * additional sources contributed to the merged view (Track 6).
+ *
+ * The merged view (migration 013) exposes:
+ *   - `source`: the highest-priority source that had any non-null metric.
+ *   - `sources_present`: comma-separated list of EVERY source that wrote
+ *     a row that day (ignoring whether their metrics won the priority race).
+ *
+ * Neither field exists on `BiometricsDaily` today (the merged view extends
+ * the underlying table shape), so we read both defensively. If no source is
+ * available we render nothing — the chip is a transparency aid, not load-
+ * bearing UI.
+ */
+function SourceAttribution({ biometrics }: { biometrics: BiometricsDaily }) {
+  const primary = biometrics.source as BiometricsSource | undefined;
+  if (!primary) return null;
+
+  // sources_present is a view-only column ("garmin,whoop"). Parse defensively.
+  const rawList = (biometrics as unknown as { sources_present?: string | null })
+    .sources_present;
+  const allSources = rawList
+    ? rawList
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [primary];
+  const extra = Math.max(0, allSources.length - 1);
+
+  const freshness = freshnessSecondsFrom(biometrics.fetched_at);
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <SourceChip source={primary} freshnessSeconds={freshness} />
+      {extra > 0 ? (
+        <span
+          className="rounded-full bg-glass-2 px-1.5 py-[2px] font-mono text-[9px] uppercase tracking-[0.16em] text-muted"
+          title={`Also has data from: ${allSources.filter((s) => s !== primary).join(', ')}`}
+        >
+          +{extra}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
