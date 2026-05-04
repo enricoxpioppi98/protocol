@@ -167,9 +167,12 @@ export async function POST(req: Request) {
     upserts.push(toUpsert(user.id, today, single, fetchedAt));
   }
 
+  // PK is (user_id, date, source) as of migration 013 so multi-source syncs
+  // no longer overwrite each other. The Garmin sync only writes source='garmin'
+  // rows, so the conflict target matches.
   const { data: rows, error: upsertErr } = await supabase
     .from('biometrics_daily')
-    .upsert(upserts, { onConflict: 'user_id,date' })
+    .upsert(upserts, { onConflict: 'user_id,date,source' })
     .select('*');
 
   if (upsertErr) {
@@ -273,9 +276,11 @@ export async function PUT(req: Request) {
     fetched_at: new Date().toISOString(),
   };
 
+  // PK is (user_id, date, source) as of migration 013; manual entries write
+  // their own row alongside any device-sourced rows, no longer clobbering them.
   const { data: row, error: upsertErr } = await supabase
     .from('biometrics_daily')
-    .upsert(upsertPayload, { onConflict: 'user_id,date' })
+    .upsert(upsertPayload, { onConflict: 'user_id,date,source' })
     .select('*')
     .single();
 

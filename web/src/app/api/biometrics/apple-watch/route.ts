@@ -141,9 +141,12 @@ export async function POST(req: Request) {
     fetched_at: fetchedAt,
   };
 
+  // PK is (user_id, date, source) as of migration 013 — the HealthKit webhook
+  // now writes its own per-day row alongside any Garmin/Whoop rows for the
+  // same date instead of overwriting them.
   const { error: upsertErr } = await admin
     .from('biometrics_daily')
-    .upsert(upsertPayload, { onConflict: 'user_id,date' });
+    .upsert(upsertPayload, { onConflict: 'user_id,date,source' });
   if (upsertErr) {
     console.error('[biometrics/apple-watch] upsert error', upsertErr);
     return NextResponse.json(

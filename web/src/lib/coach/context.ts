@@ -375,9 +375,14 @@ export async function assembleCoachContext(userId: string): Promise<CoachContext
 
   // Biometrics — pull last 8 rows (today + 7-day baseline) so we can compute
   // both today's snapshot and the trend tags from a single query.
+  //
+  // Read from the merged view (migration 013): each row already represents the
+  // priority-winning value per metric for that day, so multi-source users
+  // (Garmin + Whoop + Apple Watch) get the right HRV/sleep without us doing
+  // the merge in TypeScript. Writes still go to the underlying table.
   const baselineFloor = isoNDaysAgo(7);
   const { data: bioRows } = await supabase
-    .from('biometrics_daily')
+    .from('biometrics_daily_merged')
     .select('*')
     .eq('user_id', userId)
     .gte('date', baselineFloor)

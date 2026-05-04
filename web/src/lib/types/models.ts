@@ -176,6 +176,17 @@ export interface UserProfile {
    * has never uploaded. Used by the Genome page to surface "last updated".
    */
   genome_uploaded_at: string | null;
+  /**
+   * Per-user metric source priority list (migration 013). Drives the
+   * `biometrics_daily_merged` view: index 0 = highest priority. v2 only
+   * consumes `default`, applied uniformly to every metric column. Future
+   * revisions may add per-metric overrides (e.g. `{"hrv_ms": [...]}`).
+   * Edited via `PUT /api/profile/source-priority`.
+   */
+  metric_source_priority: {
+    default: BiometricsSource[];
+    [metric: string]: BiometricsSource[] | undefined;
+  };
   created_at: string;
   updated_at: string;
 }
