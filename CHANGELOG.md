@@ -27,9 +27,44 @@ All notable changes to Protocol. The project follows the v1 → v4 milestones fo
 - AI food estimation: Gemini 2.5-flash (left unchanged from MacroTracker)
 - AI coaching: Claude Sonnet 4.6 via `@anthropic-ai/sdk`
 
-## v2 — Week 7 (planned)
+## v2 — 2026-05-04 (Week 7 milestone) — data management hardening
 
-iOS catches up. Realtime sync between web and iOS. Streaming briefing. Apple Health bridge. Cron-driven nightly Garmin sync. Audit ledger persisted to Supabase.
+Cohort feedback at v1 review: with six data sources now wired (Garmin, Whoop, Apple Watch, CGM, blood markers, cycle), think hard about polling frequency, rate limits, and database load. v2 turns that feedback into a coherent ingestion architecture.
+
+### Added — sync orchestrator + scheduled cron
+- `web/src/lib/sync/{orchestrator.ts, policy.ts}` — `runSync(userId, sources, opts)` with per-source min-interval policy (Garmin 1h, Whoop 15min, Apple Watch push-only). In-process per-user lock so concurrent triggers coalesce.
+- `web/src/lib/sync/sources/{garmin.ts, whoop.ts}` — fetcher logic extracted from the sync routes; both the manual button path and the orchestrator share the same code.
+- `POST /api/sync/run` — authenticated user-triggered sync; body `{ sources?, force?, days? }`.
+- `GET/POST /api/sync/cron` — `Bearer ${CRON_SECRET}` auth; fans out across all users with at least one connected integration.
+- `web/vercel.json` — daily cron `0 8 * * *` UTC → `/api/sync/cron`.
+- Existing `POST /api/biometrics/sync` and `POST /api/biometrics/sync-whoop` are now thin wrappers; the dashboard's "Pull 7 days" button is unchanged.
+
+### Added — kill silent same-day overwrites
+- Migration `013_biometrics_multi_source.sql` — `biometrics_daily` PK changes from `(user_id, date)` to `(user_id, date, source)`. Each source keeps its own row per day.
+- New `biometrics_daily_merged` view — picks one value per metric per day using a per-user priority list (default: garmin > whoop > apple_watch > manual). 26 metric columns aggregated.
+- `user_profile.metric_source_priority jsonb` column with sensible default.
+- `GET/PUT /api/profile/source-priority` — let users override.
+- All read sites (briefing context, dashboard, progress charts, history) switched from the table to the merged view.
+
+### Added — audit ledger + retry-with-backoff
+- Migration `014_audit_ledger.sql` — `audit_ledger(user_id, ts, actor, action, target, purpose, status, ms_elapsed, rows_affected, error_message, payload)` with RLS (read-own, service-role-only writes) and `supabase_realtime` publication.
+- `web/src/lib/audit/broker.ts` — `logAudit()` now persists to `audit_ledger` (best-effort; stdout fallback). `brokeredFetch()` is timed and emits one ok/error row per call.
+- `web/src/lib/sync/retry.ts` — `withBackoff()` with typed `HttpError`. Retries 429/5xx/network-error, terminal on 401/403/4xx-other, exponential 1s/4s/16s with ±25% jitter.
+- `GET /api/sync/history?source=&days=` — reads the calling user's recent audit rows.
+
+### Added — sync dashboard at `/settings/integrations`
+- Per-source cards (Garmin, Whoop, Apple Watch): connected/disconnected/recently-errored badge, "12 min ago" freshness, next-pull timestamp, cooldown countdown, "Sync now" button.
+- `SyncNowButton` client component — POSTs to `/api/sync/run` for that source, surfaces `status`/`rowsAffected` inline, disabled with tooltip for push-only Apple Watch.
+- `AuditTimeline` client component — Realtime-subscribed to `audit_ledger` filtered to the user; new syncs animate in within ~2s of completion. Capped at 20 rows, dedup by id.
+- CGM / blood markers / cycle keep their existing manual-entry surface area, gated as before.
+
+### Parallelization (the v2 directive)
+- Four worktree-isolated tracks ran concurrently: orchestrator, multi-source PK, audit ledger, dashboard UI. Two stale-base bugs caught and corrected mid-flight (cherry-pick onto current `main`, plus an extracted-source onConflict patch during the Track 1 ↔ Track 2 merge). Same parallel-agent dev loop the class is teaching, applied to the project itself.
+
+### Risks accepted
+- Vercel Hobby plan allows two daily crons; one is plenty for v2.
+- Cron at 08:00 UTC = midnight PT — fine for nightly Garmin/Whoop pull.
+- No retention policy on `audit_ledger` yet; v3 adds a 30-day TTL cron.
 
 ## v3 — Week 8 (planned)
 
