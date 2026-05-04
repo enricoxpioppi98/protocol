@@ -44,18 +44,33 @@ v2 closes all four gaps and ships a visible artifact — a sync dashboard at `/s
 - `AuditTimeline` client island — Realtime-subscribed to `audit_ledger` filtered to the calling user. New syncs animate into the timeline within ~2s of landing. Capped at 20 rows; dedupes by id so server-rendered rows don't double when the realtime INSERT echoes them back.
 - CGM / blood markers / cycle keep their existing manual-entry cards, gated as before.
 
+### Wave 2 — visible-on-the-dashboard polish (Tracks 5–8)
+
+After the four data-management tracks landed, four more parallel worktree agents shipped the user-facing surface area for v2 — the parts that prove the architecture work was worth it.
+
+- **Track 5 — Data Health score on `/dashboard`.** A single 0..100 numeral at the top of the dashboard (`web/src/components/dashboard/DataHealthCard.tsx`) summarising the user's ingestion plumbing. Formula: `0.7 * freshness + 0.3 * (1 - error_rate_24h)`, averaged over connected sources. Bands: ≥85 green, 60-84 yellow, <60 red, no-sources gray. Pure scoring fn lives in `web/src/lib/sync/health-score.ts` with five inline test cases. Card is a click-target → `/settings/integrations`. The dashboard route was split from a fat client into a thin async server component (`page.tsx`) + `<DashboardContent />` client island so the score paints on first byte instead of after hydrate.
+- **Track 6 — Source attribution chips.** `web/src/components/ui/SourceChip.tsx` (new) — Garmin / Whoop / Apple Watch / Manual pills with per-source CSS tokens (`--source-garmin: #38bdf8` etc, in `globals.css`). Used on `BiometricsCard`, `BriefingCard` ("Signals from: Garmin · Whoop"), and the `MetricStatStrip` on `/progress`. Primary-source-only attribution — skipped per-metric chips because that needs `signals_used` parsing which is lossy across the merged view. Time-to-fresh: `freshnessSecondsFrom(iso)` exported helper.
+- **Track 7 — Coach sync-awareness.** `assembleCoachContext` (`web/src/lib/coach/context.ts`) now computes a `data_freshness` block — per-source `last_synced_at`, age-in-hours, and a `health_state` (`fresh | stale | missing`). `BRIEFING_SYSTEM_PROMPT` (`web/src/lib/claude/prompts/briefing.ts`) gained a `DATA FRESHNESS` worked example so the coach can say "your Whoop hasn't synced since Saturday — recovery score below treats you as untracked" instead of pretending it has data it doesn't.
+- **Track 8 — Auto-backfill on dashboard mount.** `<AutoBackfillTrigger />` (client island in `DashboardContent`) POSTs to `/api/sync/auto-backfill` once per page load. Server-side (`web/src/lib/sync/backfill.ts`) detects per-source gaps over the last 7 days, calls `runSync(userId, [source], { days: 7 })` for each source with gaps, diffs before/after, and emits a single `sync.auto_backfill` audit row that doubles as the 30-min cooldown gate. UI surfaces a glass-strong banner ("Filled 2 days of Whoop data") that auto-fades; silent on cooldown / no_sources.
+
+Wave-2 merge order: Track 7 (no UI conflicts) → Track 5 (introduced the dashboard split) → Track 8 (overlaid `<AutoBackfillTrigger />` onto the new split). One add/add conflict on `dashboard/page.tsx` resolved by taking Track 5's server-component split and porting Track 6's `biometrics={biometrics}` prop and Track 8's `<AutoBackfillTrigger />` into `DashboardContent.tsx`. Build green; `/api/sync/auto-backfill` registered alongside the wave-1 routes.
+
 ## Parallelization (the v2 directive)
 
 The Week 6 wave used parallel worktree agents to ship seven feature tracks in two hours; v2 reuses the same dev loop but with a tighter scoped brief. Four tracks ran concurrently in isolated git worktrees:
 
-| Track | Branch | What |
-|---|---|---|
-| 1 | `feat/sync-orchestrator` | Orchestrator + Vercel cron + extracted sources |
-| 2 | `feat/biometrics-multi-source` | Composite PK migration + merged view |
-| 3 | `feat/audit-ledger` | Audit ledger schema + retry helper + broker rewrite |
-| 4 | `feat/sync-dashboard` | Per-source cards + Realtime audit timeline |
+| Wave | Track | Branch | What |
+|---|---|---|---|
+| 1 | 1 | `feat/sync-orchestrator` | Orchestrator + Vercel cron + extracted sources |
+| 1 | 2 | `feat/biometrics-multi-source` | Composite PK migration + merged view |
+| 1 | 3 | `feat/audit-ledger` | Audit ledger schema + retry helper + broker rewrite |
+| 1.5 | 4 | `feat/sync-dashboard` | Per-source cards + Realtime audit timeline |
+| 2 | 5 | `feat/data-health-score` | 0..100 ingestion health score on `/dashboard` + page split |
+| 2 | 6 | `feat/source-attribution` | `SourceChip` + per-source CSS tokens + briefing/dashboard/progress chips |
+| 2 | 7 | `feat/coach-sync-awareness` | `data_freshness` in coach context + DATA FRESHNESS prompt example |
+| 2 | 8 | `feat/auto-backfill` | Detect-and-fill 7-day gaps on dashboard mount |
 
-Tracks 1, 2, 3 ran in wave 1 (independent at the file level). Wave 2 was Track 4, which depends on Track 1's `/api/sync/run` and Track 3's `audit_ledger` schema.
+Tracks 1, 2, 3 ran in wave 1 (independent at the file level). Track 4 (sync dashboard) sat between waves — it depends on Track 1's `/api/sync/run` and Track 3's `audit_ledger` schema. Wave 2 (Tracks 5–8) shipped the user-facing surface area on top of the wave-1 plumbing: visible health score, source provenance chips, a sync-aware coach prompt, and silent gap-filling. **Eight tracks total across two waves.**
 
 ### Two stale-base bugs caught mid-flight
 
@@ -90,8 +105,9 @@ Multi-source no-overwrite proof and merged-view sanity require live Supabase + c
 ## Final state
 
 - **6 data sources**, **1 orchestrator**, **1 cron**, **2 new migrations** (013, 014), **1 audit ledger**, **1 sync dashboard**.
-- **CI green**, typecheck + build + Garmin-service compileall pass.
-- **Parallel-worktree dev loop** validated for the second consecutive milestone.
+- **Visible artifacts:** Data Health score on `/dashboard`, source-attribution chips across briefing / biometrics / progress, sync-aware coach briefings, auto-backfill banner on dashboard mount.
+- **CI green**, typecheck + build + Garmin-service compileall pass post-merge across all 8 tracks.
+- **Parallel-worktree dev loop** validated for the second consecutive milestone — eight tracks across two waves, three add/add conflicts, all resolved at merge time without re-running agents.
 
 ## Plan for v3 (Week 8)
 

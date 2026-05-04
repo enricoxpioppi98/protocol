@@ -58,8 +58,14 @@ Cohort feedback at v1 review: with six data sources now wired (Garmin, Whoop, Ap
 - `AuditTimeline` client component — Realtime-subscribed to `audit_ledger` filtered to the user; new syncs animate in within ~2s of completion. Capped at 20 rows, dedup by id.
 - CGM / blood markers / cycle keep their existing manual-entry surface area, gated as before.
 
+### Added — wave 2: visible-on-the-dashboard polish
+- **Data Health score** at the top of `/dashboard` — `web/src/components/dashboard/DataHealthCard.tsx` (server) + `web/src/lib/sync/health-score.ts` (pure scoring). 0..100 numeral with band (green/yellow/red/gray), 70% freshness + 30% (1 - 24h error rate). Click → `/settings/integrations`. The dashboard route was split into a thin async server `page.tsx` + `<DashboardContent />` client island so the score paints on first byte.
+- **Source attribution chips** — `web/src/components/ui/SourceChip.tsx` with `--source-garmin / --source-whoop / --source-apple-watch / --source-manual` CSS tokens in `globals.css`. Used on `BiometricsCard`, `BriefingCard` (a "Signals from: Garmin · Whoop" line under the recovery note), and `MetricStatStrip` on `/progress`. Primary-source attribution (per-day), not per-metric — the merged view's `signals_used` is too lossy to attribute individually.
+- **Sync-aware coach** — `assembleCoachContext` in `web/src/lib/coach/context.ts` now emits a `data_freshness` block (per-source `last_synced_at`, hours-since, `health_state` of `fresh|stale|missing`). `BRIEFING_SYSTEM_PROMPT` gained a `DATA FRESHNESS` worked example so the coach can call out stale sources instead of pretending it has data it doesn't.
+- **Auto-backfill on dashboard mount** — `<AutoBackfillTrigger />` (client island) POSTs to `POST /api/sync/auto-backfill`; `web/src/lib/sync/backfill.ts` detects per-source gaps over the last 7 days, calls `runSync` for sources with gaps, and emits one `sync.auto_backfill` audit row that doubles as a 30-min cooldown gate. UI surfaces "Filled 2 days of Whoop data" then auto-fades; silent on cooldown / no_sources.
+
 ### Parallelization (the v2 directive)
-- Four worktree-isolated tracks ran concurrently: orchestrator, multi-source PK, audit ledger, dashboard UI. Two stale-base bugs caught and corrected mid-flight (cherry-pick onto current `main`, plus an extracted-source onConflict patch during the Track 1 ↔ Track 2 merge). Same parallel-agent dev loop the class is teaching, applied to the project itself.
+- **Eight worktree-isolated tracks across two waves.** Wave 1: orchestrator, multi-source PK, audit ledger, dashboard UI. Wave 2: data health score, source chips, coach awareness, auto-backfill. Three stale-base / overlap bugs caught and resolved at merge time without re-running agents (Track 3's stale base, Track 1↔Track 2 onConflict overlap, Track 5↔Track 6↔Track 8 dashboard.tsx three-way overlap). Same parallel-agent dev loop the class is teaching, applied to the project itself — at twice the scale of v1.
 
 ### Risks accepted
 - Vercel Hobby plan allows two daily crons; one is plenty for v2.
