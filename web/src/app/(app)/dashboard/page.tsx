@@ -38,8 +38,11 @@ export default function DashboardPage() {
     // headroom even if a future toggle bumps `days` to 14.
     const cutoff = new Date(today);
     cutoff.setDate(cutoff.getDate() - 13);
+    // Read from the merged view (migration 013) so users with multiple sources
+    // (Garmin + Whoop + Apple Watch) see one row per day with priority-picked
+    // values, not three rows that would confuse the BiometricsCard trend strip.
     const { data } = await supabase
-      .from('biometrics_daily')
+      .from('biometrics_daily_merged')
       .select('*')
       .gte('date', formatDate(cutoff))
       .order('date', { ascending: false });

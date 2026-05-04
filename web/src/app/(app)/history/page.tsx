@@ -38,8 +38,11 @@ export default function HistoryPage() {
   const fetchBiometricsFor = useCallback(
     async (dates: string[]) => {
       if (dates.length === 0) return;
+      // Merged view (migration 013) — one row per (user_id, date) regardless
+      // of how many sources synced that day, so the timeline cards never show
+      // mismatched HRV from different watches on the same row.
       const { data } = await supabase
-        .from('biometrics_daily')
+        .from('biometrics_daily_merged')
         .select('*')
         .in('date', dates);
       if (!data) return;

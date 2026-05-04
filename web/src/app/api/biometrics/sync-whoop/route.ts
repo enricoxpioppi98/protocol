@@ -411,12 +411,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ rows: [], note: 'no whoop data in window' });
   }
 
-  // Conflict on (user_id, date): the row's `source` becomes 'whoop' on this
-  // write, regardless of what was there before. Latest-write wins is the
-  // documented v1 strategy when the user has multiple wearables connected.
+  // PK is (user_id, date, source) as of migration 013. Whoop rows now coexist
+  // with Garmin/Apple Watch rows for the same date instead of overwriting
+  // them — read sites pull from `biometrics_daily_merged` which picks the
+  // priority winner per metric. (Pre-013 this was a v1-era latest-write-wins
+  // path that silently dropped overlapping data.)
   const { data: rows, error: upsertErr } = await admin
     .from('biometrics_daily')
-    .upsert(upserts, { onConflict: 'user_id,date' })
+    .upsert(upserts, { onConflict: 'user_id,date,source' })
     .select('*');
 
   if (upsertErr) {

@@ -124,8 +124,11 @@ export default function ProgressPage() {
         )
         .gte('date', cutoffStr)
         .is('deleted_at', null),
+      // Merged view (migration 013): one row per day with priority-picked
+      // values across all of the user's connected sources. Charts assume
+      // single rows per day; reading the underlying table would double-count.
       supabase
-        .from('biometrics_daily')
+        .from('biometrics_daily_merged')
         .select('*')
         .gte('date', cutoffStr)
         .order('date', { ascending: true }),
