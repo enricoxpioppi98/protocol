@@ -1,344 +1,62 @@
-'use client';
+import { Suspense } from 'react';
+import { createClient } from '@/lib/supabase/server';
+import { DataHealthCard } from '@/components/dashboard/DataHealthCard';
+import { DashboardContent } from './DashboardContent';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { ArrowRight, MessageSquare, Sparkles } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { useDiary } from '@/lib/hooks/useDiary';
-import { useGoals } from '@/lib/hooks/useGoals';
-import { useUserProfile } from '@/lib/hooks/useUserProfile';
-import { entriesTotals } from '@/lib/utils/macros';
-import { formatDate } from '@/lib/utils/dates';
-import type { BiometricsDaily, DailyBriefing } from '@/lib/types/models';
-import { BiometricsCard } from '@/components/coach/BiometricsCard';
-import { MacrosCard } from '@/components/coach/MacrosCard';
-import { BriefingCard } from '@/components/coach/BriefingCard';
-import { ChatSlideOver } from '@/components/coach/ChatSlideOver';
+/**
+ * Dashboard route — thin async server component.
+ *
+ * The previous incarnation was a client component that did all of its data
+ * loading client-side. Track 5 (data-health-score) added a server-rendered
+ * <DataHealthCard /> at the top of the page; the rest of the dashboard's
+ * interactive body now lives in <DashboardContent />, which we mount as a
+ * client child below. The split keeps the score visible immediately on first
+ * paint without waiting for a JS hydrate + RPC roundtrip.
+ *
+ * Auth: this page sits inside `(app)/layout.tsx` which is a client layout —
+ * unauthenticated users normally never reach it because middleware redirects
+ * them at the route level. We still null-check `user` so we don't 500 if the
+ * cookie races; without a user we just render the client body (which has its
+ * own RLS-scoped fetches that will return empty).
+ */
 
-export default function DashboardPage() {
-  const today = useMemo(() => new Date(), []);
-  const todayStr = useMemo(() => formatDate(today), [today]);
-  const supabase = useMemo(() => createClient(), []);
+export const dynamic = 'force-dynamic';
 
-  const [biometrics, setBiometrics] = useState<BiometricsDaily | null>(null);
-  const [biometricsHistory, setBiometricsHistory] = useState<BiometricsDaily[]>([]);
-  const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
-  const [briefingLoading, setBriefingLoading] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [editingBio, setEditingBio] = useState(false);
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const { entries } = useDiary(today);
-  const { getGoalForDate } = useGoals();
-  const { isOnboarded, loading: profileLoading, pinned, setPinned } = useUserProfile();
-  const goal = getGoalForDate(today);
-  const totals = entriesTotals(entries);
+  // The score card needs a user_id to query against. If we don't have one
+  // (e.g. middleware miss or logged-out preview), skip the card entirely
+  // rather than throwing — the rest of the dashboard still renders.
+  const healthSlot = user ? (
+    <Suspense fallback={<DataHealthSkeleton />}>
+      <DataHealthCard userId={user.id} />
+    </Suspense>
+  ) : null;
 
-  const fetchBiometrics = useCallback(async () => {
-    // Fetch the last 14 days at once — gives the BiometricsCard's trend strip
-    // headroom even if a future toggle bumps `days` to 14.
-    const cutoff = new Date(today);
-    cutoff.setDate(cutoff.getDate() - 13);
-    // Read from the merged view (migration 013) so users with multiple sources
-    // (Garmin + Whoop + Apple Watch) see one row per day with priority-picked
-    // values, not three rows that would confuse the BiometricsCard trend strip.
-    const { data } = await supabase
-      .from('biometrics_daily_merged')
-      .select('*')
-      .gte('date', formatDate(cutoff))
-      .order('date', { ascending: false });
-    const rows = (data as BiometricsDaily[] | null) ?? [];
-    setBiometricsHistory(rows);
-    setBiometrics(rows[0] ?? null);
-  }, [supabase, today]);
-
-  const fetchBriefing = useCallback(async () => {
-    const { data } = await supabase
-      .from('daily_briefing')
-      .select('*')
-      .eq('date', todayStr)
-      .maybeSingle();
-    setBriefing((data as DailyBriefing | null) ?? null);
-  }, [supabase, todayStr]);
-
-  useEffect(() => {
-    fetchBiometrics();
-    fetchBriefing();
-  }, [fetchBiometrics, fetchBriefing]);
-
-  // Realtime: re-fetch when chat tool mutates daily_briefing.workout
-  useEffect(() => {
-    const ch = supabase
-      .channel('dashboard_briefing_rt')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'daily_briefing' },
-        () => {
-          fetchBriefing();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'biometrics_daily' },
-        () => {
-          fetchBiometrics();
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [supabase, fetchBriefing, fetchBiometrics]);
-
-  async function handleSyncGarmin() {
-    const res = await fetch('/api/biometrics/sync', { method: 'POST' });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.warn('garmin sync failed', err);
-      // Surface a one-shot prompt to enter manually if the service isn't configured.
-      if (err?.fallback === 'manual') {
-        setEditingBio(true);
-      }
-    }
-    await fetchBiometrics();
-  }
-
-  async function handleBackfillGarmin(days: number) {
-    const res = await fetch(`/api/biometrics/sync?days=${days}`, { method: 'POST' });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.warn('garmin backfill failed', err);
-      if (err?.fallback === 'manual') {
-        setEditingBio(true);
-      }
-    }
-    await fetchBiometrics();
-  }
-
-  async function handleGenerateBriefing(regenerate: boolean) {
-    setBriefingLoading(true);
-    try {
-      await fetch(
-        `/api/briefing/today${regenerate ? '?regenerate=1' : ''}`,
-        { method: 'POST' }
-      );
-      await fetchBriefing();
-    } finally {
-      setBriefingLoading(false);
-    }
-  }
-
-  // Bryan-Johnson-style date numerals: 04 / 27 / 2026
-  const dateLine = useMemo(() => {
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
-    const y = today.getFullYear();
-    return `${m} / ${d} / ${y}`;
-  }, [today]);
-
-  return (
-    <div className="space-y-5">
-      <header className="mb-2 animate-[fadeIn_0.4s_ease-out]">
-        {/* Mono coordinate / dateline eyebrow */}
-        <div className="flex items-center gap-3 animate-[fadeIn_0.5s_ease-out_0.05s_both]">
-          <div className="eyebrow text-accent">
-            {today.toLocaleDateString('en-US', { weekday: 'long' })}
-          </div>
-          <div className="h-px flex-1 bg-border" />
-          <div className="font-mono text-[10px] tabular-nums uppercase tracking-[0.22em] text-muted/70">
-            {dateLine}
-          </div>
-        </div>
-
-        {/* Display — serif month + numeric day, with italic emphasis */}
-        <h1 className="mt-3 font-serif text-[56px] leading-[0.95] tracking-tight text-foreground sm:text-[68px] animate-[fadeIn_0.5s_ease-out_0.1s_both]">
-          {today.toLocaleDateString('en-US', { month: 'long' })}{' '}
-          <span className="italic text-muted">
-            {today.toLocaleDateString('en-US', { day: 'numeric' })}
-          </span>
-        </h1>
-
-        <p className="mt-3 max-w-md text-sm leading-relaxed text-muted animate-[fadeIn_0.5s_ease-out_0.18s_both]">
-          Today&rsquo;s plan, tuned overnight to last night&rsquo;s recovery
-          and the past three days of training load.
-        </p>
-      </header>
-
-      {!profileLoading && !isOnboarded && (
-        <Link
-          href="/onboarding"
-          className="glass group flex items-center gap-3 rounded-2xl px-4 py-3.5 transition-all hover:bg-glass-3"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent">
-            <Sparkles size={15} />
-          </span>
-          <div className="flex-1">
-            <div className="text-sm font-medium text-foreground">
-              Complete onboarding so Protocol can tailor your plan
-            </div>
-            <div className="mt-0.5 text-xs text-muted">
-              Goals, restrictions, equipment, weekly schedule — 2 minutes.
-            </div>
-          </div>
-          <ArrowRight
-            size={15}
-            className="text-accent transition-transform group-hover:translate-x-0.5"
-          />
-        </Link>
-      )}
-
-      <BiometricsCard
-        biometrics={biometrics}
-        today={todayStr}
-        onSync={handleSyncGarmin}
-        onEdit={() => setEditingBio(true)}
-        history={biometricsHistory}
-        onBackfill={handleBackfillGarmin}
-        pinned={pinned}
-        onChangePinned={setPinned}
-      />
-
-      <MacrosCard totals={totals} goal={goal ?? null} />
-
-      <BriefingCard
-        briefing={briefing}
-        loading={briefingLoading}
-        onGenerate={handleGenerateBriefing}
-        biometrics={biometrics}
-      />
-
-      {/* Floating chat button — glass capsule with serif "ask" */}
-      <button
-        onClick={() => setChatOpen(true)}
-        className="glass-strong group fixed bottom-24 right-4 z-30 inline-flex items-center gap-2 rounded-full pl-4 pr-5 py-3 text-foreground shadow-[0_8px_30px_-8px_rgba(0,0,0,0.45)] transition-all hover:bg-glass-3 lg:bottom-6 lg:right-6"
-        aria-label="Open coach chat"
-      >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-white">
-          <MessageSquare size={14} />
-        </span>
-        <span className="font-serif text-sm italic">ask the coach</span>
-      </button>
-
-      <ChatSlideOver
-        open={chatOpen}
-        onClose={() => setChatOpen(false)}
-        onWorkoutChanged={fetchBriefing}
-      />
-
-      {editingBio ? (
-        <ManualBiometricsModal
-          existing={biometrics}
-          onSave={async (vals) => {
-            await fetch('/api/biometrics/sync', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(vals),
-            });
-            setEditingBio(false);
-            await fetchBiometrics();
-          }}
-          onCancel={() => setEditingBio(false)}
-        />
-      ) : null}
-    </div>
-  );
+  return <DashboardContent headerSlot={healthSlot} />;
 }
 
-function ManualBiometricsModal({
-  existing,
-  onSave,
-  onCancel,
-}: {
-  existing: BiometricsDaily | null;
-  onSave: (vals: Record<string, number | null>) => Promise<void>;
-  onCancel: () => void;
-}) {
-  const [sleepScore, setSleepScore] = useState<string>(
-    existing?.sleep_score?.toString() ?? ''
-  );
-  const [hrv, setHrv] = useState<string>(existing?.hrv_ms?.toString() ?? '');
-  const [rhr, setRhr] = useState<string>(existing?.resting_hr?.toString() ?? '');
-  const [stress, setStress] = useState<string>(
-    existing?.stress_avg?.toString() ?? ''
-  );
-  const [busy, setBusy] = useState(false);
-
+function DataHealthSkeleton() {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
-      onClick={onCancel}
+      className="glass rounded-2xl p-5 opacity-60"
+      aria-busy="true"
+      aria-label="Loading data health"
     >
-      <div
-        className="glass-strong w-full max-w-md rounded-t-2xl p-6 sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="eyebrow">Manual entry</div>
-        <h3 className="mt-1 font-serif text-2xl leading-tight text-foreground">
-          Today&rsquo;s biometrics
-        </h3>
-        <p className="mt-1 text-xs text-muted">
-          Used by the AI coach to tune today&rsquo;s plan.
-        </p>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <Field label="Sleep score" value={sleepScore} onChange={setSleepScore} />
-          <Field label="HRV (ms)" value={hrv} onChange={setHrv} />
-          <Field label="Resting HR" value={rhr} onChange={setRhr} />
-          <Field label="Stress avg" value={stress} onChange={setStress} />
-        </div>
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="rounded-xl px-4 py-2 text-sm text-muted transition-colors hover:bg-glass-2 hover:text-foreground"
-          >
-            Cancel
-          </button>
-          <button
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await onSave({
-                  sleep_score: parseNum(sleepScore),
-                  hrv_ms: parseNum(hrv),
-                  resting_hr: parseNum(rhr),
-                  stress_avg: parseNum(stress),
-                });
-              } finally {
-                setBusy(false);
-              }
-            }}
-            className="rounded-xl border border-accent/40 bg-accent/90 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent disabled:opacity-50"
-          >
-            Save
-          </button>
-        </div>
+      <div className="eyebrow">Data health</div>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="font-serif text-5xl tabular-nums text-muted/40">
+          —
+        </span>
+        <span className="font-mono text-xs tabular-nums text-muted/40">
+          / 100
+        </span>
       </div>
+      <p className="mt-2 text-xs text-muted/60">checking sources…</p>
     </div>
-  );
-}
-
-function parseNum(v: string): number | null {
-  const n = Number(v);
-  return Number.isFinite(n) && v.trim() !== '' ? n : null;
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="eyebrow">{label}</span>
-      <input
-        inputMode="numeric"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-xl border border-border bg-glass-1 px-3 py-2 font-mono text-sm tabular-nums text-foreground outline-none transition-colors focus:border-accent/60 focus:ring-1 focus:ring-accent/40"
-      />
-    </label>
   );
 }
