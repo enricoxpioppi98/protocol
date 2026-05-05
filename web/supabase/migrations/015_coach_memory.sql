@@ -3,8 +3,10 @@
 -- /api/coach/memory/reindex cron, retrieved at chat/briefing generation time
 -- (Track 14) by cosine similarity over the user's own rows.
 --
--- Embedding provider: OpenAI text-embedding-3-small (1536 dims). Picked because
--- it's cheap, fast, and OPENAI_API_KEY is the most common env var to provision.
+-- Embedding provider: Voyage AI `voyage-3` (1024 dims), Anthropic's
+-- recommended embedding partner. Single-vendor with the rest of the AI
+-- stack — no OpenAI key needed purely for embeddings. Configure via
+-- VOYAGE_API_KEY env var.
 --
 -- pgvector ships in Supabase Postgres; no new infra. Cosine distance via the
 -- `<=>` operator; similarity = 1 - distance.
@@ -18,7 +20,7 @@ create table public.coach_memory (
   source_id    text not null,           -- the source table's PK as text
   content      text not null,           -- what was embedded
   metadata     jsonb not null default '{}'::jsonb,
-  embedding    vector(1536) not null,
+  embedding    vector(1024) not null,
   ts           timestamptz not null,    -- when the source thing happened
   indexed_at   timestamptz not null default now(),
   unique (user_id, source_type, source_id)

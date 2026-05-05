@@ -6,16 +6,19 @@
  * time. Track 14 wires `recallRelevant` + `summarizeForPrompt` into the
  * actual chat/briefing routes; this file just owns the data path.
  *
- * Embedding provider: OpenAI text-embedding-3-small (1536 dims). We call the
- * REST endpoint directly with `fetch` rather than pulling in the full `openai`
- * SDK — one endpoint, one shape, not worth the dependency.
+ * Embedding provider: Voyage AI `voyage-3` (1024 dims), Anthropic's
+ * recommended embedding partner. We call the REST endpoint directly with
+ * `fetch` rather than pulling in `voyageai` — one endpoint, one shape, not
+ * worth the dependency. Single-vendor with the rest of the AI stack
+ * (Anthropic for coaching, Voyage for memory) avoids an OpenAI key purely
+ * for embeddings.
  */
 
 import { getAdminClient } from '@/lib/supabase/admin';
 
-const EMBEDDING_MODEL = 'text-embedding-3-small';
-const EMBEDDING_DIMS = 1536;
-const OPENAI_EMBEDDINGS_URL = 'https://api.openai.com/v1/embeddings';
+const EMBEDDING_MODEL = 'voyage-3';
+const EMBEDDING_DIMS = 1024;
+const VOYAGE_EMBEDDINGS_URL = 'https://api.voyageai.com/v1/embeddings';
 
 export interface Recollection {
   /** ISO timestamp of when the source thing happened. */
@@ -37,31 +40,35 @@ export class EmbeddingError extends Error {
 }
 
 /**
- * Embed a single string with OpenAI text-embedding-3-small.
+ * Embed a single string with Voyage AI `voyage-3`.
  *
  * Throws `EmbeddingError` with context on any failure so the cron can audit-
  * log the underlying reason cleanly.
  */
 export async function embed(text: string): Promise<number[]> {
-  const vectors = await embedBatch([text]);
+  const vectors = await embedBatch([text], 'document');
   return vectors[0];
 }
 
 /**
- * Embed up to N strings in one call. OpenAI accepts an array `input`; this is
- * the cron's batching primitive (16 at a time keeps payloads small + retries
- * cheap if a single batch fails).
+ * Embed up to N strings in one call. Voyage accepts an array `input` and an
+ * `input_type` of "document" (for stored corpus) or "query" (for retrieval
+ * queries) — using the right type at each site improves retrieval quality.
+ * 16 at a time keeps payloads small + retries cheap if a single batch fails.
  */
-export async function embedBatch(texts: string[]): Promise<number[][]> {
+export async function embedBatch(
+  texts: string[],
+  inputType: 'document' | 'query' = 'document'
+): Promise<number[][]> {
   if (texts.length === 0) return [];
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.VOYAGE_API_KEY;
   if (!apiKey) {
-    throw new EmbeddingError('OPENAI_API_KEY not set');
+    throw new EmbeddingError('VOYAGE_API_KEY not set');
   }
 
   let res: Response;
   try {
-    res = await fetch(OPENAI_EMBEDDINGS_URL, {
+    res = await fetch(VOYAGE_EMBEDDINGS_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -70,11 +77,12 @@ export async function embedBatch(texts: string[]): Promise<number[][]> {
       body: JSON.stringify({
         model: EMBEDDING_MODEL,
         input: texts,
+        input_type: inputType,
       }),
     });
   } catch (err) {
     throw new EmbeddingError(
-      `openai embeddings fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+      `voyage embeddings fetch failed: ${err instanceof Error ? err.message : String(err)}`,
       err,
     );
   }
@@ -82,7 +90,7 @@ export async function embedBatch(texts: string[]): Promise<number[][]> {
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new EmbeddingError(
-      `openai embeddings HTTP ${res.status}: ${body.slice(0, 300)}`,
+      `voyage embeddings HTTP ${res.status}: ${body.slice(0, 300)}`,
     );
   }
 
@@ -90,13 +98,13 @@ export async function embedBatch(texts: string[]): Promise<number[][]> {
   try {
     json = await res.json();
   } catch (err) {
-    throw new EmbeddingError('openai embeddings returned non-JSON', err);
+    throw new EmbeddingError('voyage embeddings returned non-JSON', err);
   }
 
   const data = (json as { data?: Array<{ embedding?: number[] }> }).data;
   if (!Array.isArray(data) || data.length !== texts.length) {
     throw new EmbeddingError(
-      `openai embeddings shape mismatch: expected ${texts.length} vectors, got ${data?.length ?? 0}`,
+      `voyage embeddings shape mismatch: expected ${texts.length} vectors, got ${data?.length ?? 0}`,
     );
   }
 
@@ -105,7 +113,7 @@ export async function embedBatch(texts: string[]): Promise<number[][]> {
     const v = data[i].embedding;
     if (!Array.isArray(v) || v.length !== EMBEDDING_DIMS) {
       throw new EmbeddingError(
-        `openai embeddings vector ${i} wrong shape (len=${v?.length ?? 0}, want ${EMBEDDING_DIMS})`,
+        `voyage embeddings vector ${i} wrong shape (len=${v?.length ?? 0}, want ${EMBEDDING_DIMS})`,
       );
     }
     vectors.push(v);
@@ -183,7 +191,7 @@ export async function recallRelevant(opts: {
   const trimmed = opts.query.trim();
   if (!trimmed) return [];
 
-  const [queryVector] = await embedBatch([trimmed]);
+  const [queryVector] = await embedBatch([trimmed], 'query');
   const queryLiteral = vectorToLiteral(queryVector);
 
   const admin = getAdminClient();

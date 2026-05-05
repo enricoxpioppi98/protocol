@@ -81,7 +81,7 @@ export interface CoachContext {
   anomalies: AnomalySignal[];
   /**
    * Track 12 — top-k semantically-similar past chat turns and briefings,
-   * retrieved via cosine similarity over OpenAI text-embedding-3-small.
+   * retrieved via cosine similarity over Voyage AI `voyage-3` (1024-dim).
    * Empty array when no past memory crosses the similarity threshold or for
    * brand-new users whose history hasn't been embedded yet.
    */

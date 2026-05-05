@@ -18,7 +18,7 @@ import type {
  *   1. Find chat_messages and daily_briefing rows that don't yet have a
  *      coach_memory row keyed by (user_id, source_type, source_id).
  *   2. Render each row to a single string of "what was said / planned".
- *   3. Embed in batches of 16 with OpenAI text-embedding-3-small.
+ *   3. Embed in batches of 16 with Voyage AI `voyage-3` (input_type=document).
  *   4. Upsert into public.coach_memory (service-role client; RLS bypassed).
  *
  * Bounded per-call by ROW_LIMIT_PER_CALL so a backfill of N months of chat

@@ -14,6 +14,7 @@ import { BiometricsCard } from '@/components/coach/BiometricsCard';
 import { MacrosCard } from '@/components/coach/MacrosCard';
 import { BriefingCard } from '@/components/coach/BriefingCard';
 import { ChatSlideOver } from '@/components/coach/ChatSlideOver';
+import { MorningCheckinCard } from '@/components/coach/MorningCheckinCard';
 import { AutoBackfillTrigger } from '@/components/sync/AutoBackfillTrigger';
 
 /**
@@ -179,6 +180,20 @@ export function DashboardContent({ headerSlot }: Props) {
       </header>
 
       <AutoBackfillTrigger />
+
+      <MorningCheckinCard
+        onAnswered={async () => {
+          // Regenerate the briefing so the morning answer shapes today's plan.
+          // Best-effort — if regen fails we still keep the answer; the user
+          // can hit "Regenerate" on the briefing card manually.
+          try {
+            await fetch('/api/briefing/today?regenerate=1', { method: 'POST' });
+            await fetchBriefing();
+          } catch (err) {
+            console.warn('post-checkin briefing regen failed', err);
+          }
+        }}
+      />
 
       {!profileLoading && !isOnboarded && (
         <Link
