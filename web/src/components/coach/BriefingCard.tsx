@@ -33,6 +33,13 @@ interface Props {
    * BiometricsCard, deliberately consistent.
    */
   biometrics?: BiometricsDaily | null;
+  /**
+   * Wave 6 — live stream of the recovery_note string while a regen is in
+   * flight. When non-null, this displaces the persisted note and renders
+   * with a blinking caret so the user sees the coach "typing" instead of a
+   * spinner. DashboardContent owns the stream state.
+   */
+  streamingNote?: string | null;
 }
 
 const SLOT_DOT: Record<string, string> = {
@@ -49,7 +56,7 @@ function isFresh(regeneratedAt: string | null | undefined): boolean {
   return Date.now() - t < 60_000; // < 1 min ago = "fresh"
 }
 
-export function BriefingCard({ briefing, loading, onGenerate, biometrics }: Props) {
+export function BriefingCard({ briefing, loading, onGenerate, biometrics, streamingNote }: Props) {
   const [busy, setBusy] = useState(false);
   const [logStatus, setLogStatus] = useState<Record<number, LogStatus>>({});
 
@@ -297,16 +304,30 @@ export function BriefingCard({ briefing, loading, onGenerate, biometrics }: Prop
             </div>
           </section>
 
-          {/* Recovery */}
-          {briefing.recovery_note ? (
+          {/* Recovery — streaming preview wins over the persisted note while
+              a regen is in flight, so the user sees the coach "typing" rather
+              than staring at the stale prior recovery_note. */}
+          {streamingNote || briefing.recovery_note ? (
             <>
               <div className="hairline h-px" />
               <section className="rounded-xl border border-accent/20 bg-accent-light p-4">
                 <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-accent">
                   <Heart size={11} /> Recovery note
+                  {streamingNote ? (
+                    <span className="ml-1 inline-flex items-center gap-1 font-mono text-[9px] tracking-[0.2em] text-accent/70">
+                      · streaming
+                    </span>
+                  ) : null}
                 </div>
                 <p className="mt-2 font-serif text-base leading-relaxed text-foreground">
-                  &ldquo;{briefing.recovery_note}&rdquo;
+                  &ldquo;{streamingNote ?? briefing.recovery_note}
+                  {streamingNote ? (
+                    <span
+                      aria-hidden
+                      className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] bg-accent align-baseline animate-pulse"
+                    />
+                  ) : null}
+                  &rdquo;
                 </p>
                 <BriefingSignalSources biometrics={biometrics ?? null} />
               </section>

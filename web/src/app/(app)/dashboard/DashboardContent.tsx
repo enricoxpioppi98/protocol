@@ -10,6 +10,7 @@ import { useUserProfile } from '@/lib/hooks/useUserProfile';
 import { entriesTotals } from '@/lib/utils/macros';
 import { formatDate } from '@/lib/utils/dates';
 import type { BiometricsDaily, DailyBriefing } from '@/lib/types/models';
+import { extractStringField, readSSE } from '@/lib/claude/sseClient';
 import { BiometricsCard } from '@/components/coach/BiometricsCard';
 import { MacrosCard } from '@/components/coach/MacrosCard';
 import { BriefingCard } from '@/components/coach/BriefingCard';
@@ -38,6 +39,13 @@ export function DashboardContent() {
   const [biometricsHistory, setBiometricsHistory] = useState<BiometricsDaily[]>([]);
   const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
   const [briefingLoading, setBriefingLoading] = useState(false);
+  /**
+   * Live stream of the recovery_note string while a regen is in flight.
+   * BriefingCard renders this in place of the persisted note when set,
+   * giving a "live coach typing" feel instead of a 8-second loading
+   * spinner. Cleared when the streaming `briefing` event arrives.
+   */
+  const [streamingNote, setStreamingNote] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [editingBio, setEditingBio] = useState(false);
 
@@ -130,13 +138,63 @@ export function DashboardContent() {
 
   async function handleGenerateBriefing(regenerate: boolean) {
     setBriefingLoading(true);
+    setStreamingNote(null);
     try {
-      await fetch(
-        `/api/briefing/today${regenerate ? '?regenerate=1' : ''}`,
-        { method: 'POST' }
-      );
+      // Initial generation (no row yet) goes through the non-streaming route
+      // — no need for live tokens when the user wasn't watching. Regenerates
+      // (user clicked "Regenerate") use the streaming route so the dashboard
+      // shows the recovery_note appearing token-by-token.
+      if (!regenerate) {
+        await fetch('/api/briefing/today', { method: 'POST' });
+        await fetchBriefing();
+        return;
+      }
+
+      const res = await fetch('/api/briefing/today/stream', {
+        method: 'POST',
+        headers: { Accept: 'text/event-stream' },
+      });
+      if (!res.ok || !res.body) {
+        // Fall back to the non-streaming endpoint so the user always gets a
+        // briefing, even if the streaming route is misconfigured / blocked.
+        console.warn('[briefing] stream HTTP', res.status, '— falling back');
+        await fetch('/api/briefing/today?regenerate=1', { method: 'POST' });
+        await fetchBriefing();
+        return;
+      }
+
+      let partialJson = '';
+      let setNoteSeen = false;
+      for await (const evt of readSSE(res)) {
+        if (evt.event === 'tool_input_delta') {
+          const data = evt.data as { partial_json?: string } | null;
+          if (data?.partial_json) {
+            partialJson += data.partial_json;
+            const note = extractStringField(partialJson, 'recovery_note');
+            if (note !== null) {
+              setStreamingNote(note);
+              setNoteSeen = true;
+            }
+          }
+        } else if (evt.event === 'briefing') {
+          const data = evt.data as { briefing?: DailyBriefing } | null;
+          if (data?.briefing) {
+            setBriefing(data.briefing);
+          }
+        } else if (evt.event === 'error') {
+          const data = evt.data as { message?: string } | null;
+          console.error('[briefing] stream error', data?.message);
+        } else if (evt.event === 'done') {
+          // Server already emitted `briefing` before `done` on success.
+          break;
+        }
+      }
+      // Refetch once to guarantee we have the canonical row even if the
+      // briefing event was missed for any reason.
       await fetchBriefing();
+      void setNoteSeen; // silence the unused warning; useful for future telemetry
     } finally {
+      setStreamingNote(null);
       setBriefingLoading(false);
     }
   }
@@ -240,6 +298,7 @@ export function DashboardContent() {
         loading={briefingLoading}
         onGenerate={handleGenerateBriefing}
         biometrics={biometrics}
+        streamingNote={streamingNote}
       />
 
       {/* Floating chat button — glass capsule with serif "ask" */}
