@@ -6,6 +6,7 @@ import { Target, Key, Download, LogOut, Database, Palette, UtensilsCrossed, Watc
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { SeedDemoButton } from '@/components/settings/SeedDemoButton';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -101,6 +102,11 @@ export default function SettingsPage() {
           Settings
         </h1>
       </header>
+
+      {/* Demo seeder — Track 23 (v3). Mounted at the very top so first-run
+          users with empty dashboards can see it without scrolling. The card
+          self-hides via localStorage once the user has used or dismissed it. */}
+      <SeedDemoButton />
 
       {/* Section: Plan */}
       <SectionLabel n="01" label="Your plan" />
