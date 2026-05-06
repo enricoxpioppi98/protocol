@@ -86,6 +86,27 @@ The \`past_context\` array contains up to 3 semantically-similar past chat turns
 - An empty array means the user has no relevant past context yet (new user or nothing similar embedded). Do not reference recall when empty.
 - If a recall excerpt contradicts today's call (e.g. user previously said "no eggs" and today's plan has eggs), the past constraint wins unless a chat message in the same array explicitly overrode it.
 
+PATTERNS
+The \`patterns\` array contains causal correlations discovered by the nightly cron from THIS user's own 90-day history. Each entry has \`kind\`, \`finding\` (a 1-sentence English description), \`r\` (signed correlation), \`p\` (two-tailed p-value), and \`n\` (sample size). All entries already survived n≥14, |r|≥0.3, p<0.05.
+- These are personal, citable, and statistically grounded. **Use them.** If a pattern materially shapes today's call, quote the finding verbatim or paraphrase tightly: "Note: HRV is 8ms lower on average after dinners past 8pm (n=42, r=-0.61). Tonight's pasta plan flips to 6:30pm." This is the line that separates this app from population-norm advice.
+- Cite the pattern in \`signals_used\` as \`pattern: <kind>\` (e.g. \`pattern: hrv_vs_dinner_time\`). Do this only when the call genuinely shifted because of the pattern, not as a checkbox.
+- Don't overcorrect: a single finding doesn't override clear today-snapshot signals (severe HRV anomaly, declining 3-day trend, missed sleep). Pair patterns with same-direction snapshot signals.
+- Empty array = no significant findings (cold-start or all candidates filtered out). Do NOT make up patterns. Do NOT say "no significant findings" — just don't reference patterns at all.
+
+WEEKLY_REVIEW
+The \`weekly_review\` object (or null) contains the auto-generated summary of LAST week:
+- \`week_start\` / \`week_end\` (ISO YYYY-MM-DD)
+- \`wins\` (string[]): up to 3 specific things that improved or hit targets
+- \`concerns\` (string[]): up to 3 specific things that drifted or missed
+- \`projection\` (string): 1-2 sentences on what next week should emphasize
+- \`paragraph\` (string): a 3-4 sentence overall summary
+Use it to make today's plan COHERENT with last week's narrative:
+- If a "concern" from last week is sleep being light, lead today with a sleep-protective recovery_note even if today's snapshot is borderline-OK.
+- If a "win" was hitting protein every day, reinforce with another high-protein day; don't undermine momentum.
+- The \`projection\` is the coach's prior commitment for this week — honor it unless today's biometrics override.
+- Cite as \`weekly: <one-word descriptor>\` in signals_used (e.g. \`weekly: protect-sleep\`, \`weekly: extend-protein-streak\`).
+- Null = no review yet (cold-start user). Don't invent one; don't reference last week.
+
 GENOME_FLAGS
 The \`genome_flags\` array contains actionable SNPs from the user's uploaded genome (Track 13). Each entry has \`category\`, \`label\`, \`rsid\`, \`genotype\`, \`interpretation\`, \`confidence\` (low|medium|high), and \`actionable_in\` (morning|training|meals|sleep|recovery|general).
 - Treat \`genome_flags\` as the AUTHORITATIVE source on its categories; it supersedes the older free-form \`genome_traits\` dict for caffeine, lactose, ACTN3, COMT, PER3, HFE, ADH1B, APOE.

@@ -3,6 +3,9 @@ import { computeCyclePhase } from '@/lib/cycle/phase';
 import { computeAnomalies, type AnomalySignal } from './anomaly';
 import { recallRelevant, type Recollection } from './memory';
 import { relevantGenomeFlags, type GenomeFlag } from './genome-context';
+import type { PatternFinding } from './correlations';
+import type { WeeklyReviewSummary } from './weekly-review';
+import { getAdminClient } from '@/lib/supabase/admin';
 import type {
   BiometricsDaily,
   BiometricsSource,
@@ -92,6 +95,23 @@ export interface CoachContext {
    * when no genome data has been uploaded.
    */
   genome_flags: GenomeFlag[];
+  /**
+   * Track 24 — top causal patterns discovered by the nightly correlation
+   * cron from the user's own 90-day history. Each finding survived n≥14,
+   * |r|≥0.3, p<0.05. Capped at 5 in the prompt to keep the cache prefix
+   * stable. Empty array on cold-start users (insufficient history) or when
+   * the cron hasn't run yet.
+   */
+  patterns: PatternFinding[];
+  /**
+   * Track 25 — the most recent weekly review summary the cron generated
+   * for this user. Null on cold-start users. The coach uses this to keep
+   * today's plan coherent with last week's wins / concerns / projection
+   * rather than treating each day as a clean slate.
+   */
+  latest_weekly_review:
+    | (WeeklyReviewSummary & { week_start: string; week_end: string })
+    | null;
 }
 
 export interface DataFreshness {
@@ -725,22 +745,31 @@ export async function assembleCoachContext(
   const recallQuery =
     opts.recallQuery ?? buildDefaultRecallQuery(biometrics_today, trends);
 
-  const [anomalies, recall, genome_flags] = await Promise.all([
-    Promise.resolve(
-      computeAnomalies({
-        history: [...allBio].reverse(), // assembleCoachContext keeps allBio newest-first; computeAnomalies wants oldest-first
-        today,
-      })
-    ),
-    recallRelevant({ userId, query: recallQuery }).catch((err) => {
-      console.error('[coach/context] recallRelevant failed', err);
-      return [] as Recollection[];
-    }),
-    relevantGenomeFlags({ userId }).catch((err) => {
-      console.error('[coach/context] relevantGenomeFlags failed', err);
-      return [] as GenomeFlag[];
-    }),
-  ]);
+  const [anomalies, recall, genome_flags, patterns, latest_weekly_review] =
+    await Promise.all([
+      Promise.resolve(
+        computeAnomalies({
+          history: [...allBio].reverse(), // assembleCoachContext keeps allBio newest-first; computeAnomalies wants oldest-first
+          today,
+        })
+      ),
+      recallRelevant({ userId, query: recallQuery }).catch((err) => {
+        console.error('[coach/context] recallRelevant failed', err);
+        return [] as Recollection[];
+      }),
+      relevantGenomeFlags({ userId }).catch((err) => {
+        console.error('[coach/context] relevantGenomeFlags failed', err);
+        return [] as GenomeFlag[];
+      }),
+      loadPatterns(userId).catch((err) => {
+        console.error('[coach/context] loadPatterns failed', err);
+        return [] as PatternFinding[];
+      }),
+      loadLatestWeeklyReview(userId).catch((err) => {
+        console.error('[coach/context] loadLatestWeeklyReview failed', err);
+        return null;
+      }),
+    ]);
 
   return {
     user_id: userId,
@@ -764,6 +793,84 @@ export async function assembleCoachContext(
     anomalies,
     recall,
     genome_flags,
+    patterns,
+    latest_weekly_review,
+  };
+}
+
+/**
+ * Track 24: load the user's currently-surviving correlation findings,
+ * top-5 by absolute r. Read-only via service-role admin to bypass the
+ * read-own RLS in the briefing/chat routes' RLS-scoped clients.
+ */
+async function loadPatterns(userId: string): Promise<PatternFinding[]> {
+  const admin = getAdminClient();
+  const { data, error } = await admin
+    .from('coach_patterns')
+    .select(
+      'pattern_kind, finding_text, metric_a, metric_b, correlation, p_value, sample_size, payload'
+    )
+    .eq('user_id', userId)
+    .order('correlation', { ascending: false }); // we'll re-sort by abs(r) in JS
+  if (error) {
+    console.error('[coach/context] coach_patterns load error', error);
+    return [];
+  }
+  const rows = (data ?? []) as Array<{
+    pattern_kind: string;
+    finding_text: string;
+    metric_a: string;
+    metric_b: string;
+    correlation: number;
+    p_value: number | null;
+    sample_size: number;
+    payload: Record<string, unknown>;
+  }>;
+  return rows
+    .map((r) => ({
+      pattern_kind: r.pattern_kind,
+      finding_text: r.finding_text,
+      metric_a: r.metric_a,
+      metric_b: r.metric_b,
+      correlation: r.correlation,
+      p_value: r.p_value ?? 1,
+      sample_size: r.sample_size,
+      payload: r.payload,
+    }))
+    .sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation))
+    .slice(0, 5);
+}
+
+/**
+ * Track 25: load the most recent weekly review summary, or null if none
+ * exists yet. Returns the parsed summary plus the week_start/week_end
+ * dates so the prompt can frame "last week's wins" with a real range.
+ */
+async function loadLatestWeeklyReview(
+  userId: string
+): Promise<
+  (WeeklyReviewSummary & { week_start: string; week_end: string }) | null
+> {
+  const admin = getAdminClient();
+  const { data, error } = await admin
+    .from('weekly_reviews')
+    .select('week_start, summary')
+    .eq('user_id', userId)
+    .order('week_start', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const summary = data.summary as WeeklyReviewSummary | null;
+  if (!summary) return null;
+  // week_end = week_start + 6 days. Stored as ISO string (UTC midnight).
+  const start = new Date(`${data.week_start}T00:00:00Z`);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  const week_end = end.toISOString().slice(0, 10);
+  return {
+    ...summary,
+    week_start: data.week_start as string,
+    week_end,
   };
 }
 
@@ -1084,6 +1191,28 @@ export function contextToPromptInput(ctx: CoachContext): string {
         confidence: g.confidence,
         actionable_in: g.actionable_in,
       })),
+      // Track 24: top causal patterns from the user's own 90-day history.
+      // Each finding survived n≥14, |r|≥0.3, p<0.05.
+      patterns: ctx.patterns.map((p) => ({
+        kind: p.pattern_kind,
+        finding: p.finding_text,
+        r: round2(p.correlation),
+        p: p.p_value,
+        n: p.sample_size,
+      })),
+      // Track 25: the most recent weekly review, if one exists. The coach
+      // uses this to keep today's plan coherent with last week's narrative
+      // — wins to extend, concerns to address, projection to honor.
+      weekly_review: ctx.latest_weekly_review
+        ? {
+            week_start: ctx.latest_weekly_review.week_start,
+            week_end: ctx.latest_weekly_review.week_end,
+            wins: ctx.latest_weekly_review.wins,
+            concerns: ctx.latest_weekly_review.concerns,
+            projection: ctx.latest_weekly_review.projection,
+            paragraph: ctx.latest_weekly_review.paragraph,
+          }
+        : null,
       blueprint_references: BLUEPRINT_REFERENCES,
     },
     null,
