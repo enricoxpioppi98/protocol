@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   BookOpen,
+  CalendarRange,
   ChefHat,
   History,
   TrendingUp,
@@ -16,11 +17,12 @@ import { cn } from '@/lib/utils/cn';
 const tabs = [
   { href: '/dashboard', label: 'Coach', icon: LayoutDashboard, idx: '01' },
   { href: '/history', label: 'History', icon: History, idx: '02' },
-  { href: '/genome', label: 'Genome', icon: Dna, idx: '03' },
-  { href: '/diary', label: 'Diary', icon: BookOpen, idx: '04' },
-  { href: '/recipes', label: 'Recipes', icon: ChefHat, idx: '05' },
-  { href: '/progress', label: 'Progress', icon: TrendingUp, idx: '06' },
-  { href: '/settings', label: 'Settings', icon: Settings, idx: '07' },
+  { href: '/weekly', label: 'Weekly', icon: CalendarRange, idx: '03' },
+  { href: '/genome', label: 'Genome', icon: Dna, idx: '04' },
+  { href: '/diary', label: 'Diary', icon: BookOpen, idx: '05' },
+  { href: '/recipes', label: 'Recipes', icon: ChefHat, idx: '06' },
+  { href: '/progress', label: 'Progress', icon: TrendingUp, idx: '07' },
+  { href: '/settings', label: 'Settings', icon: Settings, idx: '08' },
 ] as const;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
