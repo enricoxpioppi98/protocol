@@ -1,14 +1,14 @@
 /**
- * Data Health score — a single 0..100 number summarising whether the user's
+ * Sync Health score — a single 0..100 number summarising whether the user's
  * ingestion plumbing is doing its job.
  *
  * Pure function: takes one input object, returns one shape. No DB calls, no
  * date math against `Date.now()` outside of `now` parameter (caller can pin it
- * for deterministic tests). The dashboard's `DataHealthCard` server component
- * gathers the inputs and calls this; nothing else should reimplement the
- * formula.
+ * for deterministic tests). The `SyncHealthCard` server component (mounted
+ * at the top of /settings/integrations) gathers the inputs and calls this;
+ * nothing else should reimplement the formula.
  *
- * Formula (so the dashboard caption can show its work):
+ * Formula (so the card caption can show its work):
  *
  *   per_source_health = 0.7 * freshness + 0.3 * (1 - error_rate)
  *

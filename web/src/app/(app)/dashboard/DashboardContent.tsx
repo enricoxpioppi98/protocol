@@ -18,20 +18,17 @@ import { MorningCheckinCard } from '@/components/coach/MorningCheckinCard';
 import { AutoBackfillTrigger } from '@/components/sync/AutoBackfillTrigger';
 
 /**
- * Dashboard's interactive body. Extracted from `page.tsx` (which is now an
- * async server component that loads the user and renders the server-only
- * <DataHealthCard /> above this).
+ * Dashboard's interactive body.
  *
- * `headerSlot` is the spot where the server page injects DataHealthCard so
- * the score sits above the BiometricsCard but below the date hero. Keeping
- * the slot abstract avoids leaking the score's prop shape into this file.
+ * Wave 5 phase 1 dropped the server-rendered SyncHealthCard slot that used
+ * to live above the date hero — it now lives at the top of
+ * /settings/integrations where its meaning ("ingestion plumbing healthy")
+ * isn't read as "you are healthy". Phase 2 will mount a proper
+ * Readiness card in roughly the same place, using the client-side
+ * `biometrics` state below.
  */
 
-interface Props {
-  headerSlot?: React.ReactNode;
-}
-
-export function DashboardContent({ headerSlot }: Props) {
+export function DashboardContent() {
   const today = useMemo(() => new Date(), []);
   const todayStr = useMemo(() => formatDate(today), [today]);
   const supabase = useMemo(() => createClient(), []);
@@ -217,8 +214,6 @@ export function DashboardContent({ headerSlot }: Props) {
           />
         </Link>
       )}
-
-      {headerSlot}
 
       <BiometricsCard
         biometrics={biometrics}

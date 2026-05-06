@@ -16,6 +16,7 @@ import type { Gender } from '@/lib/types/models';
 import { GarminConnectForm } from '@/components/sync/GarminConnectForm';
 import { SyncNowButton } from '@/components/sync/SyncNowButton';
 import { AuditTimeline, type AuditRow } from '@/components/sync/AuditTimeline';
+import { SyncHealthCard } from '@/components/dashboard/SyncHealthCard';
 
 /**
  * Sync dashboard — the visible v2 artifact.
@@ -304,6 +305,8 @@ export default async function IntegrationsPage() {
           </span>
         </div>
       </header>
+
+      <SyncHealthCard userId={user.id} />
 
       {/* ============== Wearable sources ============== */}
       <div className="flex items-center gap-3 pt-1">

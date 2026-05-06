@@ -1,5 +1,3 @@
-import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
 import { getAdminClient } from '@/lib/supabase/admin';
 import {
   ALL_SYNC_SOURCES,
@@ -17,16 +15,19 @@ import {
 import { cn } from '@/lib/utils/cn';
 
 /**
- * Data Health card — server component. Lives near the top of /dashboard so
- * the user can tell at a glance whether their ingestion plumbing is healthy.
+ * Sync Health card — server component. Lives at the top of
+ * /settings/integrations so users can see whether their ingestion plumbing
+ * is healthy alongside the per-source connection cards.
  *
  * The hard work — pulling per-source connection state, last-synced timestamps
  * (from `biometrics_daily` for pull sources, `apple_watch_tokens.last_used_at`
  * for the push source), and the 24h audit summary — all happens here. The
  * actual score math lives in `lib/sync/health-score.ts` and is unit-testable.
  *
- * The card itself is a click target → /settings/integrations (Track 4's sync
- * dashboard) so the user can drill into the per-source detail.
+ * The card used to live on /dashboard labeled "Data Health", which read as
+ * "your body's health". Renaming + relocating to /settings/integrations
+ * disambiguates: the dashboard now has a Readiness score (about you); this
+ * card is about the data pipeline.
  */
 
 interface Props {
@@ -217,7 +218,7 @@ function buildSubLine(
   return parts.join(' · ');
 }
 
-export async function DataHealthCard({ userId }: Props) {
+export async function SyncHealthCard({ userId }: Props) {
   // Load both halves in parallel — they hit different tables.
   const [connections, audit24h] = await Promise.all([
     loadConnections(userId),
@@ -235,27 +236,18 @@ export async function DataHealthCard({ userId }: Props) {
   // Edge case: zero sources connected → muted "connect a source" CTA.
   if (connectedCount === 0) {
     return (
-      <Link
-        href="/settings/integrations"
-        className="glass group block rounded-2xl p-5 transition-colors hover:bg-glass-3"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="eyebrow">Data health</div>
-            <div className="mt-2 font-serif text-2xl leading-tight text-foreground">
-              No sources connected
-            </div>
-            <p className="mt-1 text-xs text-muted">
-              Connect Garmin, Whoop, or Apple Watch so Protocol can tune your
-              plan to last night&rsquo;s recovery.
-            </p>
+      <div className="glass block rounded-2xl p-5">
+        <div className="min-w-0">
+          <div className="eyebrow">Sync health</div>
+          <div className="mt-2 font-serif text-2xl leading-tight text-foreground">
+            No sources connected
           </div>
-          <ChevronRight
-            size={18}
-            className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5"
-          />
+          <p className="mt-1 text-xs text-muted">
+            Connect Garmin, Whoop, or Apple Watch below so Protocol can tune
+            your plan to last night&rsquo;s recovery.
+          </p>
         </div>
-      </Link>
+      </div>
     );
   }
 
@@ -263,17 +255,16 @@ export async function DataHealthCard({ userId }: Props) {
   const numeralClass = BAND_NUMERAL_CLASS[result.band];
 
   return (
-    <Link
-      href="/settings/integrations"
-      className="glass group block rounded-2xl p-5 transition-colors hover:bg-glass-3"
-      aria-label={`Data health ${result.score ?? '—'} of 100, ${
+    <div
+      className="glass block rounded-2xl p-5"
+      aria-label={`Sync health ${result.score ?? '—'} of 100, ${
         BAND_LABEL[result.band]
       }`}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="eyebrow">Data health</span>
+            <span className="eyebrow">Sync health</span>
             <span
               className={cn(
                 'rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.16em]',
@@ -305,12 +296,6 @@ export async function DataHealthCard({ userId }: Props) {
 
           <p className="mt-2 text-xs text-muted">{subLine}</p>
         </div>
-
-        <ChevronRight
-          size={18}
-          className="shrink-0 text-muted transition-transform group-hover:translate-x-0.5"
-          aria-hidden
-        />
       </div>
 
       {/* Per-source pills — small dot + label, one per source. Disconnected
@@ -347,6 +332,6 @@ export async function DataHealthCard({ userId }: Props) {
           );
         })}
       </ul>
-    </Link>
+    </div>
   );
 }
