@@ -15,6 +15,7 @@ import { MacrosCard } from '@/components/coach/MacrosCard';
 import { BriefingCard } from '@/components/coach/BriefingCard';
 import { ChatSlideOver } from '@/components/coach/ChatSlideOver';
 import { MorningCheckinCard } from '@/components/coach/MorningCheckinCard';
+import { ReadinessHeroCard } from '@/components/dashboard/ReadinessHeroCard';
 import { AutoBackfillTrigger } from '@/components/sync/AutoBackfillTrigger';
 
 /**
@@ -214,6 +215,12 @@ export function DashboardContent() {
           />
         </Link>
       )}
+
+      <ReadinessHeroCard
+        biometrics={biometrics}
+        history={biometricsHistory}
+        todayStr={todayStr}
+      />
 
       <BiometricsCard
         biometrics={biometrics}

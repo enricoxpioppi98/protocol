@@ -238,3 +238,144 @@ export function computeReadiness(
 //    fields, we just rely more heavily on what we have.
 //  - Garmin 'manual' source vs 'garmin' source is irrelevant here; we only
 //    look at the numeric fields.
+
+// ============================================================================
+// Personalized variant (Wave 5 phase 2): uses the user's own trailing baseline
+// for HRV and RHR instead of population norms. Sleep and stress stay absolute
+// (sleep_score is already 0-100 from Garmin, stress is 0-100 from Garmin).
+// ============================================================================
+
+export interface PersonalizedReadinessOpts {
+  today: BiometricsDaily | null;
+  /** All known biometric rows. We slice to days strictly before `todayDate`. */
+  history: BiometricsDaily[];
+  /** ISO YYYY-MM-DD anchor for the baseline window. */
+  todayDate: string;
+  /** Days of trailing history. Default 30. */
+  baselineWindow?: number;
+}
+
+export interface PersonalizedReadinessResult extends ReadinessResult {
+  /** True when at least one of HRV/RHR was scored against the user's own baseline. */
+  personalized: boolean;
+  /** Median used for personalized scoring; null when insufficient data. */
+  personal_baseline: {
+    hrv_ms: number | null;
+    resting_hr: number | null;
+  };
+}
+
+const PERSONAL_BASELINE_MIN_SAMPLES = 7;
+
+interface MetricStats {
+  median: number | null;
+  stdDev: number;
+  n: number;
+}
+
+function metricStats(
+  rows: BiometricsDaily[],
+  field: 'hrv_ms' | 'resting_hr'
+): MetricStats {
+  const vals: number[] = [];
+  for (const r of rows) {
+    const v = r[field];
+    if (typeof v === 'number' && Number.isFinite(v)) vals.push(v);
+  }
+  if (vals.length < PERSONAL_BASELINE_MIN_SAMPLES) {
+    return { median: null, stdDev: 0, n: vals.length };
+  }
+  const sorted = [...vals].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+  const variance =
+    vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length;
+  return { median, stdDev: Math.sqrt(variance), n: vals.length };
+}
+
+/**
+ * Convert a z-score into a 0-100 subscore.
+ *   z =  0  → 70 (in the user's normal range, "fine")
+ *   z = +1  → 90 (a clear positive deviation)
+ *   z = -1  → 50 (a clear negative deviation)
+ *   z = +2  → 100 / z = -2 → 30, clamped.
+ *
+ * `higherIsBetter=true` for HRV (more is better); `false` for RHR.
+ */
+function zToSubscore(
+  todayValue: number | null,
+  stats: MetricStats,
+  higherIsBetter: boolean
+): number | null {
+  if (todayValue == null || stats.median == null) return null;
+  // Floor stdDev at 1 so a flat baseline doesn't divide by zero / produce
+  // implausible z-scores.
+  const sd = Math.max(stats.stdDev, 1);
+  const direction = higherIsBetter ? 1 : -1;
+  const z = ((todayValue - stats.median) / sd) * direction;
+  return clamp(70 + z * 20, 0, 100);
+}
+
+export function computePersonalizedReadiness(
+  opts: PersonalizedReadinessOpts
+): PersonalizedReadinessResult {
+  const { today, history, todayDate } = opts;
+  const window = opts.baselineWindow ?? 30;
+
+  const baselineRows = history.filter((r) => r.date < todayDate).slice(-window);
+  const hrvStats = metricStats(baselineRows, 'hrv_ms');
+  const rhrStats = metricStats(baselineRows, 'resting_hr');
+
+  // Personal-first; fall back to population subscore when baseline is too thin.
+  const hrvPersonal = today ? zToSubscore(today.hrv_ms, hrvStats, true) : null;
+  const rhrPersonal = today ? zToSubscore(today.resting_hr, rhrStats, false) : null;
+
+  const subscores: ReadinessSubscores = {
+    sleep: today ? sleepSubscore(today.sleep_score) : null,
+    hrv: hrvPersonal ?? (today ? hrvSubscore(today.hrv_ms) : null),
+    rhr: rhrPersonal ?? (today ? rhrSubscore(today.resting_hr) : null),
+    stress: today ? stressSubscore(today.stress_avg) : null,
+  };
+
+  const present: Array<{ value: number; weight: number }> = [];
+  if (subscores.sleep != null)
+    present.push({ value: subscores.sleep, weight: WEIGHTS.sleep });
+  if (subscores.hrv != null)
+    present.push({ value: subscores.hrv, weight: WEIGHTS.hrv });
+  if (subscores.rhr != null)
+    present.push({ value: subscores.rhr, weight: WEIGHTS.rhr });
+  if (subscores.stress != null)
+    present.push({ value: subscores.stress, weight: WEIGHTS.stress });
+
+  if (present.length === 0) {
+    return {
+      score: null,
+      band: 'unknown',
+      explanation: explain('unknown', subscores),
+      subscores,
+      personalized: false,
+      personal_baseline: { hrv_ms: hrvStats.median, resting_hr: rhrStats.median },
+    };
+  }
+
+  const totalWeight = present.reduce((s, p) => s + p.weight, 0);
+  const weighted = present.reduce((s, p) => s + p.value * p.weight, 0);
+  const score = Math.round(weighted / totalWeight);
+
+  let band: ReadinessBand;
+  if (score >= 75) band = 'green';
+  else if (score >= 50) band = 'yellow';
+  else band = 'red';
+
+  const personalized =
+    hrvPersonal != null || rhrPersonal != null;
+
+  return {
+    score,
+    band,
+    explanation: explain(band, subscores),
+    subscores,
+    personalized,
+    personal_baseline: { hrv_ms: hrvStats.median, resting_hr: rhrStats.median },
+  };
+}
