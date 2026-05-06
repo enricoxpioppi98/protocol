@@ -13,7 +13,6 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import type { BiometricsDaily, BiometricsSource } from '@/lib/types/models';
 import { cn } from '@/lib/utils/cn';
-import { ReadinessScore } from './ReadinessScore';
 import { BiometricsTrend } from './BiometricsTrend';
 import { SourceChip, freshnessSecondsFrom } from '@/components/ui/SourceChip';
 
@@ -352,7 +351,6 @@ export function BiometricsCard({
         </div>
       ) : (
         <>
-          <ReadinessScore biometrics={biometrics} />
           <MetricsGrid metrics={effectivePinned} biometrics={biometrics} />
           {pickerOpen && canPin ? (
             <MetricsPicker
